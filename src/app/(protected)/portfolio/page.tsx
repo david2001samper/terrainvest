@@ -1,0 +1,343 @@
+"use client";
+
+import { useState } from "react";
+import { usePositions } from "@/hooks/use-positions";
+import { useMarketData } from "@/hooks/use-market-data";
+import { useProfile } from "@/hooks/use-profile";
+import { formatPercent } from "@/lib/format";
+import { useCurrencyFormat } from "@/hooks/use-currency-format";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { AnimatedNumber } from "@/components/animated-number";
+import { PriceFlash } from "@/components/price-flash";
+import { AssetLogo } from "@/components/asset-logo";
+import { AssetAllocationChart } from "@/components/asset-allocation-chart";
+import { LastUpdated } from "@/components/last-updated";
+import { MarketStatusBadge } from "@/components/market-status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  PieChart,
+  BarChart3,
+} from "lucide-react";
+import Link from "next/link";
+
+const PERF_FILTERS = ["1d", "7d", "30d", "ytd", "all"] as const;
+
+export default function PortfolioPage() {
+  const [perfFilter, setPerfFilter] = useState<(typeof PERF_FILTERS)[number]>("all");
+  const [allocationView, setAllocationView] = useState<"asset_class" | "holdings">("asset_class");
+  const { format: formatCurrency, convert, symbol, pnlPrefix } = useCurrencyFormat();
+  const { data: positions, isLoading } = usePositions();
+  const { allAssets, crypto, stocks } = useMarketData();
+  const { data: profile } = useProfile();
+
+  const enrichedPositions = positions?.map((pos) => {
+    const marketData = allAssets.find((a) => a.symbol === pos.symbol);
+    const currentPrice = marketData?.price || pos.entry_price;
+    const currentValue = pos.quantity * currentPrice;
+    const unrealizedPnl = (currentPrice - pos.entry_price) * pos.quantity;
+    const unrealizedPnlPercent =
+      pos.entry_price > 0 ? ((currentPrice - pos.entry_price) / pos.entry_price) * 100 : 0;
+
+    return {
+      ...pos,
+      currentPrice,
+      currentValue,
+      unrealizedPnl,
+      unrealizedPnlPercent,
+      assetType: marketData?.asset_type || "stock",
+      marketState: marketData?.marketState,
+    };
+  }) || [];
+
+  const totalValue = enrichedPositions.reduce((sum, p) => sum + p.currentValue, 0);
+  const totalPnl = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
+  const totalInvested = enrichedPositions.reduce(
+    (sum, p) => sum + p.entry_price * p.quantity,
+    0
+  );
+
+  const portfolioTotal = (profile?.balance ?? 0) + totalValue;
+  const totalReturn = (profile?.total_pnl ?? 0) + totalPnl;
+  const initialBalance = portfolioTotal - totalReturn;
+  const totalReturnPercent =
+    initialBalance > 0 ? (totalReturn / initialBalance) * 100 : 0;
+
+  const latestUpdate = Math.max(crypto.dataUpdatedAt || 0, stocks.dataUpdatedAt || 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Wallet className="w-6 h-6 text-[#00D4FF]" />
+            Portfolio
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Your active positions and performance
+          </p>
+        </div>
+        <LastUpdated dataUpdatedAt={latestUpdate || undefined} />
+      </div>
+
+      {/* Performance time filters */}
+      <Card className="glass-card">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
+              Performance
+            </CardTitle>
+            <div className="flex gap-2">
+              {PERF_FILTERS.map((f) => (
+                <Button
+                  key={f}
+                  variant={perfFilter === f ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPerfFilter(f)}
+                  className={
+                    perfFilter === f
+                      ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"
+                      : ""
+                  }
+                >
+                  {f === "ytd" ? "YTD" : f === "all" ? "All" : f.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-baseline gap-4">
+            <p className="text-2xl font-bold accent-gradient">
+              <AnimatedNumber value={convert(portfolioTotal)} prefix={symbol} />
+            </p>
+            <p
+              className={`text-lg font-medium ${
+                totalReturn >= 0 ? "text-green-400" : "text-[#E53E3E]"
+              }`}
+            >
+              {totalReturn >= 0 ? "+" : ""}
+              {formatCurrency(totalReturn)} ({formatPercent(totalReturnPercent)})
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {perfFilter === "all"
+              ? "All-time return (realized + unrealized)"
+              : `${perfFilter} returns — historical data coming soon`}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Portfolio Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="glass-card-hover accent-border">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Position Value
+            </p>
+            <p className="text-2xl font-bold accent-gradient">
+              <AnimatedNumber value={convert(totalValue)} prefix={symbol} />
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card-hover">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Total Invested
+            </p>
+            <p className="text-2xl font-bold">
+              <AnimatedNumber value={convert(totalInvested)} prefix={symbol} />
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card-hover">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Unrealized P&L
+            </p>
+            <PriceFlash value={totalPnl}>
+              <p className={`text-2xl font-bold ${totalPnl >= 0 ? "text-green-400" : "text-[#E53E3E]"}`}>
+                <AnimatedNumber
+                  value={convert(Math.abs(totalPnl))}
+                  prefix={pnlPrefix(totalPnl >= 0)}
+                />
+              </p>
+            </PriceFlash>
+          </CardContent>
+        </Card>
+        <Card className="glass-card-hover">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Positions
+            </p>
+            <p className="text-2xl font-bold">{enrichedPositions.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Asset Allocation Pie Chart */}
+      <Card className="glass-card">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PieChart className="w-4 h-4 text-[#00D4FF]" />
+              Asset Allocation
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant={allocationView === "asset_class" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAllocationView("asset_class")}
+                className={
+                  allocationView === "asset_class"
+                    ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"
+                    : ""
+                }
+              >
+                By Class
+              </Button>
+              <Button
+                variant={allocationView === "holdings" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAllocationView("holdings")}
+                className={
+                  allocationView === "holdings"
+                    ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"
+                    : ""
+                }
+              >
+                By Holdings
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <AssetAllocationChart
+            positions={enrichedPositions.map((p) => ({
+              symbol: p.symbol,
+              currentValue: p.currentValue,
+              assetType: p.assetType,
+            }))}
+            cashBalance={profile?.balance ?? 0}
+            viewMode={allocationView}
+            currency={profile?.preferred_currency ?? "USD"}
+            formatValue={(v) => formatCurrency(v)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Positions Table */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <PieChart className="w-4 h-4 text-[#00D4FF]" />
+            Open Positions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : enrichedPositions.length === 0 ? (
+            <div className="text-center py-12">
+              <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+              <p className="text-muted-foreground mb-2">No open positions</p>
+              <Link
+                href="/markets"
+                className="text-[#00D4FF] hover:text-[#22D3EE] text-sm font-medium"
+              >
+                Explore Markets →
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Asset</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Quantity</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Entry Price</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Current Price</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Value</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">P&L</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {enrichedPositions.map((pos) => (
+                    <TableRow key={pos.id} className="border-border hover:bg-accent/30">
+                      <TableCell>
+                        <Link
+                          href={`/markets/${encodeURIComponent(pos.symbol)}?type=${pos.assetType}`}
+                          className="flex items-center gap-3 hover:text-[#00D4FF] transition-colors"
+                        >
+                          <AssetLogo symbol={pos.symbol} assetType={pos.assetType} size={32} />
+                          <div>
+                            <p className="font-medium">{pos.symbol}</p>
+                            <Badge variant="outline" className="text-[9px] uppercase mt-0.5 border-border">
+                              {pos.assetType}
+                            </Badge>
+                          </div>
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <MarketStatusBadge assetType={pos.assetType} marketState={pos.marketState} />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {pos.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(pos.entry_price, pos.entry_price < 1 ? 6 : 2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <PriceFlash value={pos.currentPrice}>
+                          {formatCurrency(pos.currentPrice, pos.currentPrice < 1 ? 6 : 2)}
+                        </PriceFlash>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        <AnimatedNumber value={convert(pos.currentValue)} prefix={symbol} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div
+                          className={`flex items-center justify-end gap-1 font-medium ${
+                            pos.unrealizedPnl >= 0 ? "text-green-400" : "text-[#E53E3E]"
+                          }`}
+                        >
+                          {pos.unrealizedPnl >= 0 ? (
+                            <ArrowUpRight className="w-3 h-3" />
+                          ) : (
+                            <ArrowDownRight className="w-3 h-3" />
+                          )}
+                          <span>{formatCurrency(Math.abs(pos.unrealizedPnl))}</span>
+                          <span className="text-xs opacity-70">
+                            ({formatPercent(pos.unrealizedPnlPercent)})
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
