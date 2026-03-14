@@ -65,7 +65,7 @@ export function NavSidebar() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="p-4 flex items-center gap-3 border-b border-border">
+      <Link href="/" className="p-4 flex items-center gap-3 border-b border-border hover:opacity-90 transition-opacity">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center shrink-0 accent-glow">
           <Shield className="w-5 h-5 text-[#0A0B0F]" />
         </div>
@@ -75,7 +75,7 @@ export function NavSidebar() {
             <p className="text-[11px] text-muted-foreground truncate">Premium Trading</p>
           </div>
         )}
-      </div>
+      </Link>
 
       {!collapsed && profile && (
         <div className="p-4 border-b border-border">

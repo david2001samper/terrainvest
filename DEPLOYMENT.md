@@ -93,13 +93,13 @@ Use the URL from your GitHub repo (see [GITHUB.md](./GITHUB.md) if you haven't p
 
 ```bash
 cd ~
-git clone https://github.com/YOUR_USERNAME/terra_invest.git
-cd terra_invest
+git clone https://github.com/YOUR_USERNAME/terrainvest.git
+cd terrainvest
 ```
 
 > If your repo is private, use SSH or a personal access token:
 > ```bash
-> git clone git@github.com:YOUR_USERNAME/terra_invest.git
+> git clone git@github.com:YOUR_USERNAME/terrainvest.git
 > ```
 
 ### 3.2 Install Dependencies
@@ -134,7 +134,7 @@ npm run build
 
 **Option A – Direct command:**
 ```bash
-pm2 start npm --name "terra-invest" -- start
+pm2 start npm --name "terrainvest" -- start
 ```
 
 **Option B – Using ecosystem config (recommended):**
@@ -166,7 +166,7 @@ You should see HTML output.
 ### 4.1 Create Nginx Config
 
 ```bash
-sudo nano /etc/nginx/sites-available/terra-invest
+sudo nano /etc/nginx/sites-available/terrainvest
 ```
 
 Paste (replace `YOUR_DOMAIN` and `YOUR_SERVER_IP`):
@@ -214,7 +214,7 @@ server {
 ### 4.2 Enable Site and Restart Nginx
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/terra-invest /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/terrainvest /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -263,50 +263,139 @@ Certbot sets up a cron job for renewal.
 Create a deploy script for easy updates:
 
 ```bash
-nano ~/terra_invest/deploy.sh
+nano ~/terrainvest/deploy.sh
 ```
 
 ```bash
 #!/bin/bash
 set -e
-cd ~/terra_invest
+cd ~/terrainvest
 git pull
 npm install
 npm run build
-pm2 restart terra-invest
+pm2 restart terrainvest
 echo "Deployment complete! Visit your site to verify."
 ```
 
 ```bash
-chmod +x ~/terra_invest/deploy.sh
+chmod +x ~/terrainvest/deploy.sh
 ```
 
 To deploy updates:
 
 ```bash
-~/terra_invest/deploy.sh
+~/terrainvest/deploy.sh
 ```
 
 ---
 
-## Part 7: Domain Setup (If Using One)
+## Part 7: Point DNS to Your Server
 
-### 7.1 DNS Records
+This section explains how to connect your domain (e.g. `example.com`) to your Linode server so visitors reach your app.
 
-In your domain registrar (e.g. Namecheap, Cloudflare):
+### 7.1 What You Need
 
-| Type | Name | Value        | TTL |
-|------|------|--------------|-----|
-| A    | @    | YOUR_SERVER_IP | 300 |
-| A    | www  | YOUR_SERVER_IP | 300 |
+- **Domain** – purchased from a registrar (Namecheap, GoDaddy, Cloudflare, Google Domains, etc.)
+- **Server IP** – your Linode IPv4 address (e.g. `123.45.67.89`)
 
-### 7.2 Wait for Propagation
+### 7.2 DNS Records to Add
 
-DNS can take 5–60 minutes. Check with:
+Add these **A records** at your domain registrar:
 
-```bash
-dig YOUR_DOMAIN.com +short
-```
+| Type | Name (Host) | Value (Points to) | TTL  |
+|------|-------------|-------------------|------|
+| A    | `@`         | `YOUR_SERVER_IP`  | 300  |
+| A    | `www`       | `YOUR_SERVER_IP`  | 300  |
+
+- **@** = root domain (`example.com`)
+- **www** = subdomain (`www.example.com`)
+- **Value** = your Linode server’s IPv4 address
+
+### 7.3 Step-by-Step by Registrar
+
+#### Namecheap
+
+1. Log in → **Domain List** → click your domain
+2. Go to **Advanced DNS**
+3. Click **Add New Record**
+4. Add:
+   - Type: **A Record**
+   - Host: `@` → Value: `YOUR_SERVER_IP` → TTL: Automatic
+   - Type: **A Record**
+   - Host: `www` → Value: `YOUR_SERVER_IP` → TTL: Automatic
+5. Remove any existing A records for `@` or `www` that point elsewhere (or they’ll conflict)
+6. Save
+
+#### GoDaddy
+
+1. Log in → **My Products** → click your domain → **DNS**
+2. Click **Add** (or **Add Record**)
+3. Add:
+   - Type: **A** → Name: `@` → Value: `YOUR_SERVER_IP` → TTL: 1 Hour
+   - Type: **A** → Name: `www` → Value: `YOUR_SERVER_IP` → TTL: 1 Hour
+4. Delete old A records for `@` and `www` if they exist
+5. Save
+
+#### Cloudflare
+
+1. Log in → select your domain
+2. Go to **DNS** → **Records**
+3. Add:
+   - Type: **A** → Name: `@` → IPv4: `YOUR_SERVER_IP` → Proxy: Off (grey cloud) or On (orange) for CDN
+   - Type: **A** → Name: `www` → IPv4: `YOUR_SERVER_IP` → Proxy: same as above
+4. Remove conflicting A records
+5. Save
+
+> **Cloudflare Proxy (orange cloud):** Hides your server IP and adds CDN. Use **Off** first to test, then enable if you want.
+
+#### Google Domains (now Squarespace)
+
+1. Log in → **My Domains** → click your domain
+2. Go to **DNS** (or **Nameservers**)
+3. Under **Custom records**, add:
+   - Type: **A** → Host: `@` → Data: `YOUR_SERVER_IP` → TTL: 3600
+   - Type: **A** → Host: `www` → Data: `YOUR_SERVER_IP` → TTL: 3600
+4. Remove old A records if needed
+5. Save
+
+#### Linode DNS (if you use Linode for DNS)
+
+1. **DNS** → **Add a domain** (or select existing)
+2. Add records:
+   - Type: **A** → Hostname: (leave blank for root) → IP: `YOUR_SERVER_IP`
+   - Type: **A** → Hostname: `www` → IP: `YOUR_SERVER_IP`
+3. Update your domain’s nameservers at the registrar to Linode’s (e.g. `ns1.linode.com`, `ns2.linode.com`)
+
+### 7.4 Understanding the Fields
+
+| Field | Meaning |
+|-------|---------|
+| **A Record** | Maps a hostname to an IPv4 address |
+| **@** | Root domain (example.com) |
+| **www** | Subdomain (www.example.com) |
+| **TTL** | How long DNS caches the record (300–3600 seconds is fine) |
+| **CNAME** | Points one hostname to another; use A records for root and www for simplicity |
+
+### 7.5 After Adding Records
+
+1. **Wait** – DNS can take 5–60 minutes (sometimes up to 48 hours)
+2. **Check propagation:**
+   ```bash
+   dig example.com +short
+   dig www.example.com +short
+   ```
+   Both should return your server IP.
+3. **Update Nginx** – Ensure your Nginx config has `server_name example.com www.example.com;` (Part 4)
+4. **Get SSL** – Run `sudo certbot --nginx -d example.com -d www.example.com` (Part 5)
+
+### 7.6 Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Domain shows old site | Wait for DNS propagation; clear browser cache |
+| "Site can’t be reached" | Check A records point to correct IP; verify Nginx is running |
+| www doesn’t work | Add A record for `www`; check Nginx `server_name` |
+| Wrong nameservers | If using Cloudflare/Linode DNS, point domain’s nameservers to them first |
 
 ---
 
@@ -324,31 +413,67 @@ In Supabase Dashboard → **Authentication** → **URL Configuration**:
 
 ---
 
-## Part 9: Useful Commands
+## Part 9: Starting Up After a Reboot
+
+When your Linode reboots, run these commands to bring everything back up:
+
+```bash
+# 1. SSH in
+ssh root@YOUR_SERVER_IP
+# (or: ssh terra@YOUR_SERVER_IP if you use the terra user)
+
+# 2. Start the app (PM2)
+cd ~/terrainvest
+pm2 start terrainvest
+# If that fails (app not in PM2), use:
+# pm2 start npm --name "terrainvest" -- start
+
+# 3. Start Nginx (usually auto-starts, but just in case)
+sudo systemctl start nginx
+
+# 4. Verify
+pm2 status
+curl -I http://localhost:3000
+```
+
+**If PM2 says "process not found":** The app was removed from PM2. Start it again:
+
+```bash
+cd ~/terrainvest
+pm2 start npm --name "terrainvest" -- start
+pm2 save
+pm2 startup
+```
+
+**If PM2 already auto-started:** Running `pm2 start terrainvest` will just confirm it's running. Check with `pm2 status`.
+
+---
+
+## Part 10: Useful Commands
 
 | Task              | Command                          |
 |-------------------|----------------------------------|
-| View logs         | `pm2 logs terra-invest`          |
-| Restart app       | `pm2 restart terra-invest`       |
-| Stop app          | `pm2 stop terra-invest`          |
+| View logs         | `pm2 logs terrainvest`          |
+| Restart app       | `pm2 restart terrainvest`       |
+| Stop app          | `pm2 stop terrainvest`          |
 | Nginx status      | `sudo systemctl status nginx`    |
 | Nginx reload      | `sudo systemctl reload nginx`    |
 
 ---
 
-## Part 10: Troubleshooting
+## Part 11: Troubleshooting
 
 ### App won't start
 
 ```bash
-pm2 logs terra-invest --lines 50
+pm2 logs terrainvest --lines 50
 ```
 
 Check `.env.local` and that `npm run build` succeeds.
 
 ### 502 Bad Gateway
 
-- App not running: `pm2 restart terra-invest`
+- App not running: `pm2 restart terrainvest`
 - Wrong port: Nginx should proxy to `http://127.0.0.1:3000`
 
 ### Auth redirect issues
@@ -386,16 +511,16 @@ sudo apt install -y nodejs nginx git
 sudo npm install -g pm2
 
 # 4. Deploy
-cd ~ && git clone YOUR_REPO terra_invest && cd terra_invest
+cd ~ && git clone YOUR_REPO terrainvest && cd terrainvest
 npm install
 nano .env.local   # Add Supabase vars
 npm run build
-pm2 start npm --name "terra-invest" -- start
+pm2 start npm --name "terrainvest" -- start
 pm2 save && pm2 startup
 
 # 5. Nginx
-sudo nano /etc/nginx/sites-available/terra-invest   # Config from Part 4
-sudo ln -s /etc/nginx/sites-available/terra-invest /etc/nginx/sites-enabled/
+sudo nano /etc/nginx/sites-available/terrainvest   # Config from Part 4
+sudo ln -s /etc/nginx/sites-available/terrainvest /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl restart nginx
 sudo ufw allow 22,80,443 && sudo ufw enable
 ```

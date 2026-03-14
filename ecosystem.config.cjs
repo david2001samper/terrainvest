@@ -5,7 +5,7 @@
 module.exports = {
   apps: [
     {
-      name: "terra-invest",
+      name: "terrainvest",
       script: "npm",
       args: "start",
       cwd: __dirname,

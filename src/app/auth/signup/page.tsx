@@ -58,9 +58,11 @@ export default function SignupPage() {
 
       <Card className="w-full max-w-md glass-card accent-border relative z-10">
         <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center accent-glow">
-            <Shield className="w-8 h-8 text-[#0A0B0F]" />
-          </div>
+          <Link href="/" className="mx-auto block w-fit hover:opacity-90 transition-opacity">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center accent-glow">
+              <Shield className="w-8 h-8 text-[#0A0B0F]" />
+            </div>
+          </Link>
           <div>
             <h1 className="text-2xl font-bold accent-gradient">Create Account</h1>
             <p className="text-muted-foreground text-sm mt-1">

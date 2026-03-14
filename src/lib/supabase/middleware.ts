@@ -31,10 +31,21 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ["/auth/login", "/auth/signup", "/"];
+  const publicPaths = ["/auth/login", "/auth/signup", "/auth/callback", "/"];
   const isPublicPath = publicPaths.includes(pathname);
 
-  if (!user && !isPublicPath && pathname !== "/") {
+  if (user && pathname === "/") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const url = request.nextUrl.clone();
+    url.pathname = profile?.role === "admin" ? "/admin" : "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);

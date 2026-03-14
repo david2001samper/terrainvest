@@ -131,7 +131,9 @@ export default function AdminSettingsPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Starting balance for new users. Fee applied to each trade.
+              Starting balance for new users. Set to 0 for no starting balance. Requires{" "}
+              <code className="text-[10px] bg-muted px-1 rounded">supabase-migration-default-balance.sql</code>{" "}
+              to be run in Supabase SQL Editor (one-time).
             </p>
             <Button
               onClick={saveSettings}
