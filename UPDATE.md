@@ -36,6 +36,8 @@ If the update includes new SQL migrations:
 **Migration files:**
 - `supabase-migration-default-balance.sql` – default balance for new users
 - `supabase-migration-deposits-withdrawals.sql` – deposits, withdrawals, lock accounts, content pages
+- `supabase-migration-home-content.sql` – home page editable sections (journey, mission, values, CTA)
+- `supabase-migration-testimonials.sql` – client testimonials & video testimonials for homepage
 
 ---
 

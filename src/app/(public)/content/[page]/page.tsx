@@ -1,10 +1,6 @@
-"use client";
-
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowLeft, Shield } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { getContent } from "@/lib/content";
 
 const PAGE_TITLES: Record<string, string> = {
   about: "About Us",
@@ -14,21 +10,18 @@ const PAGE_TITLES: Record<string, string> = {
   support: "Support",
 };
 
-export default function ContentPage() {
-  const params = useParams();
-  const page = (params.page as string) ?? "about";
+const VALID_PAGES = ["about", "terms", "privacy", "contact", "support"];
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["content", page],
-    queryFn: async () => {
-      const res = await fetch(`/api/content?page=${page}`);
-      if (!res.ok) return { content: "" };
-      return res.json();
-    },
-  });
+export default async function ContentPage({
+  params,
+}: {
+  params: Promise<{ page: string }>;
+}) {
+  const { page } = await params;
+  const validPage = VALID_PAGES.includes(page) ? page : "about";
+  const title = PAGE_TITLES[validPage] ?? "Page";
 
-  const title = PAGE_TITLES[page] ?? "Page";
-  const content = data?.content ?? "";
+  const content = await getContent(validPage);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -52,13 +45,11 @@ export default function ContentPage() {
 
       <main className="relative z-10 px-6 lg:px-12 py-12 max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">{title}</h1>
-        {isLoading ? (
-          <Skeleton className="h-64 w-full" />
-        ) : content ? (
+        {content ? (
           <div className="prose prose-invert prose-sm max-w-none">
-            <pre className="whitespace-pre-wrap font-sans text-muted-foreground leading-relaxed bg-transparent p-0 border-0">
+            <div className="whitespace-pre-wrap font-sans text-muted-foreground leading-relaxed">
               {content}
-            </pre>
+            </div>
           </div>
         ) : (
           <p className="text-muted-foreground">No content available yet.</p>

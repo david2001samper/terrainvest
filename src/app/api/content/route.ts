@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,14 +20,16 @@ export async function GET(request: NextRequest) {
     };
     const key = keyMap[page];
 
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const { data } = await supabase
       .from("platform_settings")
       .select("value")
       .eq("key", key)
       .single();
 
-    return NextResponse.json({ content: data?.value ?? "" });
+    return NextResponse.json({ content: data?.value ?? "" }, {
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    });
   } catch {
     return NextResponse.json({ content: "" });
   }

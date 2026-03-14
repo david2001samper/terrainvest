@@ -34,12 +34,13 @@ export async function updateSession(request: NextRequest) {
   const publicPaths = ["/auth/login", "/auth/signup", "/auth/callback", "/"];
   const isPublicPath = publicPaths.includes(pathname) || pathname.startsWith("/content/");
 
+  let profile: { role?: string } | null = null;
+  if (user) {
+    const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    profile = data;
+  }
+
   if (user && pathname === "/") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
     const url = request.nextUrl.clone();
     url.pathname = profile?.role === "admin" ? "/admin" : "/dashboard";
     return NextResponse.redirect(url);
@@ -53,21 +54,11 @@ export async function updateSession(request: NextRequest) {
 
   if (user && (pathname === "/auth/login" || pathname === "/auth/signup")) {
     const url = request.nextUrl.clone();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
     url.pathname = profile?.role === "admin" ? "/admin" : "/dashboard";
     return NextResponse.redirect(url);
   }
 
   if (user && pathname === "/dashboard") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
     if (profile?.role === "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/admin";
@@ -81,12 +72,6 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/auth/login";
       return NextResponse.redirect(url);
     }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
     if (!profile || profile.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";

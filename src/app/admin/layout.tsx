@@ -16,6 +16,7 @@ import {
   Layers,
   TrendingUp,
   ArrowUpCircle,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,7 @@ const adminNav = [
   { href: "/admin/trades", label: "All Trades", icon: History },
   { href: "/admin/assets", label: "Assets", icon: Layers },
   { href: "/admin/price-overrides", label: "Price Overrides", icon: TrendingUp },
+  { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquare },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

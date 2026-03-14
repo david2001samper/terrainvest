@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -25,6 +26,7 @@ export async function GET() {
         "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
         "wallet_btc", "wallet_usdt",
         "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+        "home_journey", "home_mission", "home_values", "home_cta",
       ]);
 
     if (error) throw error;
@@ -56,6 +58,10 @@ export async function GET() {
       privacy_policy: settings.privacy_policy ?? "",
       contact_us: settings.contact_us ?? "",
       support: settings.support ?? "",
+      home_journey: settings.home_journey ?? "",
+      home_mission: settings.home_mission ?? "",
+      home_values: settings.home_values ?? "",
+      home_cta: settings.home_cta ?? "",
     });
   } catch (error) {
     console.error("Settings error:", error);
@@ -74,6 +80,7 @@ export async function PATCH(request: NextRequest) {
       "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
       "wallet_btc", "wallet_usdt",
       "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+      "home_journey", "home_mission", "home_values", "home_cta",
     ];
 
     for (const key of keys) {
@@ -95,6 +102,9 @@ export async function PATCH(request: NextRequest) {
           { onConflict: "key" }
         );
     }
+
+    revalidateTag("content");
+    revalidateTag("home");
 
     return NextResponse.json({ success: true });
   } catch (error) {

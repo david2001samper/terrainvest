@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText } from "lucide-react";
+import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText, Home } from "lucide-react";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
@@ -25,6 +25,10 @@ export default function AdminSettingsPage() {
   const [privacyPolicy, setPrivacyPolicy] = useState("");
   const [contactUs, setContactUs] = useState("");
   const [support, setSupport] = useState("");
+  const [homeJourney, setHomeJourney] = useState("");
+  const [homeMission, setHomeMission] = useState("");
+  const [homeValues, setHomeValues] = useState("");
+  const [homeCta, setHomeCta] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -49,6 +53,10 @@ export default function AdminSettingsPage() {
       setPrivacyPolicy(settings.privacy_policy ?? "");
       setContactUs(settings.contact_us ?? "");
       setSupport(settings.support ?? "");
+      setHomeJourney(settings.home_journey ?? "");
+      setHomeMission(settings.home_mission ?? "");
+      setHomeValues(settings.home_values ?? "");
+      setHomeCta(settings.home_cta ?? "");
       if (settings.currency_rates) {
         const rates: Record<string, string> = {};
         for (const c of CURRENCIES) {
@@ -83,6 +91,10 @@ export default function AdminSettingsPage() {
           privacy_policy: privacyPolicy,
           contact_us: contactUs,
           support,
+          home_journey: homeJourney,
+          home_mission: homeMission,
+          home_values: homeValues,
+          home_cta: homeCta,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -319,6 +331,57 @@ export default function AdminSettingsPage() {
             <Button onClick={saveSettings} disabled={saving} variant="outline">
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Save Content
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Home className="w-4 h-4 text-[#00D4FF]" />
+              Home Page Sections (editable)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Our Journey</Label>
+              <Textarea
+                value={homeJourney}
+                onChange={(e) => setHomeJourney(e.target.value)}
+                placeholder="About our journey..."
+                className="bg-background/50 min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Our Mission</Label>
+              <Textarea
+                value={homeMission}
+                onChange={(e) => setHomeMission(e.target.value)}
+                placeholder="Our mission..."
+                className="bg-background/50 min-h-[60px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Our Values</Label>
+              <Input
+                value={homeValues}
+                onChange={(e) => setHomeValues(e.target.value)}
+                placeholder="e.g. Integrity • Innovation • Excellence"
+                className="bg-background/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Call to Action (bottom section)</Label>
+              <Textarea
+                value={homeCta}
+                onChange={(e) => setHomeCta(e.target.value)}
+                placeholder="Join thousands of investors..."
+                className="bg-background/50 min-h-[60px]"
+              />
+            </div>
+            <Button onClick={saveSettings} disabled={saving} variant="outline">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Home Content
             </Button>
           </CardContent>
         </Card>

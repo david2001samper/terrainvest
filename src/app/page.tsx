@@ -1,16 +1,32 @@
 import Link from "next/link";
 import {
   Shield,
-  TrendingUp,
   BarChart3,
   Globe,
   ArrowRight,
   Lock,
   Zap,
-  Award,
+  Target,
+  Heart,
 } from "lucide-react";
+import { getHomeContent } from "@/lib/content";
+import { LiveMarketSnapshot } from "@/components/live-market-snapshot";
+import { getClientTestimonials, getVideoTestimonials } from "@/lib/testimonials";
+import { ClientTestimonialsCarousel } from "@/components/client-testimonials-carousel";
+import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const [content, clientTestimonials, videoTestimonials] = await Promise.all([
+    getHomeContent(),
+    getClientTestimonials(),
+    getVideoTestimonials(),
+  ]);
+
+  const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
+  const mission = content.home_mission || "To provide institutional-grade trading tools and execution to every investor, with transparency, security, and exceptional support at the core of everything we do.";
+  const values = content.home_values || "Integrity • Innovation • Client-First • Excellence • Trust";
+  const cta = content.home_cta || "Join thousands of investors who trust Terra Invest VIP for their trading needs. Open your account today and experience the difference.";
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background effects */}
@@ -43,73 +59,112 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="relative z-10 px-6 lg:px-12 pt-20 pb-32 max-w-7xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/20 text-[#00D4FF] text-xs font-medium mb-8">
-          <Award className="w-3 h-3" />
-          Exclusive VIP Access
-        </div>
-        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight max-w-4xl mx-auto">
-          Premium Trading for{" "}
-          <span className="accent-gradient">Elite Investors</span>
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight max-w-5xl mx-auto">
+          Terra Invest Vip – Exclusive Trading Access for High-Net-Worth Individuals
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mt-6 leading-relaxed">
-          Access global markets with institutional-grade execution. Cryptocurrencies,
-          stocks, commodities, and indexes — all from one sophisticated platform.
+        <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mt-6 leading-relaxed">
+          Real-time markets • Advanced tools • Private experience
         </p>
-        <div className="flex items-center justify-center gap-4 mt-10">
+        <div className="flex flex-wrap items-center justify-center gap-4 mt-10">
           <Link
             href="/auth/signup"
             className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] rounded-xl hover:from-[#22D3EE] hover:to-[#00D4FF] transition-all accent-glow"
           >
-            Open Account
+            Create VIP Account
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             href="/auth/login"
             className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium border border-border text-foreground rounded-xl hover:border-[#00D4FF]/30 hover:bg-[#00D4FF]/5 transition-all"
           >
-            Sign In
+            Login
           </Link>
         </div>
       </section>
 
       {/* Features */}
-      <section className="relative z-10 px-6 lg:px-12 pb-32 max-w-7xl mx-auto">
+      <section className="relative z-10 px-6 lg:px-12 pb-20 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            {
-              icon: Globe,
-              title: "Global Markets",
-              desc: "Trade crypto, stocks, commodities, and major indexes worldwide.",
-            },
-            {
-              icon: Zap,
-              title: "Instant Execution",
-              desc: "Market orders executed in milliseconds with best-price guarantee.",
-            },
-            {
-              icon: BarChart3,
-              title: "Live Analytics",
-              desc: "Real-time charts, portfolio tracking, and performance insights.",
-            },
-            {
-              icon: Lock,
-              title: "Bank-Grade Security",
-              desc: "Enterprise-level encryption and multi-factor authentication.",
-            },
+            { icon: Globe, title: "Global Markets", desc: "Trade crypto, stocks, commodities, and major indexes worldwide." },
+            { icon: Zap, title: "Instant Execution", desc: "Market orders executed in milliseconds with best-price guarantee." },
+            { icon: BarChart3, title: "Live Analytics", desc: "Real-time charts, portfolio tracking, and performance insights." },
+            { icon: Lock, title: "Bank-Grade Security", desc: "Enterprise-level encryption and multi-factor authentication." },
           ].map((feature) => (
-            <div
-              key={feature.title}
-              className="glass-card-hover p-6 rounded-xl"
-            >
+            <div key={feature.title} className="glass-card-hover p-6 rounded-xl">
               <div className="w-11 h-11 rounded-xl bg-[#00D4FF]/10 flex items-center justify-center mb-4">
                 <feature.icon className="w-5 h-5 text-[#00D4FF]" />
               </div>
               <h3 className="font-semibold mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {feature.desc}
-              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Live Market Snapshot */}
+      <LiveMarketSnapshot />
+
+      {/* Our Journey */}
+      <section className="relative z-10 px-6 lg:px-12 py-20 max-w-7xl mx-auto">
+        <div className="glass-card p-8 lg:p-12 rounded-2xl">
+          <div className="flex items-center gap-2 mb-6">
+            <Target className="w-6 h-6 text-[#00D4FF]" />
+            <h2 className="text-2xl font-bold">Our Journey</h2>
+          </div>
+          <p className="text-muted-foreground leading-relaxed max-w-3xl">
+            {journey}
+          </p>
+        </div>
+      </section>
+
+      {/* Mission & Values */}
+      <section className="relative z-10 px-6 lg:px-12 pb-20 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="glass-card-hover p-8 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-5 h-5 text-[#00D4FF]" />
+              <h3 className="text-xl font-bold">Our Mission</h3>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">{mission}</p>
+          </div>
+          <div className="glass-card-hover p-8 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Heart className="w-5 h-5 text-[#00D4FF]" />
+              <h3 className="text-xl font-bold">Our Values</h3>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">{values}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* What Our Clients Say */}
+      <ClientTestimonialsCarousel testimonials={clientTestimonials} />
+
+      {/* Client Video Testimonials */}
+      <VideoTestimonialsCarousel testimonials={videoTestimonials} />
+
+      {/* CTA Section */}
+      <section className="relative z-10 px-6 lg:px-12 pb-32 max-w-7xl mx-auto">
+        <div className="glass-card accent-border p-12 lg:p-16 rounded-2xl text-center">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+            {cta}
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] rounded-xl hover:from-[#22D3EE] hover:to-[#00D4FF] transition-all accent-glow"
+            >
+              Get Started
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/content/contact"
+              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium border border-border text-foreground rounded-xl hover:border-[#00D4FF]/30 hover:bg-[#00D4FF]/5 transition-all"
+            >
+              Contact Us
+            </Link>
+          </div>
         </div>
       </section>
 
