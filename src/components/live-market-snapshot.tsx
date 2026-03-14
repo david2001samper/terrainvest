@@ -1,9 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMarketData } from "@/hooks/use-market-data";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { AssetLogo } from "@/components/asset-logo";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+
+const SNAPSHOT_SYMBOLS = ["BTC", "ETH", "AAPL", "TSLA", "GC=F", "CL=F", "^GSPC", "^IXIC"];
 
 const DISPLAY_NAMES: Record<string, string> = {
   BTC: "BTC/USD",
@@ -16,23 +19,36 @@ const DISPLAY_NAMES: Record<string, string> = {
 
 interface SnapshotAsset {
   symbol: string;
-  name: string;
+  name?: string;
   price: number;
-  changePercent24h: number;
+  changePercent24h?: number;
   asset_type: string;
 }
 
+async function fetchSnapshotFallback(): Promise<SnapshotAsset[]> {
+  const res = await fetch("/api/market/snapshot");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export function LiveMarketSnapshot() {
-  const { data: assets = [], isLoading } = useQuery<SnapshotAsset[]>({
+  const { data: snapshotData, isLoading: loadingSnapshot } = useQuery({
     queryKey: ["market", "snapshot"],
-    queryFn: async () => {
-      const res = await fetch("/api/market/snapshot");
-      if (!res.ok) return [];
-      return res.json();
-    },
-    refetchInterval: 10000,
-    staleTime: 8000,
+    queryFn: fetchSnapshotFallback,
+    staleTime: 10000,
+    refetchInterval: 15000,
+    retry: 3,
+    retryDelay: 2000,
   });
+
+  const { allAssets, isLoading: loadingMarket } = useMarketData();
+
+  const primaryAssets = SNAPSHOT_SYMBOLS.map((sym) =>
+    allAssets.find((a) => a.symbol === sym)
+  ).filter(Boolean) as SnapshotAsset[];
+
+  const assets = (snapshotData?.length ?? 0) > 0 ? (snapshotData ?? []) : primaryAssets;
+  const isLoading = (loadingSnapshot || loadingMarket) && assets.length === 0;
 
   if (isLoading && assets.length === 0) {
     return (
