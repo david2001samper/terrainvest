@@ -30,7 +30,7 @@ export default async function ContentPage({
 
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-6 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-            <PlatformLogo size={48} className="shrink-0" />
+            <PlatformLogo size={96} className="shrink-0" />
           <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
         </Link>
         <Link

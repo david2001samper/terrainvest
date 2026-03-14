@@ -5,7 +5,7 @@ interface PlatformLogoProps {
   className?: string;
 }
 
-export function PlatformLogo({ size = 48, className = "" }: PlatformLogoProps) {
+export function PlatformLogo({ size = 96, className = "" }: PlatformLogoProps) {
   return (
     <Image
       src="/logo.png"

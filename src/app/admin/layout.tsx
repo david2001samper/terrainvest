@@ -50,7 +50,7 @@ export default function AdminLayout({
     <div className="flex min-h-screen">
       <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 glass-card border-r border-border">
         <Link href="/" className="p-4 border-b border-border flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <PlatformLogo size={48} className="shrink-0" />
+          <PlatformLogo size={96} className="shrink-0" />
           <div>
             <h2 className="font-bold text-sm">Admin Panel</h2>
             <p className="text-[11px] text-muted-foreground">Terra Invest VIP</p>
