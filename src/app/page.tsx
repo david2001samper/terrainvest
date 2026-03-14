@@ -10,7 +10,6 @@ import {
   Heart,
 } from "lucide-react";
 import { getHomeContent } from "@/lib/content";
-import { LiveMarketSnapshot } from "@/components/live-market-snapshot";
 import { getClientTestimonials, getVideoTestimonials } from "@/lib/testimonials";
 import { ClientTestimonialsCarousel } from "@/components/client-testimonials-carousel";
 import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
@@ -100,9 +99,6 @@ export default async function LandingPage() {
           ))}
         </div>
       </section>
-
-      {/* Live Market Snapshot */}
-      <LiveMarketSnapshot />
 
       {/* What Our Clients Say */}
       <ClientTestimonialsCarousel testimonials={clientTestimonials} />
