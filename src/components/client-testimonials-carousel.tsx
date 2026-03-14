@@ -22,11 +22,6 @@ export function ClientTestimonialsCarousel({ testimonials }: ClientTestimonialsC
             key={t.id}
             className="glass-card-hover flex-shrink-0 w-[min(340px,85vw)] snap-center rounded-2xl p-6 flex flex-col items-center text-center"
           >
-            <img
-              src={t.headshot_url}
-              alt=""
-              className="w-20 h-20 rounded-full object-cover border-2 border-[#00D4FF]/20 mb-4"
-            />
             <Quote className="w-8 h-8 text-[#00D4FF]/40 mb-3" />
             <p className="text-muted-foreground leading-relaxed mb-4 flex-1">
               &ldquo;{t.quote}&rdquo;

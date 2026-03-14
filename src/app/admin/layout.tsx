@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import {
-  Shield,
   Users,
   BarChart3,
   History,
@@ -18,6 +17,7 @@ import {
   ArrowUpCircle,
   MessageSquare,
 } from "lucide-react";
+import { PlatformLogo } from "@/components/platform-logo";
 import { Button } from "@/components/ui/button";
 
 const adminNav = [
@@ -50,9 +50,7 @@ export default function AdminLayout({
     <div className="flex min-h-screen">
       <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 glass-card border-r border-border">
         <Link href="/" className="p-4 border-b border-border flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
+          <PlatformLogo size={40} className="shrink-0" />
           <div>
             <h2 className="font-bold text-sm">Admin Panel</h2>
             <p className="text-[11px] text-muted-foreground">Terra Invest VIP</p>

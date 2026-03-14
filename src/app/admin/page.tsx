@@ -10,8 +10,8 @@ import {
   DollarSign,
   TrendingUp,
   Activity,
-  Shield,
 } from "lucide-react";
+import { PlatformLogo } from "@/components/platform-logo";
 
 export default function AdminDashboard() {
   const { data: analytics, isLoading } = useQuery({
@@ -70,9 +70,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-white" />
-        </div>
+        <PlatformLogo size={40} />
         <div>
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground text-sm">Platform overview and management</p>

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PlatformLogo } from "@/components/platform-logo";
 import { getContent } from "@/lib/content";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -29,9 +30,7 @@ export default async function ContentPage({
 
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-6 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center accent-glow">
-            <Shield className="w-5 h-5 text-[#0A0B0F]" />
-          </div>
+            <PlatformLogo size={40} className="shrink-0" />
           <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
         </Link>
         <Link

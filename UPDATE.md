@@ -38,6 +38,7 @@ If the update includes new SQL migrations:
 - `supabase-migration-deposits-withdrawals.sql` – deposits, withdrawals, lock accounts, content pages
 - `supabase-migration-home-content.sql` – home page editable sections (journey, mission, values, CTA)
 - `supabase-migration-testimonials.sql` – client testimonials & video testimonials for homepage
+- `supabase-migration-fix-signup-trigger.sql` – fix "Database error saving new user" on signup
 
 ---
 

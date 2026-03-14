@@ -17,7 +17,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Menu,
   X,
   Settings,
@@ -25,6 +24,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
 } from "lucide-react";
+import { PlatformLogo } from "@/components/platform-logo";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -70,9 +70,7 @@ export function NavSidebar() {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       <Link href="/" className="p-4 flex items-center gap-3 border-b border-border hover:opacity-90 transition-opacity">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center shrink-0 accent-glow">
-          <Shield className="w-5 h-5 text-[#0A0B0F]" />
-        </div>
+        <PlatformLogo size={40} className="shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
             <h2 className="font-bold text-sm accent-gradient truncate">Terra Invest VIP</h2>

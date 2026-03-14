@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Eye, EyeOff, UserPlus, Shield } from "lucide-react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { PlatformLogo } from "@/components/platform-logo";
 
 export default function SignupPage() {
   const [displayName, setDisplayName] = useState("");
@@ -59,9 +60,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md glass-card accent-border relative z-10">
         <CardHeader className="text-center space-y-4 pb-2">
           <Link href="/" className="mx-auto block w-fit hover:opacity-90 transition-opacity">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00D4FF] to-[#0EA5E9] flex items-center justify-center accent-glow">
-              <Shield className="w-8 h-8 text-[#0A0B0F]" />
-            </div>
+            <PlatformLogo size={64} />
           </Link>
           <div>
             <h1 className="text-2xl font-bold accent-gradient">Create Account</h1>
