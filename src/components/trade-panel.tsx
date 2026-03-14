@@ -45,6 +45,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { data: profile } = useProfile();
+  const isLocked = profile?.is_locked ?? false;
   const { format: formatCurrency } = useCurrencyFormat();
   const queryClient = useQueryClient();
 
@@ -300,9 +301,12 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
             </div>
           )}
 
+          {isLocked && (
+            <p className="text-sm text-amber-400">Your account is locked. Contact support.</p>
+          )}
           <Button
             onClick={handleSubmit}
-            disabled={loading || qty <= 0}
+            disabled={loading || qty <= 0 || isLocked}
             className={`w-full h-11 font-semibold transition-all ${
               side === "buy"
                 ? "bg-green-600 hover:bg-green-700 text-white"

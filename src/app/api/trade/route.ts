@@ -62,12 +62,19 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("balance")
+      .select("balance, is_locked")
       .eq("id", user.id)
       .single();
 
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
+    if (profile.is_locked) {
+      return NextResponse.json(
+        { error: "Your account has been locked. Contact support." },
+        { status: 403 }
+      );
     }
 
     const totalWithFee = side === "buy" ? total + fee : total - fee;

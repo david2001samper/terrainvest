@@ -4,6 +4,7 @@ export interface Profile {
   display_name: string | null;
   role: "user" | "admin";
   balance: number;
+  is_locked?: boolean;
   total_pnl: number;
   vip_level: number;
   avatar_url?: string | null;

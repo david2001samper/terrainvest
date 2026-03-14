@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Settings, Loader2, Shield, Megaphone, DollarSign } from "lucide-react";
+import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText } from "lucide-react";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
@@ -18,6 +18,13 @@ export default function AdminSettingsPage() {
   const [feePerTrade, setFeePerTrade] = useState("0.10");
   const [announcement, setAnnouncement] = useState("");
   const [currencyRates, setCurrencyRates] = useState<Record<string, string>>({});
+  const [walletBtc, setWalletBtc] = useState("");
+  const [walletUsdt, setWalletUsdt] = useState("");
+  const [aboutUs, setAboutUs] = useState("");
+  const [termsOfService, setTermsOfService] = useState("");
+  const [privacyPolicy, setPrivacyPolicy] = useState("");
+  const [contactUs, setContactUs] = useState("");
+  const [support, setSupport] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -35,6 +42,13 @@ export default function AdminSettingsPage() {
       setDefaultBalance(settings.default_balance ?? "10000000");
       setFeePerTrade(settings.fee_per_trade ?? "0.10");
       setAnnouncement(settings.announcement ?? "");
+      setWalletBtc(settings.wallet_btc ?? "");
+      setWalletUsdt(settings.wallet_usdt ?? "");
+      setAboutUs(settings.about_us ?? "");
+      setTermsOfService(settings.terms_of_service ?? "");
+      setPrivacyPolicy(settings.privacy_policy ?? "");
+      setContactUs(settings.contact_us ?? "");
+      setSupport(settings.support ?? "");
       if (settings.currency_rates) {
         const rates: Record<string, string> = {};
         for (const c of CURRENCIES) {
@@ -62,12 +76,20 @@ export default function AdminSettingsPage() {
           fee_per_trade: feePerTrade,
           announcement,
           currency_rates: Object.keys(rates).length ? rates : undefined,
+          wallet_btc: walletBtc,
+          wallet_usdt: walletUsdt,
+          about_us: aboutUs,
+          terms_of_service: termsOfService,
+          privacy_policy: privacyPolicy,
+          contact_us: contactUs,
+          support,
         }),
       });
       if (!res.ok) throw new Error("Failed");
       toast.success("Settings saved");
       queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
       queryClient.invalidateQueries({ queryKey: ["platform", "settings"] });
+      queryClient.invalidateQueries({ queryKey: ["deposit-settings"] });
     } catch {
       toast.error("Failed to save");
     } finally {
@@ -204,6 +226,99 @@ export default function AdminSettingsPage() {
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Save
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-amber-400" />
+              Deposit Wallet Addresses
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Bitcoin (BTC) Address</Label>
+              <Input
+                value={walletBtc}
+                onChange={(e) => setWalletBtc(e.target.value)}
+                placeholder="bc1q..."
+                className="bg-background/50 font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">USDT (ERC-20) Address</Label>
+              <Input
+                value={walletUsdt}
+                onChange={(e) => setWalletUsdt(e.target.value)}
+                placeholder="0x..."
+                className="bg-background/50 font-mono text-sm"
+              />
+            </div>
+            <Button onClick={saveSettings} disabled={saving} variant="outline">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Wallets
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-400" />
+              Site Content (About, Terms, Privacy, etc.)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">About Us</Label>
+              <Textarea
+                value={aboutUs}
+                onChange={(e) => setAboutUs(e.target.value)}
+                placeholder="About Terra Invest VIP..."
+                className="bg-background/50 min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Terms of Service</Label>
+              <Textarea
+                value={termsOfService}
+                onChange={(e) => setTermsOfService(e.target.value)}
+                placeholder="Terms of service..."
+                className="bg-background/50 min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Privacy Policy</Label>
+              <Textarea
+                value={privacyPolicy}
+                onChange={(e) => setPrivacyPolicy(e.target.value)}
+                placeholder="Privacy policy..."
+                className="bg-background/50 min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Contact Us</Label>
+              <Textarea
+                value={contactUs}
+                onChange={(e) => setContactUs(e.target.value)}
+                placeholder="Contact information..."
+                className="bg-background/50 min-h-[60px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Support</Label>
+              <Textarea
+                value={support}
+                onChange={(e) => setSupport(e.target.value)}
+                placeholder="Support information..."
+                className="bg-background/50 min-h-[60px]"
+              />
+            </div>
+            <Button onClick={saveSettings} disabled={saving} variant="outline">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Content
             </Button>
           </CardContent>
         </Card>

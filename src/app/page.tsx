@@ -114,12 +114,29 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border px-6 lg:px-12 py-8 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="relative z-10 border-t border-border px-6 lg:px-12 py-12 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-[#00D4FF]" />
             <span className="text-sm font-medium accent-gradient">Terra Invest VIP</span>
           </div>
+          <nav className="flex flex-wrap items-center justify-center gap-6">
+            <Link href="/content/about" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              About Us
+            </Link>
+            <Link href="/content/terms" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/content/privacy" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/content/contact" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Contact Us
+            </Link>
+            <Link href="/content/support" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Support
+            </Link>
+          </nav>
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Terra Invest VIP. All rights reserved.
           </p>

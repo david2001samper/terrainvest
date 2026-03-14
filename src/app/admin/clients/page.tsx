@@ -32,6 +32,9 @@ import {
   ChevronRight,
   Download,
   Wallet,
+  Lock,
+  Unlock,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
@@ -43,6 +46,8 @@ export default function AdminClientsPage() {
   const [editBalance, setEditBalance] = useState("");
   const [editPnl, setEditPnl] = useState("");
   const [editVip, setEditVip] = useState("");
+  const [editLocked, setEditLocked] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [activityMap, setActivityMap] = useState<Record<string, { trade_count: number; avg_trade_size: number; last_login_at: string | null }>>({});
   const queryClient = useQueryClient();
 
@@ -80,6 +85,48 @@ export default function AdminClientsPage() {
     setEditBalance(client.balance.toString());
     setEditPnl(client.total_pnl.toString());
     setEditVip(client.vip_level.toString());
+    setEditLocked(client.is_locked ?? false);
+  }
+
+  async function toggleLock(client: Profile) {
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: client.id,
+          is_locked: !(client.is_locked ?? false),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(client.is_locked ? "Account unlocked" : "Account locked");
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+    } catch {
+      toast.error("Failed to update");
+    }
+  }
+
+  async function deleteClient(client: Profile) {
+    if (!confirm(`Permanently delete ${client.email}? This cannot be undone.`)) return;
+    if (client.role === "admin") {
+      toast.error("Cannot delete admin accounts");
+      return;
+    }
+    setDeleting(client.id);
+    try {
+      const res = await fetch(`/api/admin/clients/${client.id}/delete`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed");
+      }
+      toast.success("Account deleted");
+      setEditClient(null);
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   async function saveEdit() {
@@ -93,6 +140,7 @@ export default function AdminClientsPage() {
           balance: parseFloat(editBalance),
           total_pnl: parseFloat(editPnl),
           vip_level: parseInt(editVip),
+          is_locked: editLocked,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -172,6 +220,7 @@ export default function AdminClientsPage() {
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="text-[11px] uppercase text-muted-foreground">Client</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Status</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground">Role</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Balance</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">P&L</TableHead>
@@ -189,6 +238,13 @@ export default function AdminClientsPage() {
                           <p className="font-medium text-sm">{client.display_name || "—"}</p>
                           <p className="text-xs text-muted-foreground">{client.email}</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {client.is_locked ? (
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">Locked</Badge>
+                        ) : (
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Active</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -241,10 +297,32 @@ export default function AdminClientsPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => openEdit(client)}
-                          className="h-8 w-8 hover:text-[#00D4FF]"
+                          className="h-8 w-8 hover:text-[#00D4FF] mr-1"
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleLock(client)}
+                          className={`h-8 w-8 mr-1 ${client.is_locked ? "hover:text-green-400" : "hover:text-amber-400"}`}
+                          title={client.is_locked ? "Unlock" : "Lock"}
+                        >
+                          {client.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                        </Button>
+                        {client.role !== "admin" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteClient(client)}
+                            disabled={deleting === client.id}
+                            className="h-8 w-8 hover:text-red-400"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -322,6 +400,16 @@ export default function AdminClientsPage() {
                   onChange={(e) => setEditVip(e.target.value)}
                   className="bg-background/50"
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="editLocked"
+                  checked={editLocked}
+                  onChange={(e) => setEditLocked(e.target.checked)}
+                  className="rounded border-border"
+                />
+                <Label htmlFor="editLocked" className="text-sm">Lock account (blocks trading)</Label>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button

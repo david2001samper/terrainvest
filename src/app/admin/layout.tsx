@@ -15,12 +15,14 @@ import {
   ArrowLeft,
   Layers,
   TrendingUp,
+  ArrowUpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const adminNav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/clients", label: "Clients", icon: Users },
+  { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpCircle },
   { href: "/admin/trades", label: "All Trades", icon: History },
   { href: "/admin/assets", label: "Assets", icon: Layers },
   { href: "/admin/price-overrides", label: "Price Overrides", icon: TrendingUp },

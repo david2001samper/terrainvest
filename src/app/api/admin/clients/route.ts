@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { userId, balance, total_pnl, vip_level, role } = body;
+    const { userId, balance, total_pnl, vip_level, role, is_locked } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });
@@ -82,6 +82,7 @@ export async function PATCH(request: NextRequest) {
     if (balance !== undefined) updates.balance = balance;
     if (vip_level !== undefined) updates.vip_level = vip_level;
     if (role !== undefined) updates.role = role;
+    if (body.is_locked !== undefined) updates.is_locked = body.is_locked;
 
     const { error } = await supabase
       .from("profiles")

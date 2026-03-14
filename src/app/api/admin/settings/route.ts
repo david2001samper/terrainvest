@@ -21,7 +21,11 @@ export async function GET() {
     const { data, error } = await supabase
       .from("platform_settings")
       .select("key, value")
-      .in("key", ["default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates"]);
+      .in("key", [
+        "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
+        "wallet_btc", "wallet_usdt",
+        "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+      ]);
 
     if (error) throw error;
 
@@ -45,6 +49,13 @@ export async function GET() {
       announcement: settings.announcement ?? "",
       maintenance_mode: settings.maintenance_mode ?? "false",
       currency_rates,
+      wallet_btc: settings.wallet_btc ?? "",
+      wallet_usdt: settings.wallet_usdt ?? "",
+      about_us: settings.about_us ?? "",
+      terms_of_service: settings.terms_of_service ?? "",
+      privacy_policy: settings.privacy_policy ?? "",
+      contact_us: settings.contact_us ?? "",
+      support: settings.support ?? "",
     });
   } catch (error) {
     console.error("Settings error:", error);
@@ -59,7 +70,11 @@ export async function PATCH(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const keys = ["default_balance", "fee_per_trade", "announcement", "maintenance_mode"];
+    const keys = [
+      "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
+      "wallet_btc", "wallet_usdt",
+      "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+    ];
 
     for (const key of keys) {
       if (body[key] !== undefined) {
