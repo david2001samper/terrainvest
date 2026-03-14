@@ -70,7 +70,7 @@ export function NavSidebar() {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       <Link href="/" className="p-4 flex items-center gap-3 border-b border-border hover:opacity-90 transition-opacity">
-        <PlatformLogo size={40} className="shrink-0" />
+        <PlatformLogo size={48} className="shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
             <h2 className="font-bold text-sm accent-gradient truncate">Terra Invest VIP</h2>

@@ -34,7 +34,7 @@ export default async function LandingPage() {
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-6 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <PlatformLogo size={40} className="shrink-0" />
+          <PlatformLogo size={48} className="shrink-0" />
           <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
         </Link>
         <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export default async function LandingPage() {
       <footer className="relative z-10 border-t border-border px-6 lg:px-12 py-12 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <PlatformLogo size={16} />
+            <PlatformLogo size={20} />
             <span className="text-sm font-medium accent-gradient">Terra Invest VIP</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-6">

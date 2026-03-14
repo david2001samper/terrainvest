@@ -60,7 +60,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md glass-card accent-border relative z-10">
         <CardHeader className="text-center space-y-4 pb-2">
           <Link href="/" className="mx-auto block w-fit hover:opacity-90 transition-opacity">
-            <PlatformLogo size={64} />
+            <PlatformLogo size={80} />
           </Link>
           <div>
             <h1 className="text-2xl font-bold accent-gradient">Create Account</h1>
