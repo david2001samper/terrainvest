@@ -1,21 +1,9 @@
 "use client";
 
-import { useMarketData } from "@/hooks/use-market-data";
-import { useCurrencyFormat } from "@/hooks/use-currency-format";
-import { formatPercent } from "@/lib/format";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import { AssetLogo } from "@/components/asset-logo";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-
-const SNAPSHOT_SYMBOLS = [
-  "BTC",
-  "ETH",
-  "AAPL",
-  "TSLA",
-  "GC=F",
-  "CL=F",
-  "^GSPC",
-  "^IXIC",
-];
 
 const DISPLAY_NAMES: Record<string, string> = {
   BTC: "BTC/USD",
@@ -26,15 +14,27 @@ const DISPLAY_NAMES: Record<string, string> = {
   "^IXIC": "NASDAQ ^IXIC",
 };
 
+interface SnapshotAsset {
+  symbol: string;
+  name: string;
+  price: number;
+  changePercent24h: number;
+  asset_type: string;
+}
+
 export function LiveMarketSnapshot() {
-  const { format: formatCurrency } = useCurrencyFormat();
-  const { allAssets, isLoading } = useMarketData();
+  const { data: assets = [], isLoading } = useQuery<SnapshotAsset[]>({
+    queryKey: ["market", "snapshot"],
+    queryFn: async () => {
+      const res = await fetch("/api/market/snapshot");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 10000,
+    staleTime: 8000,
+  });
 
-  const snapshotAssets = SNAPSHOT_SYMBOLS.map((sym) =>
-    allAssets.find((a) => a.symbol === sym)
-  ).filter(Boolean);
-
-  if (isLoading && snapshotAssets.length === 0) {
+  if (isLoading && assets.length === 0) {
     return (
       <section className="relative z-10 px-6 lg:px-12 py-16 max-w-7xl mx-auto">
         <h2 className="text-2xl font-bold mb-8 text-center">Live Market Snapshot</h2>
@@ -50,13 +50,20 @@ export function LiveMarketSnapshot() {
     );
   }
 
-  if (snapshotAssets.length === 0) return null;
+  if (assets.length === 0) {
+    return (
+      <section className="relative z-10 px-6 lg:px-12 py-16 max-w-7xl mx-auto">
+        <h2 className="text-2xl font-bold mb-8 text-center">Live Market Snapshot</h2>
+        <p className="text-center text-muted-foreground">Market data temporarily unavailable</p>
+      </section>
+    );
+  }
 
   return (
     <section className="relative z-10 px-6 lg:px-12 py-16 max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold mb-8 text-center">Live Market Snapshot</h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {snapshotAssets.map((asset) => {
+        {assets.map((asset) => {
           const isUp = (asset.changePercent24h ?? 0) >= 0;
           const displaySymbol = DISPLAY_NAMES[asset.symbol] ?? asset.symbol;
           return (

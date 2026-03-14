@@ -25,7 +25,6 @@ export default async function LandingPage() {
   const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
   const mission = content.home_mission || "To provide institutional-grade trading tools and execution to every investor, with transparency, security, and exceptional support at the core of everything we do.";
   const values = content.home_values || "Integrity • Innovation • Client-First • Excellence • Trust";
-  const cta = content.home_cta || "Join thousands of investors who trust Terra Invest VIP for their trading needs. Open your account today and experience the difference.";
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -60,7 +59,7 @@ export default async function LandingPage() {
       {/* Hero */}
       <section className="relative z-10 px-6 lg:px-12 pt-20 pb-32 max-w-7xl mx-auto text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight max-w-5xl mx-auto">
-          Terra Invest Vip – Exclusive Trading Access for High-Net-Worth Individuals
+          Exclusive Trading for High-Net-Worth Individuals
         </h1>
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mt-6 leading-relaxed">
           Real-time markets • Advanced tools • Private experience
@@ -105,6 +104,9 @@ export default async function LandingPage() {
       {/* Live Market Snapshot */}
       <LiveMarketSnapshot />
 
+      {/* What Our Clients Say */}
+      <ClientTestimonialsCarousel testimonials={clientTestimonials} />
+
       {/* Our Journey */}
       <section className="relative z-10 px-6 lg:px-12 py-20 max-w-7xl mx-auto">
         <div className="glass-card p-8 lg:p-12 rounded-2xl">
@@ -138,35 +140,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* What Our Clients Say */}
-      <ClientTestimonialsCarousel testimonials={clientTestimonials} />
-
       {/* Client Video Testimonials */}
       <VideoTestimonialsCarousel testimonials={videoTestimonials} />
-
-      {/* CTA Section */}
-      <section className="relative z-10 px-6 lg:px-12 pb-32 max-w-7xl mx-auto">
-        <div className="glass-card accent-border p-12 lg:p-16 rounded-2xl text-center">
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            {cta}
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] rounded-xl hover:from-[#22D3EE] hover:to-[#00D4FF] transition-all accent-glow"
-            >
-              Get Started
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/content/contact"
-              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium border border-border text-foreground rounded-xl hover:border-[#00D4FF]/30 hover:bg-[#00D4FF]/5 transition-all"
-            >
-              Contact Us
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-border px-6 lg:px-12 py-12 max-w-7xl mx-auto">
