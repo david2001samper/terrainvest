@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const amount = parseFloat(body.amount);
     const method = body.method ?? "btc";
+    const walletAddress = typeof body.wallet_address === "string" ? body.wallet_address.trim() : "";
 
     if (isNaN(amount) || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
@@ -36,6 +37,10 @@ export async function POST(request: NextRequest) {
 
     if (!["btc", "usdt", "bank"].includes(method)) {
       return NextResponse.json({ error: "Invalid method" }, { status: 400 });
+    }
+
+    if ((method === "btc" || method === "usdt") && !walletAddress) {
+      return NextResponse.json({ error: "Wallet address is required for crypto withdrawals" }, { status: 400 });
     }
 
     const { data: profile } = await supabase
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
         amount,
         method,
         status: "pending",
+        wallet_address: walletAddress || null,
       })
       .select()
       .single();

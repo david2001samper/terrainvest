@@ -24,6 +24,7 @@ import { toast } from "sonner";
 export default function WithdrawalsPage() {
   const [method, setMethod] = useState<"btc" | "usdt" | "bank">("btc");
   const [amount, setAmount] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const { format: formatCurrency } = useCurrencyFormat();
@@ -51,17 +52,26 @@ export default function WithdrawalsPage() {
       toast.error("Insufficient balance");
       return;
     }
+    if ((method === "btc" || method === "usdt") && !walletAddress.trim()) {
+      toast.error("Enter your wallet address");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/withdrawals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amt, method }),
+        body: JSON.stringify({
+          amount: amt,
+          method,
+          wallet_address: walletAddress.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       toast.success("Withdrawal request submitted. It is pending and will be released after review.");
       setAmount("");
+      setWalletAddress("");
       queryClient.invalidateQueries({ queryKey: ["withdrawal-requests"] });
       setSubmitting(false);
     } catch (e) {
@@ -141,9 +151,37 @@ export default function WithdrawalsPage() {
                 className="bg-background/50"
               />
             </div>
+            {(method === "btc" || method === "usdt" || method === "bank") && (
+              <div className="space-y-2">
+                <Label>
+                  {method === "btc"
+                    ? "Bitcoin (BTC) wallet address"
+                    : method === "usdt"
+                    ? "USDT wallet address (e.g. ERC-20)"
+                    : "Destination account / reference (optional)"}
+                </Label>
+                <Input
+                  type="text"
+                  placeholder={
+                    method === "btc"
+                      ? "bc1q... or 1..."
+                      : method === "usdt"
+                      ? "0x..."
+                      : "Bank account or reference"
+                  }
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                  className="bg-background/50 font-mono text-sm"
+                />
+              </div>
+            )}
             <Button
               type="submit"
-              disabled={submitting || !amount}
+              disabled={
+                submitting ||
+                !amount ||
+                ((method === "btc" || method === "usdt") && !walletAddress.trim())
+              }
               className="w-full bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] font-semibold"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Withdrawal Request"}
@@ -163,7 +201,7 @@ export default function WithdrawalsPage() {
             <p className="text-muted-foreground text-sm">No withdrawal requests yet.</p>
           ) : (
             <div className="space-y-3">
-              {requests.map((r: { id: string; amount: number; method: string; status: string; created_at: string }) => (
+              {requests.map((r: { id: string; amount: number; method: string; status: string; created_at: string; wallet_address?: string | null }) => (
                 <div
                   key={r.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border"
@@ -173,6 +211,11 @@ export default function WithdrawalsPage() {
                     <p className="text-xs text-muted-foreground">
                       {r.method.toUpperCase()} • {new Date(r.created_at).toLocaleDateString()}
                     </p>
+                    {r.wallet_address && (
+                      <p className="text-xs text-muted-foreground font-mono mt-1 truncate max-w-[200px]" title={r.wallet_address}>
+                        To: {r.wallet_address}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {r.status === "pending" && (

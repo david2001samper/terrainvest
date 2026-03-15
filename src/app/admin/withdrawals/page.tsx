@@ -80,6 +80,7 @@ export default function AdminWithdrawalsPage() {
                   <TableHead className="text-[11px] uppercase text-muted-foreground">User</TableHead>
                   <TableHead className="text-[11px] uppercase text-muted-foreground">Amount</TableHead>
                   <TableHead className="text-[11px] uppercase text-muted-foreground">Method</TableHead>
+                  <TableHead className="text-[11px] uppercase text-muted-foreground">Destination / Wallet</TableHead>
                   <TableHead className="text-[11px] uppercase text-muted-foreground">Balance</TableHead>
                   <TableHead className="text-[11px] uppercase text-muted-foreground">Date</TableHead>
                   <TableHead className="text-[11px] uppercase text-muted-foreground">Status</TableHead>
@@ -96,6 +97,7 @@ export default function AdminWithdrawalsPage() {
                   method: string;
                   status: string;
                   created_at: string;
+                  wallet_address?: string | null;
                 }) => (
                   <TableRow key={r.id} className="border-border hover:bg-accent/30">
                     <TableCell>
@@ -104,6 +106,15 @@ export default function AdminWithdrawalsPage() {
                     </TableCell>
                     <TableCell className="font-medium">{formatCurrency(r.amount)}</TableCell>
                     <TableCell className="uppercase text-xs">{r.method}</TableCell>
+                    <TableCell className="max-w-[220px]">
+                      {r.wallet_address ? (
+                        <span className="font-mono text-xs break-all" title={r.wallet_address}>
+                          {r.wallet_address}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>{formatCurrency(r.user_balance ?? 0)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(r.created_at)}
