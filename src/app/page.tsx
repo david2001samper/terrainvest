@@ -11,14 +11,17 @@ import {
 import { PlatformLogo } from "@/components/platform-logo";
 import { getHomeContent } from "@/lib/content";
 import { getClientTestimonials, getVideoTestimonials } from "@/lib/testimonials";
+import { getMarketSnapshot } from "@/lib/market-snapshot";
 import { ClientTestimonialsCarousel } from "@/components/client-testimonials-carousel";
 import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
+import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
 
 export default async function LandingPage() {
-  const [content, clientTestimonials, videoTestimonials] = await Promise.all([
+  const [content, clientTestimonials, videoTestimonials, marketSnapshot] = await Promise.all([
     getHomeContent(),
     getClientTestimonials(),
     getVideoTestimonials(),
+    getMarketSnapshot(),
   ]);
 
   const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
@@ -97,6 +100,9 @@ export default async function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* Live Market Prices */}
+      <MarketSnapshotGrid assets={marketSnapshot} />
 
       {/* What Our Clients Say */}
       <ClientTestimonialsCarousel testimonials={clientTestimonials} />
