@@ -38,10 +38,18 @@ export default function LoginPage() {
         toast.error(error.message);
         return;
       }
-      await supabase
-        .from("profiles")
-        .update({ last_login_at: new Date().toISOString() })
-        .eq("id", authData.user?.id ?? "");
+      const userId = authData.user?.id ?? "";
+      const now = new Date().toISOString();
+      await supabase.from("profiles").update({ last_login_at: now }).eq("id", userId);
+      try {
+        await supabase.from("login_logs").insert({
+          user_id: userId,
+          ip: null,
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        });
+      } catch {
+        // non-fatal
+      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")

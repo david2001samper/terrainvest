@@ -46,9 +46,14 @@ export default function AdminClientsPage() {
   const [editBalance, setEditBalance] = useState("");
   const [editPnl, setEditPnl] = useState("");
   const [editVip, setEditVip] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<"user" | "admin">("user");
+  const [editPreferredCurrency, setEditPreferredCurrency] = useState("");
+  const [passwordReset, setPasswordReset] = useState("");
   const [editLocked, setEditLocked] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [activityMap, setActivityMap] = useState<Record<string, { trade_count: number; avg_trade_size: number; last_login_at: string | null }>>({});
+  const [activityMap, setActivityMap] = useState<Record<string, { trade_count: number; avg_trade_size: number; last_login_at: string | null; recent_logins: string[] }>>({});
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -73,6 +78,7 @@ export default function AdminClientsPage() {
               trade_count: act.trade_count ?? 0,
               avg_trade_size: act.avg_trade_size ?? 0,
               last_login_at: act.last_login_at ?? null,
+              recent_logins: act.recent_logins ?? [],
             },
           }));
         })
@@ -86,6 +92,11 @@ export default function AdminClientsPage() {
     setEditPnl(client.total_pnl.toString());
     setEditVip(client.vip_level.toString());
     setEditLocked(client.is_locked ?? false);
+    setEditName(client.display_name ?? "");
+    setEditEmail(client.email);
+    setEditRole(client.role);
+    setEditPreferredCurrency(client.preferred_currency ?? "");
+    setPasswordReset("");
   }
 
   async function toggleLock(client: Profile) {
@@ -141,6 +152,10 @@ export default function AdminClientsPage() {
           total_pnl: parseFloat(editPnl),
           vip_level: parseInt(editVip),
           is_locked: editLocked,
+          display_name: editName,
+          email: editEmail,
+          role: editRole,
+          preferred_currency: editPreferredCurrency || null,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -278,7 +293,21 @@ export default function AdminClientsPage() {
                           <div className="text-xs">
                             <p>{activityMap[client.id].trade_count} trades</p>
                             <p>Avg: {formatCurrency(activityMap[client.id].avg_trade_size)}</p>
-                            <p>Last: {activityMap[client.id].last_login_at ? formatDate(activityMap[client.id].last_login_at as string) : "—"}</p>
+                            <p>
+                              Last login:{" "}
+                              {activityMap[client.id].last_login_at
+                                ? formatDate(activityMap[client.id].last_login_at as string)
+                                : "—"}
+                            </p>
+                            {activityMap[client.id].recent_logins?.length > 1 && (
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                Recent logins:{" "}
+                                {activityMap[client.id].recent_logins
+                                  .slice(0, 3)
+                                  .map((d) => formatDate(d))
+                                  .join(", ")}
+                              </p>
+                            )}
                           </div>
                         ) : (
                           "—"
@@ -373,6 +402,24 @@ export default function AdminClientsPage() {
                 <p className="text-sm text-muted-foreground">{editClient.email}</p>
               </div>
               <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Name</Label>
+                <Input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Email</Label>
+                <Input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Balance (USD)</Label>
                 <Input
                   type="number"
@@ -401,6 +448,27 @@ export default function AdminClientsPage() {
                   className="bg-background/50"
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Role</Label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as "user" | "admin")}
+                  className="bg-background/50 border border-border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Preferred Currency</Label>
+                <Input
+                  type="text"
+                  value={editPreferredCurrency}
+                  onChange={(e) => setEditPreferredCurrency(e.target.value)}
+                  placeholder="e.g. USD, EUR"
+                  className="bg-background/50"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -410,6 +478,41 @@ export default function AdminClientsPage() {
                   className="rounded border-border"
                 />
                 <Label htmlFor="editLocked" className="text-sm">Lock account (blocks trading)</Label>
+              </div>
+              <div className="space-y-2 border-t border-border pt-4">
+                <Label className="text-sm text-muted-foreground">Reset Password</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={passwordReset}
+                    onChange={(e) => setPasswordReset(e.target.value)}
+                    placeholder="New password (min 6 chars)"
+                    className="bg-background/50"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!passwordReset || passwordReset.length < 6}
+                    onClick={async () => {
+                      if (!editClient) return;
+                      try {
+                        const res = await fetch(`/api/admin/clients/${editClient.id}/password`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ password: passwordReset }),
+                        });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.error || "Failed");
+                        toast.success("Password updated");
+                        setPasswordReset("");
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Failed to reset password");
+                      }
+                    }}
+                  >
+                    Update
+                  </Button>
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { userId, balance, total_pnl, vip_level, role, is_locked } = body;
+    const { userId, balance, total_pnl, vip_level, role, is_locked, display_name, preferred_currency, email } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });
@@ -82,7 +82,24 @@ export async function PATCH(request: NextRequest) {
     if (balance !== undefined) updates.balance = balance;
     if (vip_level !== undefined) updates.vip_level = vip_level;
     if (role !== undefined) updates.role = role;
+    if (display_name !== undefined) updates.display_name = display_name;
+    if (preferred_currency !== undefined) updates.preferred_currency = preferred_currency;
     if (body.is_locked !== undefined) updates.is_locked = body.is_locked;
+
+    if (email !== undefined) {
+      updates.email = email;
+      try {
+        const serviceClient = await createServiceClient();
+        const { error: authError } = await serviceClient.auth.admin.updateUserById(userId, { email });
+        if (authError) {
+          console.error("Admin email update error:", authError);
+          return NextResponse.json({ error: authError.message }, { status: 400 });
+        }
+      } catch (e) {
+        console.error("Admin email update error:", e);
+        return NextResponse.json({ error: "Failed to update auth email" }, { status: 500 });
+      }
+    }
 
     const { error } = await supabase
       .from("profiles")
