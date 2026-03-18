@@ -30,62 +30,81 @@ const INDEX_SYMBOLS = [
   { symbol: "^RUT", name: "Russell 2000" },
 ];
 
-let cachedData: { data: unknown; timestamp: number } | null = null;
+interface RawQuote {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  changePercent24h: number;
+  volume: number;
+  marketCap: number;
+  high24h: number;
+  low24h: number;
+  asset_type: string;
+  marketState: string | null;
+}
+
+let cachedRaw: { data: RawQuote[]; timestamp: number } | null = null;
 const CACHE_TTL = 10000;
 
 export async function GET() {
   try {
-    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
-      return NextResponse.json(cachedData.data);
+    let rawData: RawQuote[];
+
+    if (cachedRaw && Date.now() - cachedRaw.timestamp < CACHE_TTL) {
+      rawData = cachedRaw.data;
+    } else {
+      const allSymbols = [
+        ...SYMBOLS.map((s) => ({ ...s, type: "stock" as const })),
+        ...COMMODITY_SYMBOLS.map((s) => ({ ...s, type: "commodity" as const })),
+        ...INDEX_SYMBOLS.map((s) => ({ ...s, type: "index" as const })),
+      ];
+
+      const yf = await getYahooFinance();
+
+      const results = await Promise.allSettled(
+        allSymbols.map(async (item) => {
+          try {
+            const quote = await yf.quote(item.symbol);
+            return {
+              symbol: item.symbol,
+              name: item.name,
+              price: quote.regularMarketPrice ?? 0,
+              change24h: quote.regularMarketChange ?? 0,
+              changePercent24h: quote.regularMarketChangePercent ?? 0,
+              volume: quote.regularMarketVolume ?? 0,
+              marketCap: quote.marketCap ?? 0,
+              high24h: quote.regularMarketDayHigh ?? quote.regularMarketPrice ?? 0,
+              low24h: quote.regularMarketDayLow ?? quote.regularMarketPrice ?? 0,
+              asset_type: item.type,
+              marketState: quote.marketState ?? null,
+            } as RawQuote;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      rawData = results
+        .filter((r) => r.status === "fulfilled" && r.value !== null)
+        .map((r) => (r as PromiseFulfilledResult<RawQuote>).value)
+        .filter((item) => item.price > 0);
+
+      if (rawData.length > 0) {
+        cachedRaw = { data: rawData, timestamp: Date.now() };
+      }
     }
-
-    const allSymbols = [
-      ...SYMBOLS.map((s) => ({ ...s, type: "stock" as const })),
-      ...COMMODITY_SYMBOLS.map((s) => ({ ...s, type: "commodity" as const })),
-      ...INDEX_SYMBOLS.map((s) => ({ ...s, type: "index" as const })),
-    ];
-
-    const yf = await getYahooFinance();
-
-    const results = await Promise.allSettled(
-      allSymbols.map(async (item) => {
-        try {
-          const quote = await yf.quote(item.symbol);
-          return {
-            symbol: item.symbol,
-            name: item.name,
-            price: quote.regularMarketPrice ?? 0,
-            change24h: quote.regularMarketChange ?? 0,
-            changePercent24h: quote.regularMarketChangePercent ?? 0,
-            volume: quote.regularMarketVolume ?? 0,
-            marketCap: quote.marketCap ?? 0,
-            high24h: quote.regularMarketDayHigh ?? quote.regularMarketPrice ?? 0,
-            low24h: quote.regularMarketDayLow ?? quote.regularMarketPrice ?? 0,
-            asset_type: item.type,
-            marketState: quote.marketState ?? null,
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    let data = results
-      .filter((r) => r.status === "fulfilled" && r.value !== null)
-      .map((r) => (r as PromiseFulfilledResult<unknown>).value)
-      .filter((item: unknown) => (item as { price: number }).price > 0);
 
     const overrides = await getActiveOverrides();
-    data = applyOverrides(data as { symbol: string; price: number }[], overrides);
+    const data = applyOverrides(rawData, overrides);
 
-    if (data.length > 0) {
-      cachedData = { data, timestamp: Date.now() };
-    }
     return NextResponse.json(data);
   } catch (error) {
     console.error("Stocks API error:", error);
-    if (cachedData) {
-      return NextResponse.json(cachedData.data);
+    if (cachedRaw) {
+      const overrides = await getActiveOverrides();
+      const data = applyOverrides(cachedRaw.data, overrides);
+      return NextResponse.json(data);
     }
     return NextResponse.json([], { status: 500 });
   }

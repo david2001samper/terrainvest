@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,9 @@ export default function AdminPriceOverridesPage() {
   const [chainRunning, setChainRunning] = useState(false);
   const [chainCurrentStep, setChainCurrentStep] = useState(-1);
   const [chainOpen, setChainOpen] = useState(false);
-  const chainAbortRef = useRef(false);
+  const [chainEndTime, setChainEndTime] = useState<number | null>(null);
+  const [chainTimeLeft, setChainTimeLeft] = useState(0);
+  const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["admin", "price-overrides"],
@@ -40,8 +42,43 @@ export default function AdminPriceOverridesPage() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    refetchInterval: 5000,
+    refetchInterval: 3000,
   });
+
+  useEffect(() => {
+    if (!chainRunning || !chainEndTime) return;
+    chainTimerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((chainEndTime - Date.now()) / 1000));
+      setChainTimeLeft(remaining);
+
+      const validSteps = chainSteps.filter(
+        (s) => s.price && parseFloat(s.price) > 0 && s.duration && parseInt(s.duration) > 0
+      );
+      let elapsed = 0;
+      let currentIdx = 0;
+      const elapsedSoFar = Math.floor((Date.now() - (chainEndTime - totalChainDuration * 1000)) / 1000);
+      for (let i = 0; i < validSteps.length; i++) {
+        elapsed += parseInt(validSteps[i].duration) || 0;
+        if (elapsedSoFar < elapsed) {
+          currentIdx = i;
+          break;
+        }
+        if (i === validSteps.length - 1) currentIdx = i;
+      }
+      setChainCurrentStep(currentIdx);
+
+      if (remaining <= 0) {
+        setChainRunning(false);
+        setChainCurrentStep(-1);
+        setChainEndTime(null);
+        if (chainTimerRef.current) clearInterval(chainTimerRef.current);
+      }
+    }, 500);
+    return () => {
+      if (chainTimerRef.current) clearInterval(chainTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainRunning, chainEndTime]);
 
   async function addOverride(e: React.FormEvent) {
     e.preventDefault();
@@ -115,74 +152,60 @@ export default function AdminPriceOverridesPage() {
     });
   }
 
-  const runChain = useCallback(async () => {
+  async function runChain() {
     const sym = chainSymbol.trim().toUpperCase();
     if (!sym) {
       toast.error("Enter a symbol for the chain");
       return;
     }
-    const validSteps = chainSteps.filter(
-      (s) => s.price && parseFloat(s.price) > 0 && s.duration && parseInt(s.duration) > 0
-    );
+    const validSteps = chainSteps
+      .filter((s) => s.price && parseFloat(s.price) > 0 && s.duration && parseInt(s.duration) > 0)
+      .map((s) => ({
+        price: parseFloat(s.price),
+        duration: parseInt(s.duration),
+      }));
     if (validSteps.length === 0) {
       toast.error("Add at least one valid step");
       return;
     }
 
-    chainAbortRef.current = false;
     setChainRunning(true);
     setChainCurrentStep(0);
 
-    for (let i = 0; i < validSteps.length; i++) {
-      if (chainAbortRef.current) break;
+    try {
+      const res = await fetch("/api/admin/price-overrides/chain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol: sym, steps: validSteps }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-      const step = validSteps[i];
-      const durationSecs = parseInt(step.duration) || 5;
-      setChainCurrentStep(i);
-
-      try {
-        const res = await fetch("/api/admin/price-overrides", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol: sym,
-            override_price: parseFloat(step.price),
-            duration_seconds: durationSecs,
-          }),
-        });
-        if (!res.ok) throw new Error("API error");
-        queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
-      } catch {
-        toast.error(`Chain step ${i + 1} failed`);
-        break;
-      }
-
-      if (i < validSteps.length - 1 && !chainAbortRef.current) {
-        await new Promise<void>((resolve) => {
-          const check = () => {
-            if (chainAbortRef.current) {
-              resolve();
-              return;
-            }
-            resolve();
-          };
-          setTimeout(check, durationSecs * 1000);
-        });
-      }
+      const total = data.total_duration as number;
+      setChainEndTime(Date.now() + total * 1000);
+      setChainTimeLeft(total);
+      toast.success(`Chain started for ${sym} — ${validSteps.length} steps, ${total}s total`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start chain");
+      setChainRunning(false);
+      setChainCurrentStep(-1);
     }
+  }
 
+  async function stopChain() {
+    const sym = chainSymbol.trim().toUpperCase();
+    try {
+      await fetch(`/api/admin/price-overrides/chain?symbol=${encodeURIComponent(sym)}`, {
+        method: "DELETE",
+      });
+    } catch { /* ignore */ }
     setChainRunning(false);
     setChainCurrentStep(-1);
-    if (!chainAbortRef.current) {
-      toast.success(`Price chain completed for ${sym}`);
-    } else {
-      toast.info("Price chain stopped");
-    }
+    setChainEndTime(null);
+    if (chainTimerRef.current) clearInterval(chainTimerRef.current);
     queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
-  }, [chainSymbol, chainSteps, queryClient]);
-
-  function stopChain() {
-    chainAbortRef.current = true;
+    toast.info("Chain stopped");
   }
 
   const totalChainDuration = chainSteps.reduce(
@@ -276,7 +299,7 @@ export default function AdminPriceOverridesPage() {
               Price Chain
               {chainRunning && (
                 <Badge className="bg-purple-500/20 text-purple-400 ml-2 animate-pulse text-[10px]">
-                  Running step {chainCurrentStep + 1}/{chainSteps.length}
+                  Step {chainCurrentStep + 1}/{chainSteps.filter((s) => s.price && s.duration).length} — {chainTimeLeft}s left
                 </Badge>
               )}
             </CardTitle>
@@ -287,7 +310,7 @@ export default function AdminPriceOverridesPage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Queue multiple price overrides that execute one after another automatically.
+            Queue multiple price overrides that execute one after another on the server. Prices are locked during the full chain — no real data leaks through.
           </p>
         </CardHeader>
         {chainOpen && (

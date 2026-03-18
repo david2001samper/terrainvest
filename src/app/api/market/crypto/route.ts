@@ -27,35 +27,36 @@ const COINGECKO_NAMES: Record<string, string> = {
   LINK: "Chainlink",
 };
 
-let cachedData: { data: unknown; timestamp: number } | null = null;
+let cachedRaw: { data: Record<string, unknown>[]; timestamp: number } | null = null;
 const CACHE_TTL = 8000;
 
 export async function GET() {
   try {
-    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
-      return NextResponse.json(cachedData.data);
+    let rawData: Record<string, unknown>[];
+
+    if (cachedRaw && Date.now() - cachedRaw.timestamp < CACHE_TTL) {
+      rawData = cachedRaw.data;
+    } else {
+      const ids = Object.values(COINGECKO_IDS).join(",");
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
+        {
+          headers: { Accept: "application/json" },
+          next: { revalidate: 8 },
+        }
+      );
+
+      if (!res.ok) throw new Error(`CoinGecko API error: ${res.status}`);
+      rawData = await res.json();
+      cachedRaw = { data: rawData, timestamp: Date.now() };
     }
 
-    const ids = Object.values(COINGECKO_IDS).join(",");
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
-      {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 8 },
-      }
-    );
-
-    if (!res.ok) {
-      throw new Error(`CoinGecko API error: ${res.status}`);
-    }
-
-    const coins = await res.json();
     const symbolMap = Object.entries(COINGECKO_IDS).reduce(
       (acc, [sym, id]) => ({ ...acc, [id]: sym }),
       {} as Record<string, string>
     );
 
-    let data = coins.map((coin: Record<string, unknown>) => {
+    let data = rawData.map((coin) => {
       const symbol = symbolMap[coin.id as string] || (coin.symbol as string).toUpperCase();
       return {
         symbol,
@@ -74,12 +75,32 @@ export async function GET() {
     const overrides = await getActiveOverrides();
     data = applyOverrides(data, overrides);
 
-    cachedData = { data, timestamp: Date.now() };
     return NextResponse.json(data);
   } catch (error) {
     console.error("Crypto API error:", error);
-    if (cachedData) {
-      return NextResponse.json(cachedData.data);
+    if (cachedRaw) {
+      const symbolMap = Object.entries(COINGECKO_IDS).reduce(
+        (acc, [sym, id]) => ({ ...acc, [id]: sym }),
+        {} as Record<string, string>
+      );
+      let data = cachedRaw.data.map((coin) => {
+        const symbol = symbolMap[coin.id as string] || (coin.symbol as string).toUpperCase();
+        return {
+          symbol,
+          name: COINGECKO_NAMES[symbol] || coin.name,
+          price: coin.current_price,
+          change24h: coin.price_change_24h,
+          changePercent24h: coin.price_change_percentage_24h,
+          volume: coin.total_volume,
+          marketCap: coin.market_cap,
+          high24h: coin.high_24h,
+          low24h: coin.low_24h,
+          asset_type: "crypto",
+        };
+      });
+      const overrides = await getActiveOverrides();
+      data = applyOverrides(data, overrides);
+      return NextResponse.json(data);
     }
     return NextResponse.json([], { status: 500 });
   }
