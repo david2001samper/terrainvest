@@ -13,13 +13,31 @@ export async function GET(request: NextRequest) {
 
   try {
     if (assetType === "crypto") {
+      const cgParam = searchParams.get("cg_id")?.trim();
       const idMap: Record<string, string> = {
         BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
         XRP: "ripple", ADA: "cardano", DOGE: "dogecoin",
         DOT: "polkadot", AVAX: "avalanche-2", MATIC: "matic-network",
         LINK: "chainlink", BNB: "binancecoin", SHIB: "shiba-inu",
       };
-      const cgId = idMap[symbol] || symbol.toLowerCase();
+      let cgId = cgParam || idMap[symbol.toUpperCase()] || null;
+      if (!cgId) {
+        const sRes = await fetch(
+          `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`,
+          { headers: { Accept: "application/json" }, next: { revalidate: 300 } }
+        );
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          const coins = (sData.coins || []) as { id: string; symbol: string }[];
+          const symU = symbol.toUpperCase();
+          const match =
+            coins.find((c) => c.symbol?.toUpperCase() === symU) || coins[0];
+          cgId = match?.id || null;
+        }
+      }
+      if (!cgId) {
+        return NextResponse.json([]);
+      }
       const res = await fetch(
         `https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}`,
         { next: { revalidate: 30 } }

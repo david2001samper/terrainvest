@@ -61,6 +61,7 @@ async function searchCrypto(query: string) {
         high24h: 0,
         low24h: 0,
         asset_type: "crypto",
+        coingecko_id: c.id,
       }));
     }
 
@@ -76,6 +77,7 @@ async function searchCrypto(query: string) {
       high24h: coin.high_24h ?? 0,
       low24h: coin.low_24h ?? 0,
       asset_type: "crypto",
+      coingecko_id: coin.id,
     }));
   } catch {
     return [];

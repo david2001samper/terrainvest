@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useMarketData, useChartData } from "@/hooks/use-market-data";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import { PriceChart } from "@/components/price-chart";
@@ -13,7 +14,6 @@ import { MarketStatusBadge } from "@/components/market-status-badge";
 import { TimeframeSelector, getTimeframeConfig, TIMEFRAMES, type TimeframeValue } from "@/components/timeframe-selector";
 import { formatPercent } from "@/lib/format";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
-import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,54 @@ export default function AssetDetailPage() {
   const { allAssets, isLoading, crypto, stocks } = useMarketData();
   const { isWatched, toggle } = useWatchlist();
 
-  const asset = allAssets.find((a) => a.symbol === symbol);
+  const listAsset = useMemo(() => {
+    const u = symbol.toUpperCase();
+    return (
+      allAssets.find((a) => a.symbol === symbol || a.symbol.toUpperCase() === u) ??
+      null
+    );
+  }, [allAssets, symbol]);
+
+  const cgFromUrl = searchParams.get("cg");
+  const needsDynamicQuote = !listAsset;
+
+  const {
+    data: dynamicAsset,
+    isLoading: quoteLoading,
+    isError: quoteError,
+  } = useQuery({
+    queryKey: ["market", "quote", symbol, assetType, cgFromUrl ?? ""],
+    queryFn: async () => {
+      const p = new URLSearchParams({ symbol, type: assetType });
+      if (cgFromUrl) p.set("cg_id", cgFromUrl);
+      const res = await fetch(`/api/market/quote?${p}`);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error || "not found");
+      }
+      return (await res.json()) as import("@/lib/types").MarketAsset;
+    },
+    enabled: Boolean(symbol) && !isLoading && needsDynamicQuote,
+    refetchInterval: 10_000,
+    staleTime: 4000,
+  });
+
+  const asset = listAsset ?? dynamicAsset ?? null;
+  const resolvedType = asset?.asset_type ?? assetType;
+  const coingeckoId =
+    resolvedType === "crypto"
+      ? cgFromUrl || listAsset?.coingecko_id || dynamicAsset?.coingecko_id || null
+      : null;
+
   const tfConfig = getTimeframeConfig(timeframe);
 
-  const { data: chartData } = useChartData(symbol, assetType, tfConfig.days, tfConfig.interval);
+  const { data: chartData } = useChartData(
+    symbol,
+    resolvedType,
+    tfConfig.days,
+    tfConfig.interval,
+    coingeckoId
+  );
 
   const timeframeChange = useMemo(() => {
     if (!chartData || chartData.length < 2 || !asset) return null;
@@ -60,7 +104,11 @@ export default function AssetDetailPage() {
   const displayIsUp = displayChange >= 0;
 
   const dataUpdatedAt =
-    assetType === "crypto" ? crypto.dataUpdatedAt : stocks.dataUpdatedAt;
+    listAsset != null
+      ? resolvedType === "crypto"
+        ? crypto.dataUpdatedAt
+        : stocks.dataUpdatedAt
+      : Date.now();
 
   if (isLoading) {
     return (
@@ -71,7 +119,16 @@ export default function AssetDetailPage() {
     );
   }
 
-  if (!asset) {
+  if (needsDynamicQuote && quoteLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (!asset || (needsDynamicQuote && quoteError)) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-muted-foreground mb-4">Asset not found</p>
@@ -97,7 +154,7 @@ export default function AssetDetailPage() {
             Markets
           </Link>
           <div className="flex items-center gap-3">
-            <AssetLogo symbol={asset.symbol} assetType={assetType} size={48} />
+            <AssetLogo symbol={asset.symbol} assetType={resolvedType} size={48} />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold">{asset.name}</h1>
@@ -122,12 +179,12 @@ export default function AssetDetailPage() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => toggle.mutate(symbol)}
+          onClick={() => toggle.mutate(asset.symbol)}
           className="accent-border hover:bg-[#00D4FF]/10"
         >
           <Heart
             className={`w-5 h-5 ${
-              isWatched(symbol) ? "fill-[#00D4FF] text-[#00D4FF]" : "text-muted-foreground"
+              isWatched(asset.symbol) ? "fill-[#00D4FF] text-[#00D4FF]" : "text-muted-foreground"
             }`}
           />
         </Button>
@@ -169,10 +226,11 @@ export default function AssetDetailPage() {
             <CardContent>
               <PriceChart
                 symbol={symbol}
-                assetType={assetType}
+                assetType={resolvedType}
                 height={400}
                 days={tfConfig.days}
                 interval={tfConfig.interval}
+                coingeckoId={coingeckoId}
               />
             </CardContent>
           </Card>

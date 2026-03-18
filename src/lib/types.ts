@@ -66,6 +66,8 @@ export interface MarketAsset {
   low24h: number;
   asset_type: "crypto" | "stock" | "commodity" | "index";
   marketState?: string | null;
+  /** CoinGecko id for charts / deep links from search */
+  coingecko_id?: string;
 }
 
 export interface ChartDataPoint {

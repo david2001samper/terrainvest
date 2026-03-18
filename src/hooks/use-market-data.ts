@@ -78,10 +78,11 @@ export function useChartData(
   symbol: string,
   assetType: string,
   days = 30,
-  interval = "1d"
+  interval = "1d",
+  coingeckoId?: string | null
 ) {
   return useQuery({
-    queryKey: ["chart", symbol, assetType, days, interval],
+    queryKey: ["chart", symbol, assetType, days, interval, coingeckoId ?? ""],
     queryFn: async () => {
       const params = new URLSearchParams({
         symbol,
@@ -89,6 +90,7 @@ export function useChartData(
         days: days.toString(),
         interval,
       });
+      if (coingeckoId) params.set("cg_id", coingeckoId);
       const res = await fetch(`/api/market/chart?${params}`);
       if (!res.ok) return [];
       return res.json();

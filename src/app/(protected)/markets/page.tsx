@@ -195,7 +195,9 @@ function AssetCard({
   return (
     <Card className="glass-card-hover group relative">
       <Link
-        href={`/markets/${encodeURIComponent(asset.symbol)}?type=${asset.asset_type}`}
+        href={`/markets/${encodeURIComponent(asset.symbol)}?type=${asset.asset_type}${
+          asset.coingecko_id ? `&cg=${encodeURIComponent(asset.coingecko_id)}` : ""
+        }`}
         className="absolute inset-0 z-10"
       />
       <CardHeader className="pb-2 flex flex-row items-start justify-between">

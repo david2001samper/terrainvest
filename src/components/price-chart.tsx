@@ -20,6 +20,7 @@ interface PriceChartProps {
   minimal?: boolean;
   days?: number;
   interval?: string;
+  coingeckoId?: string | null;
 }
 
 export function PriceChart({
@@ -29,9 +30,10 @@ export function PriceChart({
   minimal = false,
   days = 30,
   interval = "1d",
+  coingeckoId,
 }: PriceChartProps) {
   const { format: formatCurrency, convert, symbol: currencySymbol } = useCurrencyFormat();
-  const { data, isLoading } = useChartData(symbol, assetType, days, interval);
+  const { data, isLoading } = useChartData(symbol, assetType, days, interval, coingeckoId);
 
   if (isLoading) {
     return <Skeleton className="w-full" style={{ height }} />;
