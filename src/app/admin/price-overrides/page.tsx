@@ -42,6 +42,7 @@ export default function AdminPriceOverridesPage() {
   const [simRampSec, setSimRampSec] = useState("60");
   const [simHoldSec, setSimHoldSec] = useState("10");
   const [simRecoverySec, setSimRecoverySec] = useState("30");
+  const [simCurrentPrice, setSimCurrentPrice] = useState("");
   const [simRunning, setSimRunning] = useState(false);
   const [simPhase, setSimPhase] = useState<"" | "ramp" | "hold" | "recovery">("");
   const [simEndTime, setSimEndTime] = useState<number | null>(null);
@@ -272,6 +273,7 @@ export default function AdminPriceOverridesPage() {
         body: JSON.stringify({
           symbol: sym,
           target_price: tp,
+          start_price: parseFloat(simCurrentPrice) || undefined,
           ramp_seconds: parseInt(simRampSec) || 60,
           hold_seconds: parseInt(simHoldSec) || 10,
           recovery_seconds: parseInt(simRecoverySec) || 30,
@@ -612,7 +614,7 @@ export default function AdminPriceOverridesPage() {
         </CardHeader>
         {simOpen && (
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label className="text-xs text-muted-foreground">Symbol</Label>
                 <Input
@@ -622,6 +624,22 @@ export default function AdminPriceOverridesPage() {
                   className="bg-background/50 mt-1"
                   disabled={simRunning}
                 />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Current Price ($)</Label>
+                <Input
+                  type="number"
+                  placeholder="Auto-detect"
+                  value={simCurrentPrice}
+                  onChange={(e) => setSimCurrentPrice(e.target.value)}
+                  className="bg-background/50 mt-1"
+                  step="any"
+                  min="0"
+                  disabled={simRunning}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Leave empty to auto-detect
+                </p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Target Price ($)</Label>

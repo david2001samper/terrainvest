@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { fetchMarketPrice } from "@/lib/market-price";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
@@ -145,12 +144,14 @@ export async function POST(request: NextRequest) {
     const {
       symbol,
       target_price,
+      start_price,
       ramp_seconds,
       hold_seconds,
       recovery_seconds,
     } = body as {
       symbol: string;
       target_price: number;
+      start_price?: number;
       ramp_seconds: number;
       hold_seconds: number;
       recovery_seconds: number;
@@ -169,11 +170,50 @@ export async function POST(request: NextRequest) {
 
     const sym = symbol.toUpperCase();
 
-    // Get the current real price
-    const currentPrice = await fetchMarketPrice(sym);
+    // Get current price: use admin-provided start_price, or try fetching it
+    let currentPrice = start_price && start_price > 0 ? start_price : null;
+
+    if (!currentPrice) {
+      try {
+        const { fetchMarketPrice } = await import("@/lib/market-price");
+        currentPrice = await fetchMarketPrice(sym);
+      } catch { /* continue */ }
+    }
+
+    // Fallback: try CoinGecko directly
+    if (!currentPrice) {
+      try {
+        const cgIds: Record<string, string> = {
+          BTC: "bitcoin", ETH: "ethereum", SOL: "solana", XRP: "ripple",
+          ADA: "cardano", DOGE: "dogecoin", DOT: "polkadot", AVAX: "avalanche-2",
+          MATIC: "matic-network", LINK: "chainlink",
+        };
+        if (cgIds[sym]) {
+          const res = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds[sym]}&vs_currencies=usd`,
+            { cache: "no-store" }
+          );
+          if (res.ok) {
+            const d = await res.json();
+            currentPrice = d[cgIds[sym]]?.usd ?? null;
+          }
+        }
+      } catch { /* continue */ }
+    }
+
+    // Fallback: try Yahoo Finance directly
+    if (!currentPrice) {
+      try {
+        const { getYahooFinance } = await import("@/lib/yahoo");
+        const yf = await getYahooFinance();
+        const quote = await yf.quote(sym);
+        currentPrice = quote.regularMarketPrice ?? null;
+      } catch { /* continue */ }
+    }
+
     if (!currentPrice || currentPrice <= 0) {
       return NextResponse.json(
-        { error: "Cannot fetch current price for " + sym },
+        { error: "Cannot fetch current price for " + sym + ". Enter a start price manually." },
         { status: 400 }
       );
     }
