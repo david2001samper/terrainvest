@@ -36,10 +36,14 @@ interface TradePanelProps {
   compact?: boolean;
 }
 
+type InputMode = "quantity" | "amount";
+
 export function TradePanel({ symbol, name, price, compact = false }: TradePanelProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [quantity, setQuantity] = useState("");
+  const [dollarAmount, setDollarAmount] = useState("");
+  const [inputMode, setInputMode] = useState<InputMode>("quantity");
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +65,6 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
 
   const feePerTrade = platformSettings?.fee_per_trade ?? 0.1;
 
-  const qty = parseFloat(quantity) || 0;
   const execPrice =
     orderType === "market"
       ? price
@@ -70,6 +73,13 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
       : orderType === "stop"
       ? parseFloat(stopPrice) || price
       : parseFloat(limitPrice) || price;
+
+  const qty =
+    inputMode === "quantity"
+      ? parseFloat(quantity) || 0
+      : execPrice > 0
+      ? Math.floor(((parseFloat(dollarAmount) || 0) / execPrice) * 100) / 100
+      : 0;
 
   const preview = useMemo(() => {
     const subtotal = qty * execPrice;
@@ -116,6 +126,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
       }
       toast.success("Order placed successfully");
       setQuantity("");
+      setDollarAmount("");
       setLimitPrice("");
       setStopPrice("");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -143,6 +154,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
       toast.success(data.message);
       setConfirmOpen(false);
       setQuantity("");
+      setDollarAmount("");
       setLimitPrice("");
       setStopPrice("");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -216,19 +228,68 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
             </Select>
           </div>
 
-          {/* Quantity */}
+          {/* Input mode toggle */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Quantity</Label>
-            <Input
-              type="number"
-              placeholder="0.00"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
-              min="0"
-              step="any"
-            />
+            <Label className="text-xs text-muted-foreground">Input Mode</Label>
+            <div className="grid grid-cols-2 gap-1 p-0.5 bg-background/50 border border-border rounded-lg">
+              <button
+                type="button"
+                onClick={() => { setInputMode("quantity"); setDollarAmount(""); }}
+                className={`text-xs py-1.5 rounded-md font-medium transition-all ${
+                  inputMode === "quantity"
+                    ? "bg-[#00D4FF]/15 text-[#00D4FF] shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Quantity
+              </button>
+              <button
+                type="button"
+                onClick={() => { setInputMode("amount"); setQuantity(""); }}
+                className={`text-xs py-1.5 rounded-md font-medium transition-all ${
+                  inputMode === "amount"
+                    ? "bg-[#00D4FF]/15 text-[#00D4FF] shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Amount ($)
+              </button>
+            </div>
           </div>
+
+          {/* Quantity or Dollar Amount */}
+          {inputMode === "quantity" ? (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Quantity (shares/coins)</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
+                min="0"
+                step="any"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Amount ($)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 100.00"
+                value={dollarAmount}
+                onChange={(e) => setDollarAmount(e.target.value)}
+                className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
+                min="0"
+                step="0.01"
+              />
+              {qty > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  ≈ <span className="text-foreground font-medium">{qty.toFixed(2)}</span> {symbol} @ {formatCurrency(execPrice)}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Limit price */}
           {showLimitInput && (
@@ -338,8 +399,14 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Quantity</span>
-            <span className="font-medium">{qty}</span>
+            <span className="font-medium">{qty.toFixed(2)}</span>
           </div>
+          {inputMode === "amount" && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Dollar Amount</span>
+              <span className="font-medium">{formatCurrency(parseFloat(dollarAmount) || 0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Est. Price</span>
             <span className="font-medium">{formatCurrency(execPrice)}</span>
