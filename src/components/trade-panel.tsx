@@ -78,7 +78,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
     inputMode === "quantity"
       ? parseFloat(quantity) || 0
       : execPrice > 0
-      ? Math.floor(((parseFloat(dollarAmount) || 0) / execPrice) * 100) / 100
+      ? Math.floor(((parseFloat(dollarAmount) || 0) / execPrice) * 100000) / 100000
       : 0;
 
   const preview = useMemo(() => {
@@ -263,7 +263,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
               <Label className="text-xs text-muted-foreground">Quantity (shares/coins)</Label>
               <Input
                 type="number"
-                placeholder="0.00"
+                placeholder="0.00000"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
@@ -285,7 +285,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
               />
               {qty > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  ≈ <span className="text-foreground font-medium">{qty.toFixed(2)}</span> {symbol} @ {formatCurrency(execPrice)}
+                  ≈ <span className="text-foreground font-medium">{qty.toFixed(5)}</span> {symbol} @ {formatCurrency(execPrice)}
                 </p>
               )}
             </div>
@@ -399,7 +399,7 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Quantity</span>
-            <span className="font-medium">{qty.toFixed(2)}</span>
+            <span className="font-medium">{qty.toFixed(5)}</span>
           </div>
           {inputMode === "amount" && (
             <div className="flex justify-between text-sm">
