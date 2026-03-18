@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useMarketData } from "@/hooks/use-market-data";
+import { useMarketData, useChartData } from "@/hooks/use-market-data";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import { PriceChart } from "@/components/price-chart";
 import { TradePanel } from "@/components/trade-panel";
@@ -10,9 +10,10 @@ import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
 import { LastUpdated } from "@/components/last-updated";
 import { MarketStatusBadge } from "@/components/market-status-badge";
-import { TimeframeSelector, getTimeframeConfig, type TimeframeValue } from "@/components/timeframe-selector";
+import { TimeframeSelector, getTimeframeConfig, TIMEFRAMES, type TimeframeValue } from "@/components/timeframe-selector";
 import { formatPercent } from "@/lib/format";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,24 @@ export default function AssetDetailPage() {
   const asset = allAssets.find((a) => a.symbol === symbol);
   const tfConfig = getTimeframeConfig(timeframe);
 
+  const { data: chartData } = useChartData(symbol, assetType, tfConfig.days, tfConfig.interval);
+
+  const timeframeChange = useMemo(() => {
+    if (!chartData || chartData.length < 2 || !asset) return null;
+    const firstClose = (chartData[0] as { close: number }).close;
+    const currentPrice = asset.price;
+    if (!firstClose || firstClose <= 0) return null;
+    const change = currentPrice - firstClose;
+    const changePercent = (change / firstClose) * 100;
+    return { change, changePercent };
+  }, [chartData, asset]);
+
+  const tfLabel = TIMEFRAMES.find((t) => t.value === timeframe)?.label ?? "";
+
+  const displayChange = timeframeChange?.change ?? (asset?.change24h ?? 0);
+  const displayChangePercent = timeframeChange?.changePercent ?? (asset?.changePercent24h ?? 0);
+  const displayIsUp = displayChange >= 0;
+
   const dataUpdatedAt =
     assetType === "crypto" ? crypto.dataUpdatedAt : stocks.dataUpdatedAt;
 
@@ -65,8 +84,6 @@ export default function AssetDetailPage() {
       </div>
     );
   }
-
-  const isUp = (asset.changePercent24h ?? 0) >= 0;
 
   return (
     <div className="space-y-6">
@@ -125,11 +142,16 @@ export default function AssetDetailPage() {
         </PriceFlash>
         <div
           className={`flex items-center gap-1 text-lg font-semibold pb-1 ${
-            isUp ? "text-green-400" : "text-[#E53E3E]"
+            displayIsUp ? "text-green-400" : "text-[#E53E3E]"
           }`}
         >
-          {isUp ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-          {formatCurrency(Math.abs(asset.change24h ?? 0))} ({formatPercent(asset.changePercent24h)})
+          {displayIsUp ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+          {formatCurrency(Math.abs(displayChange))} ({formatPercent(displayChangePercent)})
+          {tfLabel && (
+            <span className="text-xs text-muted-foreground font-normal ml-1">
+              {tfLabel}
+            </span>
+          )}
         </div>
       </div>
 

@@ -36,12 +36,16 @@ async function upsertOverride(
 }
 
 /**
- * Brownian bridge: a random walk that starts at startPrice and is
- * guaranteed to end at targetPrice on the final tick, but wanders
- * freely up and down in between — looking like natural market noise.
+ * Generate a realistic price path from startPrice to targetPrice.
  *
- * The drift toward the target is hidden inside the randomness so
- * the price doesn't visibly converge until the very end.
+ * Each tick moves a tiny amount (max ~0.05% of price). The direction
+ * is biased toward the target but frequently bounces the opposite way,
+ * so it looks like natural market movement. The price only reaches the
+ * target on the very last tick.
+ *
+ * Approach: evenly spread the required drift across all ticks, then add
+ * small random noise on top. Each tick's random component is capped so
+ * the price never jumps more than ~0.05% in a single update.
  */
 function generateNaturalPath(
   startPrice: number,
@@ -52,55 +56,48 @@ function generateNaturalPath(
   if (steps === 1) return [targetPrice];
 
   const totalDrift = targetPrice - startPrice;
-  const volatility = Math.abs(totalDrift) * 0.06;
+  const driftPerStep = totalDrift / steps;
+  // Max single-tick noise: ~0.04% of current price
+  const maxTickNoise = startPrice * 0.0004;
+
   const prices: number[] = [];
+  let current = startPrice;
+  let accumulated = 0;
 
-  // Generate raw random walk first, then warp it to hit the target
-  const rawDeltas: number[] = [];
-  let momentum = 0;
-  for (let i = 0; i < steps; i++) {
-    // Momentum-based random walk for realistic micro-structure
-    momentum = momentum * 0.55 + (Math.random() - 0.5) * 0.45;
-    let delta = momentum * volatility;
-    // Occasional larger move
-    if (Math.random() < 0.1) delta += (Math.random() - 0.5) * volatility * 0.8;
-    rawDeltas.push(delta);
-  }
-
-  // Sum of raw deltas — the walk would end here without correction
-  const rawTotal = rawDeltas.reduce((s, d) => s + d, 0);
-  // We need the walk to end at totalDrift, so distribute the correction
-  // gradually across all steps (more correction later so early moves look free)
-  const correction = totalDrift - rawTotal;
-
-  let cumulative = startPrice;
-  for (let i = 0; i < steps; i++) {
-    if (i === steps - 1) {
+  for (let i = 1; i <= steps; i++) {
+    if (i === steps) {
       prices.push(targetPrice);
-      continue;
+      break;
     }
-    // Weight correction toward later steps so early price looks random
-    const weight = Math.pow((i + 1) / steps, 2);
-    const stepCorrection = correction * (weight / steps) * 3;
-    cumulative += rawDeltas[i] + stepCorrection;
-    prices.push(cumulative);
-  }
 
-  // Final smoothing pass: make sure we don't overshoot wildly
-  // by blending the last few steps toward the target
-  const blendStart = Math.max(0, steps - 4);
-  for (let i = blendStart; i < steps - 1; i++) {
-    const blendT = (i - blendStart + 1) / (steps - blendStart);
-    const blend = Math.pow(blendT, 2);
-    prices[i] = prices[i] * (1 - blend) + targetPrice * blend;
+    const t = i / steps;
+    const expectedAt = startPrice + totalDrift * t;
+    const deviation = current - expectedAt;
+
+    // Pull toward where we should be — stronger pull when we're further off
+    const pullStrength = 0.15 + 0.35 * Math.abs(deviation) / (Math.abs(totalDrift) + 1);
+    const pullBack = -deviation * pullStrength;
+
+    // Small random noise — sometimes goes against the trend
+    const noise = (Math.random() - 0.5) * 2 * maxTickNoise;
+
+    // Base drift toward target
+    let delta = driftPerStep + pullBack + noise;
+
+    // Clamp so no single tick exceeds ~0.05% of price
+    const maxDelta = current * 0.0005;
+    delta = Math.max(-maxDelta, Math.min(maxDelta, delta));
+
+    current += delta;
+    accumulated += delta;
+    prices.push(current);
   }
 
   return prices;
 }
 
 /**
- * Recovery path: same Brownian bridge approach so the price wanders
- * naturally from holdPrice back to realPrice, arriving at the end.
+ * Recovery path: same approach — small realistic ticks back to real price.
  */
 function generateRecoveryPath(
   holdPrice: number,

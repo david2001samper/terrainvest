@@ -58,33 +58,21 @@ export async function GET(request: NextRequest) {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = (chart.quotes || []).map((q: any) => ({
-      time: new Date(q.date).toISOString(),
-      open: q.open ?? 0,
-      high: q.high ?? 0,
-      low: q.low ?? 0,
-      close: q.close ?? 0,
-      volume: q.volume ?? 0,
-    }));
+    const data = (chart.quotes || [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((q: any) => ({
+        time: new Date(q.date).toISOString(),
+        open: q.open ?? 0,
+        high: q.high ?? 0,
+        low: q.low ?? 0,
+        close: q.close ?? 0,
+        volume: q.volume ?? 0,
+      }))
+      .filter((q: { close: number }) => q.close > 0);
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("Chart API error:", error);
-    const basePrice = 100;
-    const mockData = Array.from({ length: Math.min(days, 365) }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (days - i));
-      const drift = Math.sin(i / 5) * 10 + (Math.random() - 0.5) * 5;
-      const price = basePrice + drift;
-      return {
-        time: date.toISOString(),
-        open: price - Math.random() * 2,
-        high: price + Math.random() * 3,
-        low: price - Math.random() * 3,
-        close: price,
-        volume: Math.floor(Math.random() * 10000000),
-      };
-    });
-    return NextResponse.json(mockData);
+    return NextResponse.json([]);
   }
 }
