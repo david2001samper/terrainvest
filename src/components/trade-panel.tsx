@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useProfile } from "@/hooks/use-profile";
+import { usePositions } from "@/hooks/use-positions";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -46,12 +47,17 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
   const [inputMode, setInputMode] = useState<InputMode>("quantity");
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
+  const [customPct, setCustomPct] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { data: profile } = useProfile();
+  const { data: positions } = usePositions();
   const isLocked = profile?.is_locked ?? false;
   const { format: formatCurrency } = useCurrencyFormat();
   const queryClient = useQueryClient();
+
+  const ownedQty = positions?.find((p) => p.symbol === symbol)?.quantity ?? 0;
+  const buyingPower = profile?.balance ?? 0;
 
   const { data: platformSettings } = useQuery({
     queryKey: ["platform", "settings"],
@@ -288,6 +294,118 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
                   ≈ <span className="text-foreground font-medium">{qty.toFixed(5)}</span> {symbol} @ {formatCurrency(execPrice)}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Quick % buttons */}
+          {side === "buy" && buyingPower > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                % of Buying Power ({formatCurrency(buyingPower)})
+              </Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      setCustomPct(String(pct));
+                      const amount = Math.floor(buyingPower * (pct / 100) * 100) / 100;
+                      const calcQty = execPrice > 0
+                        ? Math.floor((amount / execPrice) * 100000) / 100000
+                        : 0;
+                      if (inputMode === "amount") setDollarAmount(amount.toFixed(2));
+                      else setQuantity(calcQty.toString());
+                    }}
+                    className="text-[11px] py-1.5 rounded-md border border-green-600/30 text-green-400 hover:bg-green-600/10 font-medium transition-all"
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="Custom %"
+                  value={customPct}
+                  onChange={(e) => setCustomPct(e.target.value)}
+                  className="bg-background/50 border-border focus:border-green-500 h-8 text-xs flex-1"
+                  min="0"
+                  max="100"
+                  step="any"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs border-green-600/30 text-green-400 hover:bg-green-600/10"
+                  onClick={() => {
+                    const pct = parseFloat(customPct);
+                    if (!pct || pct <= 0 || pct > 100) { toast.error("Enter 1–100%"); return; }
+                    const amount = Math.floor(buyingPower * (pct / 100) * 100) / 100;
+                    const calcQty = execPrice > 0
+                      ? Math.floor((amount / execPrice) * 100000) / 100000
+                      : 0;
+                    if (inputMode === "amount") setDollarAmount(amount.toFixed(2));
+                    else setQuantity(calcQty.toString());
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          )}
+          {side === "sell" && ownedQty > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                % of Holdings ({ownedQty.toLocaleString(undefined, { maximumFractionDigits: 5 })} {symbol})
+              </Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      setCustomPct(String(pct));
+                      const sellQty = Math.floor(ownedQty * (pct / 100) * 100000) / 100000;
+                      setInputMode("quantity");
+                      setDollarAmount("");
+                      setQuantity(sellQty.toString());
+                    }}
+                    className="text-[11px] py-1.5 rounded-md border border-red-600/30 text-red-400 hover:bg-red-600/10 font-medium transition-all"
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="Custom %"
+                  value={customPct}
+                  onChange={(e) => setCustomPct(e.target.value)}
+                  className="bg-background/50 border-border focus:border-red-500 h-8 text-xs flex-1"
+                  min="0"
+                  max="100"
+                  step="any"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs border-red-600/30 text-red-400 hover:bg-red-600/10"
+                  onClick={() => {
+                    const pct = parseFloat(customPct);
+                    if (!pct || pct <= 0 || pct > 100) { toast.error("Enter 1–100%"); return; }
+                    const sellQty = Math.floor(ownedQty * (pct / 100) * 100000) / 100000;
+                    setInputMode("quantity");
+                    setDollarAmount("");
+                    setQuantity(sellQty.toString());
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
             </div>
           )}
 

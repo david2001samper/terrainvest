@@ -40,7 +40,8 @@ If the update includes new SQL migrations:
 - `supabase-migration-testimonials.sql` – client testimonials & video testimonials for homepage
 - `supabase-migration-fix-signup-trigger.sql` – fix "Database error saving new user" on signup
 - `supabase-migration-withdrawal-wallet-address.sql` – add wallet_address to withdrawal requests
- - `supabase-migration-login-logs.sql` – add login_logs table for admin login history
+- `supabase-migration-client-bank-accounts.sql` – saved bank accounts + bank snapshot on bank withdrawals
+- `supabase-migration-login-logs.sql` – add login_logs table for admin login history
 
 ---
 

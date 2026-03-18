@@ -98,6 +98,15 @@ export default function AdminWithdrawalsPage() {
                   status: string;
                   created_at: string;
                   wallet_address?: string | null;
+                  bank_details?: {
+                    label?: string | null;
+                    bank_name?: string;
+                    account_holder_name?: string;
+                    account_number_or_iban?: string;
+                    routing_number?: string | null;
+                    swift_bic?: string | null;
+                    country?: string | null;
+                  } | null;
                 }) => (
                   <TableRow key={r.id} className="border-border hover:bg-accent/30">
                     <TableCell>
@@ -106,8 +115,41 @@ export default function AdminWithdrawalsPage() {
                     </TableCell>
                     <TableCell className="font-medium">{formatCurrency(r.amount)}</TableCell>
                     <TableCell className="uppercase text-xs">{r.method}</TableCell>
-                    <TableCell className="max-w-[220px]">
-                      {r.wallet_address ? (
+                    <TableCell className="max-w-[280px] align-top">
+                      {r.method === "bank" && r.bank_details ? (
+                        <div className="text-xs space-y-0.5 break-words">
+                          {r.bank_details.label && (
+                            <p className="font-medium text-foreground">{r.bank_details.label}</p>
+                          )}
+                          <p>
+                            <span className="text-muted-foreground">Bank:</span> {r.bank_details.bank_name}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Holder:</span>{" "}
+                            {r.bank_details.account_holder_name}
+                          </p>
+                          <p className="font-mono">
+                            <span className="text-muted-foreground font-sans">Acct/IBAN:</span>{" "}
+                            {r.bank_details.account_number_or_iban}
+                          </p>
+                          {r.bank_details.routing_number && (
+                            <p>
+                              <span className="text-muted-foreground">Routing:</span>{" "}
+                              {r.bank_details.routing_number}
+                            </p>
+                          )}
+                          {r.bank_details.swift_bic && (
+                            <p>
+                              <span className="text-muted-foreground">SWIFT:</span> {r.bank_details.swift_bic}
+                            </p>
+                          )}
+                          {r.bank_details.country && (
+                            <p>
+                              <span className="text-muted-foreground">Country:</span> {r.bank_details.country}
+                            </p>
+                          )}
+                        </div>
+                      ) : r.wallet_address ? (
                         <span className="font-mono text-xs break-all" title={r.wallet_address}>
                           {r.wallet_address}
                         </span>
