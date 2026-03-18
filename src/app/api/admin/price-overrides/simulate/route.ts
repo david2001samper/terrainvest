@@ -36,12 +36,12 @@ async function upsertOverride(
 }
 
 /**
- * Attempt to generate realistic-looking intermediate prices between
- * startPrice and targetPrice over `steps` ticks.
+ * Brownian bridge: a random walk that starts at startPrice and is
+ * guaranteed to end at targetPrice on the final tick, but wanders
+ * freely up and down in between — looking like natural market noise.
  *
- * Uses a smoothed sigmoid base curve with layered random noise so
- * the price wanders up and down naturally but always arrives at the
- * target by the final tick.
+ * The drift toward the target is hidden inside the randomness so
+ * the price doesn't visibly converge until the very end.
  */
 function generateNaturalPath(
   startPrice: number,
@@ -51,86 +51,63 @@ function generateNaturalPath(
   if (steps <= 0) return [];
   if (steps === 1) return [targetPrice];
 
-  const diff = targetPrice - startPrice;
+  const totalDrift = targetPrice - startPrice;
+  const volatility = Math.abs(totalDrift) * 0.06;
   const prices: number[] = [];
 
+  // Generate raw random walk first, then warp it to hit the target
+  const rawDeltas: number[] = [];
   let momentum = 0;
+  for (let i = 0; i < steps; i++) {
+    // Momentum-based random walk for realistic micro-structure
+    momentum = momentum * 0.55 + (Math.random() - 0.5) * 0.45;
+    let delta = momentum * volatility;
+    // Occasional larger move
+    if (Math.random() < 0.1) delta += (Math.random() - 0.5) * volatility * 0.8;
+    rawDeltas.push(delta);
+  }
 
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps; // 0→1
+  // Sum of raw deltas — the walk would end here without correction
+  const rawTotal = rawDeltas.reduce((s, d) => s + d, 0);
+  // We need the walk to end at totalDrift, so distribute the correction
+  // gradually across all steps (more correction later so early moves look free)
+  const correction = totalDrift - rawTotal;
 
-    // Sigmoid-shaped progress: slow start, fast middle, slow end
-    const sigmoid = 1 / (1 + Math.exp(-10 * (t - 0.5)));
-    // Normalize sigmoid so it goes from ~0 to ~1
-    const sigStart = 1 / (1 + Math.exp(5));
-    const sigEnd = 1 / (1 + Math.exp(-5));
-    const progress = (sigmoid - sigStart) / (sigEnd - sigStart);
-
-    const basePrice = startPrice + diff * progress;
-
-    if (i === steps) {
+  let cumulative = startPrice;
+  for (let i = 0; i < steps; i++) {
+    if (i === steps - 1) {
       prices.push(targetPrice);
       continue;
     }
+    // Weight correction toward later steps so early price looks random
+    const weight = Math.pow((i + 1) / steps, 2);
+    const stepCorrection = correction * (weight / steps) * 3;
+    cumulative += rawDeltas[i] + stepCorrection;
+    prices.push(cumulative);
+  }
 
-    // Noise that fades out as we approach the target
-    const remainingRatio = 1 - t;
-    const noiseMagnitude = Math.abs(diff) * 0.04 * remainingRatio;
-
-    // Momentum-based random walk for micro-structure
-    momentum = momentum * 0.6 + (Math.random() - 0.5) * 2 * 0.4;
-    const noise = momentum * noiseMagnitude;
-
-    // Occasional larger "tick" to simulate market volatility
-    const spike =
-      Math.random() < 0.08
-        ? (Math.random() - 0.5) * Math.abs(diff) * 0.02
-        : 0;
-
-    prices.push(basePrice + noise + spike);
+  // Final smoothing pass: make sure we don't overshoot wildly
+  // by blending the last few steps toward the target
+  const blendStart = Math.max(0, steps - 4);
+  for (let i = blendStart; i < steps - 1; i++) {
+    const blendT = (i - blendStart + 1) / (steps - blendStart);
+    const blend = Math.pow(blendT, 2);
+    prices[i] = prices[i] * (1 - blend) + targetPrice * blend;
   }
 
   return prices;
 }
 
 /**
- * Generate the recovery path from holdPrice back to realPrice.
- * Uses an ease-out curve so it starts moving quickly then slows
- * as it approaches the real price.
+ * Recovery path: same Brownian bridge approach so the price wanders
+ * naturally from holdPrice back to realPrice, arriving at the end.
  */
 function generateRecoveryPath(
   holdPrice: number,
   realPrice: number,
   steps: number
 ): number[] {
-  if (steps <= 0) return [];
-  if (steps === 1) return [realPrice];
-
-  const diff = realPrice - holdPrice;
-  const prices: number[] = [];
-  let momentum = 0;
-
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-
-    if (i === steps) {
-      prices.push(realPrice);
-      continue;
-    }
-
-    // Ease-out: fast start, slow finish (1 - (1-t)^3)
-    const progress = 1 - Math.pow(1 - t, 3);
-    const basePrice = holdPrice + diff * progress;
-
-    const remainingRatio = 1 - t;
-    const noiseMagnitude = Math.abs(diff) * 0.03 * remainingRatio;
-    momentum = momentum * 0.5 + (Math.random() - 0.5) * 2 * 0.5;
-    const noise = momentum * noiseMagnitude;
-
-    prices.push(basePrice + noise);
-  }
-
-  return prices;
+  return generateNaturalPath(holdPrice, realPrice, steps);
 }
 
 export async function POST(request: NextRequest) {
