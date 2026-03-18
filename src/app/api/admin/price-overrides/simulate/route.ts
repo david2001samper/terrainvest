@@ -36,24 +36,17 @@ async function upsertOverride(
 }
 
 /**
- * Adaptive price path generator.
+ * Generate a natural-looking price path from startPrice to targetPrice.
  *
- * All parameters are derived from three inputs:
- *   - price difference  (how far to move)
- *   - number of steps   (how much time we have)
- *   - starting price    (the price scale)
+ * Works in progress space (0 = start, 1 = target). A soft correction
+ * pulls progress toward a linear timeline while random noise makes it
+ * bounce up and down. A hard ceiling guarantees progress NEVER reaches
+ * 1.0 (the target) until the very last tick.
  *
- * From those we compute:
- *   avgStep     = totalDrift / steps          — the average move per tick needed
- *   noiseScale  = |avgStep| * 0.8             — bounce amplitude scales with speed
- *   biasChance  = 0.60–0.75                   — probability a tick goes toward target
- *   stepRange   = 0.3×|avgStep| … 1.8×|avgStep| — each tick's random magnitude
- *
- * Slow drift (small diff, many steps) → tiny moves, lots of random bouncing.
- * Fast drift (big diff, few steps)    → larger moves, still some bounces.
- *
- * A soft course-correction keeps us on track so we arrive at target on the
- * final tick without sudden jumps.
+ * All scaling is derived from the price difference and step count:
+ *   - Large diff + few steps  → bigger per-tick moves
+ *   - Small diff + many steps → tiny per-tick moves
+ *   - Noise amplitude shrinks toward the end for a smooth landing
  */
 function generateNaturalPath(
   startPrice: number,
@@ -64,19 +57,11 @@ function generateNaturalPath(
   if (steps === 1) return [targetPrice];
 
   const totalDrift = targetPrice - startPrice;
-  const direction = totalDrift >= 0 ? 1 : -1;
-  const avgStep = Math.abs(totalDrift) / steps;
-
-  // Noise scales with the required speed — fast moves get bigger bounces
-  const noiseScale = avgStep * 0.8;
-
-  // Bias: ~65% of ticks move toward target, ~35% bounce the other way
-  const biasChance = 0.60 + Math.random() * 0.15;
-
   const prices: number[] = [];
-  let current = startPrice;
+  let progress = 0; // 0 = at startPrice, 1 = at targetPrice
 
   for (let i = 1; i <= steps; i++) {
+    // Last tick always snaps to target
     if (i === steps) {
       prices.push(targetPrice);
       break;
@@ -85,52 +70,40 @@ function generateNaturalPath(
     const t = i / steps;
     const remaining = steps - i;
 
-    // Where we should ideally be at this point
-    const expectedAt = startPrice + totalDrift * t;
-    const drift = expectedAt - current;
+    // Where progress should ideally be on a linear timeline
+    const ideal = t;
+    const error = ideal - progress;
 
-    // Course-correction: pull harder when off track, gently when on track
-    const offTrackRatio = Math.abs(drift) / (Math.abs(totalDrift) + 0.01);
-    const correctionStrength = 0.1 + 0.4 * Math.min(offTrackRatio, 1);
-    const correction = drift * correctionStrength;
+    // Correction: gently pull toward the linear path, stronger near end
+    const pullStrength = 0.15 + 0.35 * t;
+    const correction = error * pullStrength;
 
-    // Random step: magnitude varies between 0.3× and 1.8× of avgStep
-    const magnitude = avgStep * (0.3 + Math.random() * 1.5);
+    // Random noise: average size = one step worth of progress
+    // Amplitude decays toward end so the price converges smoothly
+    const baseAmp = 1.0 / steps;
+    const decay = 1.0 - t * 0.6;
+    const noise = (Math.random() - 0.5) * 2 * baseAmp * decay;
 
-    // Direction of this tick: biased toward target, but sometimes bounces back
-    let tickDirection: number;
-    if (remaining <= 3) {
-      // Final few ticks — always move toward target to land smoothly
-      tickDirection = direction;
-    } else if (Math.random() < biasChance) {
-      tickDirection = direction;
-    } else {
-      tickDirection = -direction;
-    }
+    progress += correction + noise;
 
-    const randomMove = tickDirection * magnitude;
+    // === HARD CEILING: progress can NEVER reach 1.0 before the last tick ===
+    // The ceiling rises gradually in the final ticks for a smooth landing
+    const ceiling = remaining <= 5
+      ? 1.0 - remaining * 0.015 // last 5: 0.925 → 0.94 → 0.955 → 0.97 → 0.985
+      : 0.90;
+    // Floor: allow small bounce past start but not too far
+    const floor = -0.05;
 
-    // Small additional jitter for micro-structure
-    const jitter = (Math.random() - 0.5) * noiseScale * 0.3;
+    progress = Math.max(floor, Math.min(ceiling, progress));
 
-    let delta = correction + randomMove + jitter;
-
-    // Safety: if we're running out of time, make sure we can still reach target
-    if (remaining > 0) {
-      const maxAllowed = Math.abs(targetPrice - current) / remaining * 2.5;
-      const clamped = Math.min(Math.abs(delta), Math.max(avgStep * 2.5, maxAllowed));
-      delta = Math.sign(delta) * clamped;
-    }
-
-    current += delta;
-    prices.push(current);
+    prices.push(startPrice + progress * totalDrift);
   }
 
   return prices;
 }
 
 /**
- * Recovery path: uses the same adaptive formula.
+ * Recovery path: same algorithm in reverse (from hold price back to real).
  */
 function generateRecoveryPath(
   holdPrice: number,
