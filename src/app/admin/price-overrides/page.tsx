@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { TrendingUp, Plus, Trash2, Loader2, Clock, Link2, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, Plus, Trash2, Loader2, Clock, Link2, Play, Square, ChevronDown, ChevronUp, Activity, ArrowDown, ArrowUp } from "lucide-react";
 import { formatDateShort } from "@/lib/format";
 
 interface ChainStep {
@@ -34,6 +34,22 @@ export default function AdminPriceOverridesPage() {
   const [chainEndTime, setChainEndTime] = useState<number | null>(null);
   const [chainTimeLeft, setChainTimeLeft] = useState(0);
   const chainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Simulation state
+  const [simOpen, setSimOpen] = useState(false);
+  const [simSymbol, setSimSymbol] = useState("");
+  const [simTargetPrice, setSimTargetPrice] = useState("");
+  const [simRampSec, setSimRampSec] = useState("60");
+  const [simHoldSec, setSimHoldSec] = useState("10");
+  const [simRecoverySec, setSimRecoverySec] = useState("30");
+  const [simRunning, setSimRunning] = useState(false);
+  const [simPhase, setSimPhase] = useState<"" | "ramp" | "hold" | "recovery">("");
+  const [simEndTime, setSimEndTime] = useState<number | null>(null);
+  const [simTimeLeft, setSimTimeLeft] = useState(0);
+  const [simStartPrice, setSimStartPrice] = useState<number | null>(null);
+  const [simRampEndTime, setSimRampEndTime] = useState<number | null>(null);
+  const [simHoldEndTime, setSimHoldEndTime] = useState<number | null>(null);
+  const simTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["admin", "price-overrides"],
@@ -79,6 +95,38 @@ export default function AdminPriceOverridesPage() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainRunning, chainEndTime]);
+
+  // Simulation countdown timer
+  useEffect(() => {
+    if (!simRunning || !simEndTime) return;
+    simTimerRef.current = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((simEndTime - now) / 1000));
+      setSimTimeLeft(remaining);
+
+      if (simRampEndTime && now < simRampEndTime) {
+        setSimPhase("ramp");
+      } else if (simHoldEndTime && now < simHoldEndTime) {
+        setSimPhase("hold");
+      } else if (now < simEndTime) {
+        setSimPhase("recovery");
+      }
+
+      if (remaining <= 0) {
+        setSimRunning(false);
+        setSimPhase("");
+        setSimEndTime(null);
+        setSimStartPrice(null);
+        setSimRampEndTime(null);
+        setSimHoldEndTime(null);
+        if (simTimerRef.current) clearInterval(simTimerRef.current);
+      }
+    }, 500);
+    return () => {
+      if (simTimerRef.current) clearInterval(simTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simRunning, simEndTime]);
 
   async function addOverride(e: React.FormEvent) {
     e.preventDefault();
@@ -207,6 +255,74 @@ export default function AdminPriceOverridesPage() {
     queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
     toast.info("Chain stopped");
   }
+
+  async function runSimulation() {
+    const sym = simSymbol.trim().toUpperCase();
+    if (!sym) { toast.error("Enter a symbol"); return; }
+    const tp = parseFloat(simTargetPrice);
+    if (!tp || tp <= 0) { toast.error("Enter a valid target price"); return; }
+
+    setSimRunning(true);
+    setSimPhase("ramp");
+
+    try {
+      const res = await fetch("/api/admin/price-overrides/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: sym,
+          target_price: tp,
+          ramp_seconds: parseInt(simRampSec) || 60,
+          hold_seconds: parseInt(simHoldSec) || 10,
+          recovery_seconds: parseInt(simRecoverySec) || 30,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+
+      const totalSec = data.total_duration_seconds as number;
+      const rampSec = data.ramp_seconds as number;
+      const holdSec = data.hold_seconds as number;
+      const now = Date.now();
+
+      setSimStartPrice(data.start_price);
+      setSimEndTime(now + totalSec * 1000);
+      setSimRampEndTime(now + rampSec * 1000);
+      setSimHoldEndTime(now + (rampSec + holdSec) * 1000);
+      setSimTimeLeft(totalSec);
+      toast.success(
+        `Simulation started: ${sym} $${data.start_price.toLocaleString()} → $${tp.toLocaleString()} → back`
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+      setSimRunning(false);
+      setSimPhase("");
+    }
+  }
+
+  async function stopSimulation() {
+    const sym = simSymbol.trim().toUpperCase();
+    try {
+      await fetch(`/api/admin/price-overrides/simulate?symbol=${encodeURIComponent(sym)}`, {
+        method: "DELETE",
+      });
+    } catch { /* ignore */ }
+    setSimRunning(false);
+    setSimPhase("");
+    setSimEndTime(null);
+    setSimStartPrice(null);
+    setSimRampEndTime(null);
+    setSimHoldEndTime(null);
+    if (simTimerRef.current) clearInterval(simTimerRef.current);
+    queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
+    toast.info("Simulation stopped");
+  }
+
+  const simTotalSec =
+    (parseInt(simRampSec) || 0) +
+    (parseInt(simHoldSec) || 0) +
+    (parseInt(simRecoverySec) || 0);
 
   const totalChainDuration = chainSteps.reduce(
     (sum, s) => sum + (parseInt(s.duration) || 0),
@@ -448,6 +564,180 @@ export default function AdminPriceOverridesPage() {
                 >
                   <Square className="w-4 h-4 mr-2" />
                   Stop Chain
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Price Simulation */}
+      <Card className="glass-card border-emerald-500/20">
+        <CardHeader
+          className="cursor-pointer"
+          onClick={() => setSimOpen(!simOpen)}
+        >
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-400" />
+              Price Simulation
+              {simRunning && (
+                <Badge className={`ml-2 animate-pulse text-[10px] ${
+                  simPhase === "ramp"
+                    ? "bg-red-500/20 text-red-400"
+                    : simPhase === "hold"
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-emerald-500/20 text-emerald-400"
+                }`}>
+                  {simPhase === "ramp" ? (
+                    <><ArrowDown className="w-3 h-3 mr-1 inline" />Moving to target</>
+                  ) : simPhase === "hold" ? (
+                    <>Holding at target</>
+                  ) : (
+                    <><ArrowUp className="w-3 h-3 mr-1 inline" />Recovering to real price</>
+                  )}
+                  {" — "}{simTimeLeft}s left
+                </Badge>
+              )}
+            </CardTitle>
+            {simOpen ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Gradually move a price to a target with natural-looking fluctuations, hold it, then recover back to the real price.
+          </p>
+        </CardHeader>
+        {simOpen && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Symbol</Label>
+                <Input
+                  placeholder="e.g. BTC"
+                  value={simSymbol}
+                  onChange={(e) => setSimSymbol(e.target.value.toUpperCase())}
+                  className="bg-background/50 mt-1"
+                  disabled={simRunning}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Target Price ($)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 99000"
+                  value={simTargetPrice}
+                  onChange={(e) => setSimTargetPrice(e.target.value)}
+                  className="bg-background/50 mt-1"
+                  step="any"
+                  min="0"
+                  disabled={simRunning}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Ramp Duration (sec)</Label>
+                <Input
+                  type="number"
+                  value={simRampSec}
+                  onChange={(e) => setSimRampSec(e.target.value)}
+                  className="bg-background/50 mt-1"
+                  min="5"
+                  max="3600"
+                  disabled={simRunning}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Time to reach target
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Hold Duration (sec)</Label>
+                <Input
+                  type="number"
+                  value={simHoldSec}
+                  onChange={(e) => setSimHoldSec(e.target.value)}
+                  className="bg-background/50 mt-1"
+                  min="0"
+                  max="3600"
+                  disabled={simRunning}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Time at target price
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Recovery Duration (sec)</Label>
+                <Input
+                  type="number"
+                  value={simRecoverySec}
+                  onChange={(e) => setSimRecoverySec(e.target.value)}
+                  className="bg-background/50 mt-1"
+                  min="5"
+                  max="3600"
+                  disabled={simRunning}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Time back to real price
+                </p>
+              </div>
+            </div>
+
+            {/* Phase progress bar */}
+            {simRunning && simEndTime && (
+              <div className="space-y-2">
+                <div className="flex gap-1 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`transition-all ${simPhase === "ramp" ? "bg-red-500 animate-pulse" : "bg-red-500/30"}`}
+                    style={{ flex: parseInt(simRampSec) || 1 }}
+                  />
+                  <div
+                    className={`transition-all ${simPhase === "hold" ? "bg-amber-500 animate-pulse" : "bg-amber-500/30"}`}
+                    style={{ flex: parseInt(simHoldSec) || 1 }}
+                  />
+                  <div
+                    className={`transition-all ${simPhase === "recovery" ? "bg-emerald-500 animate-pulse" : "bg-emerald-500/30"}`}
+                    style={{ flex: parseInt(simRecoverySec) || 1 }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span className={simPhase === "ramp" ? "text-red-400 font-medium" : ""}>
+                    Ramp {simPhase === "ramp" && simStartPrice != null ? `($${simStartPrice.toLocaleString()} → $${parseFloat(simTargetPrice).toLocaleString()})` : ""}
+                  </span>
+                  <span className={simPhase === "hold" ? "text-amber-400 font-medium" : ""}>
+                    Hold {simPhase === "hold" ? `($${parseFloat(simTargetPrice).toLocaleString()})` : ""}
+                  </span>
+                  <span className={simPhase === "recovery" ? "text-emerald-400 font-medium" : ""}>
+                    Recovery {simPhase === "recovery" && simStartPrice != null ? `(→ $${simStartPrice.toLocaleString()})` : ""}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              {!simRunning ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={runSimulation}
+                  disabled={!simSymbol || !simTargetPrice}
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Run Simulation ({simTotalSec}s total)
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={stopSimulation}
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  Stop Simulation
                 </Button>
               )}
             </div>
