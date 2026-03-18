@@ -3,6 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import type { MarketAsset } from "@/lib/types";
 
+interface OverrideStatus {
+  active: boolean;
+  symbols: string[];
+  refresh_ms: number | null;
+}
+
+async function fetchOverrideStatus(): Promise<OverrideStatus> {
+  try {
+    const res = await fetch("/api/market/override-status");
+    if (!res.ok) return { active: false, symbols: [], refresh_ms: null };
+    return res.json();
+  } catch {
+    return { active: false, symbols: [], refresh_ms: null };
+  }
+}
+
 async function fetchCrypto(): Promise<MarketAsset[]> {
   const res = await fetch("/api/market/crypto");
   if (!res.ok) return [];
@@ -16,18 +32,28 @@ async function fetchStocks(): Promise<MarketAsset[]> {
 }
 
 export function useMarketData() {
+  const overrideStatus = useQuery<OverrideStatus>({
+    queryKey: ["market", "override-status"],
+    queryFn: fetchOverrideStatus,
+    refetchInterval: 3000,
+    staleTime: 2000,
+  });
+
+  const fast = overrideStatus.data?.active === true;
+  const fastMs = overrideStatus.data?.refresh_ms ?? 2000;
+
   const crypto = useQuery<MarketAsset[]>({
     queryKey: ["market", "crypto"],
     queryFn: fetchCrypto,
-    refetchInterval: 8000,
-    staleTime: 6000,
+    refetchInterval: fast ? fastMs : 8000,
+    staleTime: fast ? 1000 : 6000,
   });
 
   const stocks = useQuery<MarketAsset[]>({
     queryKey: ["market", "stocks"],
     queryFn: fetchStocks,
-    refetchInterval: 10000,
-    staleTime: 8000,
+    refetchInterval: fast ? fastMs : 10000,
+    staleTime: fast ? 1000 : 8000,
   });
 
   const allAssets = [...(crypto.data || []), ...(stocks.data || [])];

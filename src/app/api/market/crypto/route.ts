@@ -75,7 +75,14 @@ export async function GET() {
     const overrides = await getActiveOverrides();
     data = applyOverrides(data, overrides);
 
-    return NextResponse.json(data);
+    const hasOverrides = Object.keys(overrides).length > 0;
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": hasOverrides
+          ? "no-store, no-cache, must-revalidate"
+          : "public, max-age=6",
+      },
+    });
   } catch (error) {
     console.error("Crypto API error:", error);
     if (cachedRaw) {

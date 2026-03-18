@@ -98,7 +98,14 @@ export async function GET() {
     const overrides = await getActiveOverrides();
     const data = applyOverrides(rawData, overrides);
 
-    return NextResponse.json(data);
+    const hasOverrides = Object.keys(overrides).length > 0;
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": hasOverrides
+          ? "no-store, no-cache, must-revalidate"
+          : "public, max-age=8",
+      },
+    });
   } catch (error) {
     console.error("Stocks API error:", error);
     if (cachedRaw) {
