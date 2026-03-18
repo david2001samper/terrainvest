@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MarketAsset } from "@/lib/types";
 
 interface OverrideStatus {
@@ -32,6 +33,9 @@ async function fetchStocks(): Promise<MarketAsset[]> {
 }
 
 export function useMarketData() {
+  const queryClient = useQueryClient();
+  const wasActiveRef = useRef(false);
+
   const overrideStatus = useQuery<OverrideStatus>({
     queryKey: ["market", "override-status"],
     queryFn: fetchOverrideStatus,
@@ -41,6 +45,14 @@ export function useMarketData() {
 
   const fast = overrideStatus.data?.active === true;
   const fastMs = overrideStatus.data?.refresh_ms ?? 2000;
+
+  useEffect(() => {
+    if (wasActiveRef.current && !fast) {
+      queryClient.invalidateQueries({ queryKey: ["market", "crypto"] });
+      queryClient.invalidateQueries({ queryKey: ["market", "stocks"] });
+    }
+    wasActiveRef.current = fast;
+  }, [fast, queryClient]);
 
   const crypto = useQuery<MarketAsset[]>({
     queryKey: ["market", "crypto"],

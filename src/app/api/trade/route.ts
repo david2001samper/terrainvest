@@ -34,24 +34,29 @@ export async function POST(request: NextRequest) {
 
     const { symbol, side, quantity, price: userPrice } = parsed.data;
 
-    const [feeRow, marketPrice] = await Promise.all([
+    let marketPrice: number | null = null;
+    const [feeRow] = await Promise.all([
       supabase.from("platform_settings").select("value").eq("key", "fee_per_trade").single(),
-      fetchMarketPrice(symbol),
+      fetchMarketPrice(symbol)
+        .then((p) => { marketPrice = p; })
+        .catch(() => { marketPrice = null; }),
     ]);
 
     const fee = parseFloat(feeRow?.data?.value ?? "0.10");
     const price = marketPrice ?? userPrice;
 
-    const priceDiff = Math.abs(userPrice - price) / (price || 1);
-    if (priceDiff > UNREALISTIC_THRESHOLD) {
-      return NextResponse.json(
-        {
-          error: "Order rejected",
-          message: "Price moved significantly. Please refresh and try again.",
-          pending: true,
-        },
-        { status: 400 }
-      );
+    if (marketPrice != null) {
+      const priceDiff = Math.abs(userPrice - price) / (price || 1);
+      if (priceDiff > UNREALISTIC_THRESHOLD) {
+        return NextResponse.json(
+          {
+            error: "Order rejected",
+            message: "Price moved significantly. Please refresh and try again.",
+            pending: true,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const slippage = 1 + (Math.random() * 2 - 1) * SLIPPAGE_MAX;

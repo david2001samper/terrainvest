@@ -14,15 +14,19 @@ const COINGECKO_IDS: Record<string, string> = {
 export async function fetchMarketPrice(symbol: string): Promise<number | null> {
   const sym = symbol.toUpperCase();
 
-  const { getActiveOverrides } = await import("@/lib/price-overrides");
-  const overrides = await getActiveOverrides();
-  if (overrides[sym] != null) return overrides[sym];
+  try {
+    const { getActiveOverrides } = await import("@/lib/price-overrides");
+    const overrides = await getActiveOverrides();
+    if (overrides[sym] != null) return overrides[sym];
+  } catch {
+    // override lookup failed — continue to real price
+  }
 
   if (COINGECKO_IDS[sym]) {
     try {
       const res = await fetch(
         `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS[sym]}&vs_currencies=usd`,
-        { next: { revalidate: 5 } }
+        { cache: "no-store" }
       );
       if (!res.ok) return null;
       const data = await res.json();
