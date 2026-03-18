@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { TrendingUp, Plus, Trash2, Loader2, Clock } from "lucide-react";
+import { TrendingUp, Plus, Trash2, Loader2, Clock, Link2, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDateShort } from "@/lib/format";
+
+interface ChainStep {
+  id: string;
+  price: string;
+  duration: string;
+}
 
 export default function AdminPriceOverridesPage() {
   const [symbol, setSymbol] = useState("");
@@ -17,6 +23,15 @@ export default function AdminPriceOverridesPage() {
   const [duration, setDuration] = useState("30");
   const [adding, setAdding] = useState(false);
   const queryClient = useQueryClient();
+
+  const [chainSymbol, setChainSymbol] = useState("");
+  const [chainSteps, setChainSteps] = useState<ChainStep[]>([
+    { id: crypto.randomUUID(), price: "", duration: "5" },
+  ]);
+  const [chainRunning, setChainRunning] = useState(false);
+  const [chainCurrentStep, setChainCurrentStep] = useState(-1);
+  const [chainOpen, setChainOpen] = useState(false);
+  const chainAbortRef = useRef(false);
 
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["admin", "price-overrides"],
@@ -73,6 +88,108 @@ export default function AdminPriceOverridesPage() {
     }
   }
 
+  function addChainStep() {
+    setChainSteps((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), price: "", duration: "5" },
+    ]);
+  }
+
+  function removeChainStep(id: string) {
+    setChainSteps((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function updateChainStep(id: string, field: "price" | "duration", value: string) {
+    setChainSteps((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
+  }
+
+  function moveChainStep(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= chainSteps.length) return;
+    setChainSteps((prev) => {
+      const copy = [...prev];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return copy;
+    });
+  }
+
+  const runChain = useCallback(async () => {
+    const sym = chainSymbol.trim().toUpperCase();
+    if (!sym) {
+      toast.error("Enter a symbol for the chain");
+      return;
+    }
+    const validSteps = chainSteps.filter(
+      (s) => s.price && parseFloat(s.price) > 0 && s.duration && parseInt(s.duration) > 0
+    );
+    if (validSteps.length === 0) {
+      toast.error("Add at least one valid step");
+      return;
+    }
+
+    chainAbortRef.current = false;
+    setChainRunning(true);
+    setChainCurrentStep(0);
+
+    for (let i = 0; i < validSteps.length; i++) {
+      if (chainAbortRef.current) break;
+
+      const step = validSteps[i];
+      const durationSecs = parseInt(step.duration) || 5;
+      setChainCurrentStep(i);
+
+      try {
+        const res = await fetch("/api/admin/price-overrides", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol: sym,
+            override_price: parseFloat(step.price),
+            duration_seconds: durationSecs,
+          }),
+        });
+        if (!res.ok) throw new Error("API error");
+        queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
+      } catch {
+        toast.error(`Chain step ${i + 1} failed`);
+        break;
+      }
+
+      if (i < validSteps.length - 1 && !chainAbortRef.current) {
+        await new Promise<void>((resolve) => {
+          const check = () => {
+            if (chainAbortRef.current) {
+              resolve();
+              return;
+            }
+            resolve();
+          };
+          setTimeout(check, durationSecs * 1000);
+        });
+      }
+    }
+
+    setChainRunning(false);
+    setChainCurrentStep(-1);
+    if (!chainAbortRef.current) {
+      toast.success(`Price chain completed for ${sym}`);
+    } else {
+      toast.info("Price chain stopped");
+    }
+    queryClient.invalidateQueries({ queryKey: ["admin", "price-overrides"] });
+  }, [chainSymbol, chainSteps, queryClient]);
+
+  function stopChain() {
+    chainAbortRef.current = true;
+  }
+
+  const totalChainDuration = chainSteps.reduce(
+    (sum, s) => sum + (parseInt(s.duration) || 0),
+    0
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -81,10 +198,11 @@ export default function AdminPriceOverridesPage() {
           Price Overrides
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Temporarily override asset prices for testing. Prices reset to API values after the duration.
+          Temporarily override asset prices. Prices reset to API values after the duration.
         </p>
       </div>
 
+      {/* Single Override */}
       <Card className="glass-card accent-border">
         <CardHeader>
           <CardTitle className="text-base">Set Price Override</CardTitle>
@@ -146,6 +264,175 @@ export default function AdminPriceOverridesPage() {
         </CardContent>
       </Card>
 
+      {/* Price Chain */}
+      <Card className="glass-card border-purple-500/20">
+        <CardHeader
+          className="cursor-pointer"
+          onClick={() => setChainOpen(!chainOpen)}
+        >
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-purple-400" />
+              Price Chain
+              {chainRunning && (
+                <Badge className="bg-purple-500/20 text-purple-400 ml-2 animate-pulse text-[10px]">
+                  Running step {chainCurrentStep + 1}/{chainSteps.length}
+                </Badge>
+              )}
+            </CardTitle>
+            {chainOpen ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Queue multiple price overrides that execute one after another automatically.
+          </p>
+        </CardHeader>
+        {chainOpen && (
+          <CardContent className="space-y-4">
+            <div className="max-w-xs">
+              <Label className="text-xs text-muted-foreground">Symbol</Label>
+              <Input
+                placeholder="e.g. BTC"
+                value={chainSymbol}
+                onChange={(e) => setChainSymbol(e.target.value.toUpperCase())}
+                className="bg-background/50 mt-1"
+                disabled={chainRunning}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                Steps ({chainSteps.length}) — Total duration: {totalChainDuration}s
+              </Label>
+              {chainSteps.map((step, idx) => (
+                <div
+                  key={step.id}
+                  className={`flex items-center gap-2 p-3 rounded-lg border ${
+                    chainRunning && chainCurrentStep === idx
+                      ? "border-purple-500/50 bg-purple-500/10"
+                      : "border-border bg-background/50"
+                  }`}
+                >
+                  <span className="text-xs text-muted-foreground font-mono w-6 shrink-0">
+                    #{idx + 1}
+                  </span>
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Price ($)"
+                      value={step.price}
+                      onChange={(e) => updateChainStep(step.id, "price", e.target.value)}
+                      className="bg-background/50 h-8 text-sm"
+                      step="any"
+                      min="0"
+                      disabled={chainRunning}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Sec"
+                      value={step.duration}
+                      onChange={(e) => updateChainStep(step.id, "duration", e.target.value)}
+                      className="bg-background/50 h-8 text-sm w-20"
+                      min="1"
+                      max="3600"
+                      disabled={chainRunning}
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">sec</span>
+                  </div>
+                  {!chainRunning && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => moveChainStep(idx, -1)}
+                        disabled={idx === 0}
+                        className="h-6 w-6"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => moveChainStep(idx, 1)}
+                        disabled={idx === chainSteps.length - 1}
+                        className="h-6 w-6"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeChainStep(step.id)}
+                        disabled={chainSteps.length <= 1}
+                        className="h-6 w-6 text-red-400 hover:text-red-300"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                  {chainRunning && chainCurrentStep === idx && (
+                    <Badge className="bg-purple-500/20 text-purple-400 text-[10px] animate-pulse shrink-0">
+                      Active
+                    </Badge>
+                  )}
+                  {chainRunning && chainCurrentStep > idx && (
+                    <Badge className="bg-green-500/20 text-green-400 text-[10px] shrink-0">
+                      Done
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {!chainRunning && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addChainStep}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Step
+                </Button>
+              )}
+              {!chainRunning ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={runChain}
+                  disabled={
+                    !chainSymbol ||
+                    chainSteps.every((s) => !s.price || !s.duration)
+                  }
+                  className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Run Chain ({totalChainDuration}s total)
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={stopChain}
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  Stop Chain
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Active Overrides */}
       <Card className="glass-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
