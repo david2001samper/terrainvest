@@ -1,6 +1,7 @@
 "use client";
 
 const TIMEFRAMES = [
+  { label: "Live", value: "live", days: 0, interval: "live" },
   { label: "1D", value: "1d", days: 1, interval: "5m" },
   { label: "5D", value: "5d", days: 5, interval: "15m" },
   { label: "1W", value: "1w", days: 7, interval: "30m" },
@@ -20,17 +21,24 @@ interface TimeframeSelectorProps {
 
 export function TimeframeSelector({ value, onChange }: TimeframeSelectorProps) {
   return (
-    <div className="flex items-center gap-1 p-1 rounded-lg bg-background/60 border border-border">
+    <div className="flex items-center gap-1 p-1 rounded-lg bg-background/60 border border-border flex-wrap">
       {TIMEFRAMES.map((tf) => (
         <button
           key={tf.value}
           onClick={() => onChange(tf.value)}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
             value === tf.value
               ? "bg-[#00D4FF]/15 text-[#00D4FF] border border-[#00D4FF]/25"
               : "text-muted-foreground hover:text-foreground hover:bg-accent/50 border border-transparent"
           }`}
         >
+          {tf.value === "live" && (
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                value === "live" ? "bg-green-400 animate-pulse" : "bg-muted-foreground"
+              }`}
+            />
+          )}
           {tf.label}
         </button>
       ))}
@@ -39,7 +47,7 @@ export function TimeframeSelector({ value, onChange }: TimeframeSelectorProps) {
 }
 
 export function getTimeframeConfig(value: TimeframeValue) {
-  return TIMEFRAMES.find((tf) => tf.value === value) || TIMEFRAMES[3];
+  return TIMEFRAMES.find((tf) => tf.value === value) || TIMEFRAMES[4];
 }
 
 export { TIMEFRAMES };

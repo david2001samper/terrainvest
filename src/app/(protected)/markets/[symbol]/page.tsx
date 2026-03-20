@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useMarketData, useChartData } from "@/hooks/use-market-data";
+import { useMarketData, useChartData, useLiveChartData } from "@/hooks/use-market-data";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import { PriceChart } from "@/components/price-chart";
 import { TradePanel } from "@/components/trade-panel";
@@ -11,7 +11,12 @@ import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
 import { LastUpdated } from "@/components/last-updated";
 import { MarketStatusBadge } from "@/components/market-status-badge";
-import { TimeframeSelector, getTimeframeConfig, TIMEFRAMES, type TimeframeValue } from "@/components/timeframe-selector";
+import {
+  TimeframeSelector,
+  getTimeframeConfig,
+  TIMEFRAMES,
+  type TimeframeValue,
+} from "@/components/timeframe-selector";
 import { formatPercent } from "@/lib/format";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +29,10 @@ import {
   ArrowDownRight,
   Heart,
   BarChart3,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
+import type { MarketAsset } from "@/lib/types";
 
 export default function AssetDetailPage() {
   const params = useParams();
@@ -34,6 +41,7 @@ export default function AssetDetailPage() {
   const symbol = decodeURIComponent(params.symbol as string);
   const assetType = searchParams.get("type") || "stock";
   const [timeframe, setTimeframe] = useState<TimeframeValue>("1m");
+  const [chartMode, setChartMode] = useState<"price" | "volume">("price");
 
   const { allAssets, isLoading, crypto, stocks } = useMarketData();
   const { isWatched, toggle } = useWatchlist();
@@ -41,8 +49,9 @@ export default function AssetDetailPage() {
   const listAsset = useMemo(() => {
     const u = symbol.toUpperCase();
     return (
-      allAssets.find((a) => a.symbol === symbol || a.symbol.toUpperCase() === u) ??
-      null
+      allAssets.find(
+        (a) => a.symbol === symbol || a.symbol.toUpperCase() === u
+      ) ?? null
     );
   }, [allAssets, symbol]);
 
@@ -53,7 +62,8 @@ export default function AssetDetailPage() {
     data: dynamicAsset,
     isLoading: quoteLoading,
     isError: quoteError,
-  } = useQuery({
+    dataUpdatedAt: quoteDataUpdatedAt,
+  } = useQuery<MarketAsset>({
     queryKey: ["market", "quote", symbol, assetType, cgFromUrl ?? ""],
     queryFn: async () => {
       const p = new URLSearchParams({ symbol, type: assetType });
@@ -63,7 +73,7 @@ export default function AssetDetailPage() {
         const j = await res.json().catch(() => ({}));
         throw new Error((j as { error?: string }).error || "not found");
       }
-      return (await res.json()) as import("@/lib/types").MarketAsset;
+      return (await res.json()) as MarketAsset;
     },
     enabled: Boolean(symbol) && !isLoading && needsDynamicQuote,
     refetchInterval: 10_000,
@@ -74,20 +84,51 @@ export default function AssetDetailPage() {
   const resolvedType = asset?.asset_type ?? assetType;
   const coingeckoId =
     resolvedType === "crypto"
-      ? cgFromUrl || listAsset?.coingecko_id || dynamicAsset?.coingecko_id || null
+      ? cgFromUrl ||
+        listAsset?.coingecko_id ||
+        dynamicAsset?.coingecko_id ||
+        null
       : null;
 
+  const isLive = timeframe === "live";
   const tfConfig = getTimeframeConfig(timeframe);
 
+  // Historical chart data (disabled during live mode)
   const { data: chartData } = useChartData(
     symbol,
     resolvedType,
-    tfConfig.days,
-    tfConfig.interval,
-    coingeckoId
+    isLive ? 1 : tfConfig.days,
+    isLive ? "5m" : tfConfig.interval,
+    coingeckoId,
+    !isLive
   );
 
+  // Live chart data
+  const effectiveDataUpdatedAt =
+    listAsset != null
+      ? resolvedType === "crypto"
+        ? crypto.dataUpdatedAt
+        : stocks.dataUpdatedAt
+      : quoteDataUpdatedAt;
+
+  const liveData = useLiveChartData(
+    asset?.price ?? 0,
+    asset?.volume ?? 0,
+    effectiveDataUpdatedAt,
+    isLive
+  );
+
+  // Timeframe change computation
   const timeframeChange = useMemo(() => {
+    if (isLive) {
+      if (liveData.length < 2) return null;
+      const firstPrice = liveData[0].price;
+      const currentPrice = liveData[liveData.length - 1].price;
+      if (!firstPrice || firstPrice <= 0) return null;
+      const change = currentPrice - firstPrice;
+      const changePercent = (change / firstPrice) * 100;
+      return { change, changePercent };
+    }
     if (!chartData || chartData.length < 2 || !asset) return null;
     const firstClose = (chartData[0] as { close: number }).close;
     const currentPrice = asset.price;
@@ -95,12 +136,16 @@ export default function AssetDetailPage() {
     const change = currentPrice - firstClose;
     const changePercent = (change / firstClose) * 100;
     return { change, changePercent };
-  }, [chartData, asset]);
+  }, [isLive, liveData, chartData, asset]);
 
-  const tfLabel = TIMEFRAMES.find((t) => t.value === timeframe)?.label ?? "";
+  const tfLabel =
+    isLive
+      ? "Live"
+      : TIMEFRAMES.find((t) => t.value === timeframe)?.label ?? "";
 
   const displayChange = timeframeChange?.change ?? (asset?.change24h ?? 0);
-  const displayChangePercent = timeframeChange?.changePercent ?? (asset?.changePercent24h ?? 0);
+  const displayChangePercent =
+    timeframeChange?.changePercent ?? (asset?.changePercent24h ?? 0);
   const displayIsUp = displayChange >= 0;
 
   const dataUpdatedAt =
@@ -154,7 +199,11 @@ export default function AssetDetailPage() {
             Markets
           </Link>
           <div className="flex items-center gap-3">
-            <AssetLogo symbol={asset.symbol} assetType={resolvedType} size={48} />
+            <AssetLogo
+              symbol={asset.symbol}
+              assetType={resolvedType}
+              size={48}
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold">{asset.name}</h1>
@@ -184,7 +233,9 @@ export default function AssetDetailPage() {
         >
           <Heart
             className={`w-5 h-5 ${
-              isWatched(asset.symbol) ? "fill-[#00D4FF] text-[#00D4FF]" : "text-muted-foreground"
+              isWatched(asset.symbol)
+                ? "fill-[#00D4FF] text-[#00D4FF]"
+                : "text-muted-foreground"
             }`}
           />
         </Button>
@@ -194,7 +245,10 @@ export default function AssetDetailPage() {
       <div className="flex items-end gap-4">
         <PriceFlash value={asset.price}>
           <p className="text-4xl font-bold accent-gradient">
-            {formatCurrency(asset.price, (asset.price ?? 0) < 1 ? 6 : 2)}
+            {formatCurrency(
+              asset.price,
+              (asset.price ?? 0) < 1 ? 6 : 2
+            )}
           </p>
         </PriceFlash>
         <div
@@ -202,8 +256,13 @@ export default function AssetDetailPage() {
             displayIsUp ? "text-green-400" : "text-[#E53E3E]"
           }`}
         >
-          {displayIsUp ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-          {formatCurrency(Math.abs(displayChange))} ({formatPercent(displayChangePercent)})
+          {displayIsUp ? (
+            <ArrowUpRight className="w-5 h-5" />
+          ) : (
+            <ArrowDownRight className="w-5 h-5" />
+          )}
+          {formatCurrency(Math.abs(displayChange))} (
+          {formatPercent(displayChangePercent)})
           {tfLabel && (
             <span className="text-xs text-muted-foreground font-normal ml-1">
               {tfLabel}
@@ -216,21 +275,57 @@ export default function AssetDetailPage() {
         {/* Chart */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="glass-card">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
-                Price Chart
-              </CardTitle>
-              <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {chartMode === "volume" ? (
+                      <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
+                    ) : (
+                      <Activity className="w-4 h-4 text-[#00D4FF]" />
+                    )}
+                    {chartMode === "volume" ? "Volume" : "Price Chart"}
+                  </CardTitle>
+                  {/* Price / Volume toggle */}
+                  <div className="flex p-0.5 rounded-md bg-background/60 border border-border">
+                    <button
+                      onClick={() => setChartMode("price")}
+                      className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
+                        chartMode === "price"
+                          ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Price
+                    </button>
+                    <button
+                      onClick={() => setChartMode("volume")}
+                      className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
+                        chartMode === "volume"
+                          ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Volume
+                    </button>
+                  </div>
+                </div>
+                <TimeframeSelector
+                  value={timeframe}
+                  onChange={setTimeframe}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <PriceChart
                 symbol={symbol}
                 assetType={resolvedType}
                 height={400}
-                days={tfConfig.days}
-                interval={tfConfig.interval}
+                days={isLive ? 1 : tfConfig.days}
+                interval={isLive ? "5m" : tfConfig.interval}
                 coingeckoId={coingeckoId}
+                chartMode={chartMode}
+                liveData={isLive ? liveData : undefined}
               />
             </CardContent>
           </Card>
@@ -241,7 +336,10 @@ export default function AssetDetailPage() {
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">24h High</p>
                 <p className="font-semibold text-sm text-green-400">
-                  {formatCurrency(asset.high24h, (asset.high24h ?? 0) < 1 ? 6 : 2)}
+                  {formatCurrency(
+                    asset.high24h,
+                    (asset.high24h ?? 0) < 1 ? 6 : 2
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -249,21 +347,28 @@ export default function AssetDetailPage() {
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">24h Low</p>
                 <p className="font-semibold text-sm text-[#E53E3E]">
-                  {formatCurrency(asset.low24h, (asset.low24h ?? 0) < 1 ? 6 : 2)}
+                  {formatCurrency(
+                    asset.low24h,
+                    (asset.low24h ?? 0) < 1 ? 6 : 2
+                  )}
                 </p>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Volume</p>
-                <p className="font-semibold text-sm">{formatCompact(asset.volume)}</p>
+                <p className="font-semibold text-sm">
+                  {formatCompact(asset.volume)}
+                </p>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Market Cap</p>
                 <p className="font-semibold text-sm">
-                  {(asset.marketCap ?? 0) > 0 ? formatCompact(asset.marketCap) : "—"}
+                  {(asset.marketCap ?? 0) > 0
+                    ? formatCompact(asset.marketCap)
+                    : "—"}
                 </p>
               </CardContent>
             </Card>
