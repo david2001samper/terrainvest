@@ -32,6 +32,8 @@ export async function PATCH(request: NextRequest) {
     if (body.display_name !== undefined) updates.display_name = body.display_name;
     if (body.preferred_currency !== undefined) updates.preferred_currency = body.preferred_currency;
     if (body.avatar_url !== undefined) updates.avatar_url = body.avatar_url;
+    if (typeof body.notify_withdrawal === "boolean") updates.notify_withdrawal = body.notify_withdrawal;
+    if (typeof body.notify_deposit === "boolean") updates.notify_deposit = body.notify_deposit;
 
     const { data, error } = await supabase
       .from("profiles")

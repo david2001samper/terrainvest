@@ -324,20 +324,32 @@ export default function WithdrawalsPage() {
                       <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
                         <div className="flex-1 space-y-1.5">
                           <Label className="text-xs">Saved account</Label>
-                          <Select value={selectedBankId} onValueChange={setSelectedBankId}>
-                            <SelectTrigger className="bg-background/50">
-                              <SelectValue placeholder="Select account" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {bankAccounts.map((a) => (
-                                <SelectItem key={a.id} value={a.id}>
-                                  {a.label
-                                    ? `${a.label} — ${a.bank_name}`
-                                    : `${a.bank_name} (${a.account_holder_name})`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {(() => {
+                            const selectedBank = bankAccounts.find((a) => a.id === selectedBankId);
+                            const displayLabel = selectedBank
+                              ? selectedBank.label
+                                ? `${selectedBank.label} — ${selectedBank.bank_name}`
+                                : `${selectedBank.bank_name} (${selectedBank.account_holder_name})`
+                              : null;
+                            return (
+                              <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+                                <SelectTrigger className="bg-background/50">
+                                  <SelectValue placeholder="Select account">
+                                    {displayLabel}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {bankAccounts.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      {a.label
+                                        ? `${a.label} — ${a.bank_name}`
+                                        : `${a.bank_name} (${a.account_holder_name})`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            );
+                          })()}
                         </div>
                         {selectedBankId && (
                           <Button

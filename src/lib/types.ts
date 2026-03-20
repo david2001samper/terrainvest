@@ -10,6 +10,8 @@ export interface Profile {
   avatar_url?: string | null;
   preferred_currency?: string | null;
   last_login_at?: string | null;
+  notify_withdrawal?: boolean;
+  notify_deposit?: boolean;
   created_at: string;
   updated_at: string;
 }
