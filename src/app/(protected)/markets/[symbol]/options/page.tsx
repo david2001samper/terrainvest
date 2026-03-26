@@ -46,6 +46,32 @@ interface ChainData {
   underlyingPrice: number;
 }
 
+function parseExpiryToDate(value: unknown): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "string") {
+    // numeric string (seconds/ms)
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) {
+      const ms = n > 1e12 ? n : n * 1000;
+      const d = new Date(ms);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    // ISO / date-like string
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const ms = n > 1e12 ? n : n * 1000;
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export default function OptionsChainPage() {
   const params = useParams();
   const symbol = decodeURIComponent(params.symbol as string);
@@ -74,15 +100,28 @@ export default function OptionsChainPage() {
   });
 
   const expiryDates = useMemo(
-    () =>
-      (chainData?.expirationDates ?? []).map((ts) => ({
-        value: String(ts),
-        label: new Date((ts > 1e12 ? ts : ts * 1000)).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
-      })),
+    () => {
+      const raw = chainData?.expirationDates ?? [];
+      const mapped = raw
+        .map((ts) => {
+          const d = parseExpiryToDate(ts);
+          if (!d) return null;
+          return {
+            // Keep the original primitive value for API call consistency
+            value: String(ts),
+            label: d.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            sortTs: d.getTime(),
+          };
+        })
+        .filter((x): x is { value: string; label: string; sortTs: number } => x !== null)
+        .sort((a, b) => a.sortTs - b.sortTs);
+
+      return mapped.map(({ value, label }) => ({ value, label }));
+    },
     [chainData]
   );
 
