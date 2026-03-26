@@ -12,15 +12,24 @@ export interface Profile {
   last_login_at?: string | null;
   notify_withdrawal?: boolean;
   notify_deposit?: boolean;
+  can_trade_crypto?: boolean;
+  can_trade_stocks?: boolean;
+  can_trade_indexes?: boolean;
+  can_trade_commodities?: boolean;
+  can_trade_forex?: boolean;
+  can_trade_options?: boolean;
+  max_leverage?: number;
   created_at: string;
   updated_at: string;
 }
+
+export type AssetTypeValue = "crypto" | "stock" | "commodity" | "index" | "forex";
 
 export interface Asset {
   id: string;
   symbol: string;
   name: string;
-  asset_type: "crypto" | "stock" | "commodity" | "index";
+  asset_type: AssetTypeValue;
   is_active: boolean;
   created_at: string;
 }
@@ -45,8 +54,42 @@ export interface Position {
   entry_price: number;
   current_value: number;
   unrealized_pnl: number;
+  leverage?: number;
+  asset_type?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface OptionsPosition {
+  id: string;
+  user_id: string;
+  contract_symbol: string;
+  underlying_symbol: string;
+  option_type: "call" | "put";
+  strike: number;
+  expiry: string;
+  quantity: number;
+  entry_premium: number;
+  current_premium: number | null;
+  status: "open" | "closed" | "expired" | "exercised";
+  closed_premium: number | null;
+  realized_pnl: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OptionContract {
+  contractSymbol: string;
+  strike: number;
+  expiry: string;
+  type: "call" | "put";
+  lastPrice: number;
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  inTheMoney: boolean;
 }
 
 export interface WatchlistItem {
@@ -66,9 +109,8 @@ export interface MarketAsset {
   marketCap: number;
   high24h: number;
   low24h: number;
-  asset_type: "crypto" | "stock" | "commodity" | "index";
+  asset_type: AssetTypeValue;
   marketState?: string | null;
-  /** CoinGecko id for charts / deep links from search */
   coingecko_id?: string;
 }
 

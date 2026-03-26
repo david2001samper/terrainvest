@@ -34,12 +34,13 @@ interface TradePanelProps {
   symbol: string;
   name: string;
   price: number;
+  assetType?: string;
   compact?: boolean;
 }
 
 type InputMode = "quantity" | "amount";
 
-export function TradePanel({ symbol, name, price, compact = false }: TradePanelProps) {
+export function TradePanel({ symbol, name, price, assetType, compact = false }: TradePanelProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [quantity, setQuantity] = useState("");
@@ -98,11 +99,31 @@ export function TradePanel({ symbol, name, price, compact = false }: TradePanelP
     return { subtotal, fee, total, balanceAfter };
   }, [qty, execPrice, side, profile?.balance, feePerTrade]);
 
+  function checkPermission(): boolean {
+    if (!profile || !assetType) return true;
+    const permMap: Record<string, keyof typeof profile> = {
+      crypto: "can_trade_crypto",
+      stock: "can_trade_stocks",
+      index: "can_trade_indexes",
+      commodity: "can_trade_commodities",
+      forex: "can_trade_forex",
+      options: "can_trade_options",
+    };
+    const field = permMap[assetType];
+    if (field && profile[field] === false) {
+      const label = assetType.charAt(0).toUpperCase() + assetType.slice(1);
+      toast.error(`${label} trading is not enabled on your account. Contact your account manager.`);
+      return false;
+    }
+    return true;
+  }
+
   function handleSubmit() {
     if (qty <= 0) {
       toast.error("Enter a valid quantity");
       return;
     }
+    if (!checkPermission()) return;
     if (orderType === "market") {
       setConfirmOpen(true);
     } else {

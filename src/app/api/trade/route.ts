@@ -3,6 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 import { tradeSchema } from "@/lib/validations";
 import { fetchMarketPrice } from "@/lib/market-price";
 
+function detectAssetType(symbol: string): string {
+  const s = symbol.toUpperCase();
+  if (s.endsWith("=X")) return "forex";
+  const cryptoSyms = ["BTC","ETH","SOL","XRP","ADA","DOGE","DOT","AVAX","MATIC","LINK","BNB","SHIB","UNI","ATOM","LTC","NEAR","APT"];
+  if (cryptoSyms.includes(s)) return "crypto";
+  const indexSyms = ["^GSPC","^IXIC","^DJI","^RUT","^VIX","^FTSE","^N225","^HSI","^GDAXI","^FCHI"];
+  if (indexSyms.includes(s) || s.startsWith("^")) return "index";
+  const commoditySyms = ["GC=F","CL=F","SI=F","NG=F","HG=F","PL=F","XAU","XAG"];
+  if (commoditySyms.includes(s) || s.endsWith("=F")) return "commodity";
+  return "stock";
+}
+
 const UNREALISTIC_THRESHOLD = 0.15;
 const SLIPPAGE_MAX = 0.003;
 const DELAY_MIN_MS = 1000;
@@ -67,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("balance, is_locked")
+      .select("balance, is_locked, can_trade_crypto, can_trade_stocks, can_trade_indexes, can_trade_commodities, can_trade_forex, can_trade_options, max_leverage")
       .eq("id", user.id)
       .single();
 
@@ -82,7 +94,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const totalWithFee = side === "buy" ? total + fee : total - fee;
+    const assetType = detectAssetType(symbol);
+    const permMap: Record<string, string> = {
+      crypto: "can_trade_crypto",
+      stock: "can_trade_stocks",
+      index: "can_trade_indexes",
+      commodity: "can_trade_commodities",
+      forex: "can_trade_forex",
+    };
+    const permField = permMap[assetType];
+    if (permField && profile[permField as keyof typeof profile] === false) {
+      const label = assetType.charAt(0).toUpperCase() + assetType.slice(1);
+      return NextResponse.json(
+        { error: `${label} trading is not enabled on your account. Contact your account manager.` },
+        { status: 403 }
+      );
+    }
+
+    const leverage = assetType === "forex" ? (profile.max_leverage || 1) : 1;
+    const marginRequired = total / leverage;
+
+    const totalWithFee = side === "buy" ? marginRequired + fee : total - fee;
     if (side === "buy" && profile.balance < totalWithFee) {
       return NextResponse.json(
         { error: "Insufficient balance" },
@@ -123,7 +155,7 @@ export async function POST(request: NextRequest) {
     if (side === "buy") {
       await supabase
         .from("profiles")
-        .update({ balance: profile.balance - total - fee })
+        .update({ balance: profile.balance - marginRequired - fee })
         .eq("id", user.id);
 
       const { data: existingPos } = await supabase
@@ -144,6 +176,8 @@ export async function POST(request: NextRequest) {
             quantity: newQty,
             entry_price: newAvgPrice,
             current_value: newQty * execPrice,
+            leverage,
+            asset_type: assetType,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingPos.id);
@@ -154,6 +188,8 @@ export async function POST(request: NextRequest) {
           quantity,
           entry_price: execPrice,
           current_value: quantity * execPrice,
+          leverage,
+          asset_type: assetType,
         });
       }
     } else {

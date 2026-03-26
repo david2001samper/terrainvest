@@ -43,7 +43,7 @@ export default function AssetDetailPage() {
   const [timeframe, setTimeframe] = useState<TimeframeValue>("1m");
   const [chartMode, setChartMode] = useState<"price" | "volume">("price");
 
-  const { allAssets, isLoading, crypto, stocks } = useMarketData();
+  const { allAssets, isLoading, crypto, stocks, forex } = useMarketData();
   const { isWatched, toggle } = useWatchlist();
 
   const listAsset = useMemo(() => {
@@ -108,6 +108,8 @@ export default function AssetDetailPage() {
     listAsset != null
       ? resolvedType === "crypto"
         ? crypto.dataUpdatedAt
+        : resolvedType === "forex"
+        ? forex.dataUpdatedAt
         : stocks.dataUpdatedAt
       : quoteDataUpdatedAt;
 
@@ -152,6 +154,8 @@ export default function AssetDetailPage() {
     listAsset != null
       ? resolvedType === "crypto"
         ? crypto.dataUpdatedAt
+        : resolvedType === "forex"
+        ? forex.dataUpdatedAt
         : stocks.dataUpdatedAt
       : Date.now();
 
@@ -381,6 +385,7 @@ export default function AssetDetailPage() {
             symbol={asset.symbol}
             name={asset.name}
             price={asset.price}
+            assetType={resolvedType}
           />
         </div>
       </div>

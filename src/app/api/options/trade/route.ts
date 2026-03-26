@@ -1,0 +1,210 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const {
+      action,
+      contract_symbol,
+      underlying_symbol,
+      option_type,
+      strike,
+      expiry,
+      quantity,
+      premium,
+      position_id,
+    } = body;
+
+    if (!action || !["buy", "sell"].includes(action)) {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("balance, is_locked, can_trade_options")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile)
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    if (profile.is_locked)
+      return NextResponse.json({ error: "Account locked" }, { status: 403 });
+    if (!profile.can_trade_options)
+      return NextResponse.json(
+        { error: "Options trading is not enabled on your account. Contact your account manager." },
+        { status: 403 }
+      );
+
+    const CONTRACT_SIZE = 100;
+
+    if (action === "buy") {
+      if (
+        !contract_symbol ||
+        !underlying_symbol ||
+        !option_type ||
+        strike == null ||
+        !expiry ||
+        !quantity ||
+        premium == null
+      ) {
+        return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+      }
+
+      const totalCost = premium * quantity * CONTRACT_SIZE;
+
+      if (profile.balance < totalCost) {
+        return NextResponse.json(
+          { error: "Insufficient balance" },
+          { status: 400 }
+        );
+      }
+
+      await supabase
+        .from("profiles")
+        .update({ balance: profile.balance - totalCost })
+        .eq("id", user.id);
+
+      const { data: existing } = await supabase
+        .from("options_positions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("contract_symbol", contract_symbol)
+        .eq("status", "open")
+        .single();
+
+      if (existing) {
+        const newQty = existing.quantity + quantity;
+        const newAvgPremium =
+          (existing.entry_premium * existing.quantity +
+            premium * quantity) /
+          newQty;
+        await supabase
+          .from("options_positions")
+          .update({
+            quantity: newQty,
+            entry_premium: newAvgPremium,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("options_positions").insert({
+          user_id: user.id,
+          contract_symbol,
+          underlying_symbol,
+          option_type,
+          strike,
+          expiry,
+          quantity,
+          entry_premium: premium,
+          current_premium: premium,
+          status: "open",
+        });
+      }
+
+      await supabase.from("trades").insert({
+        user_id: user.id,
+        symbol: contract_symbol,
+        side: "buy",
+        quantity,
+        price: premium,
+        total: totalCost,
+        status: "filled",
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Bought ${quantity} ${contract_symbol} contract(s)`,
+      });
+    }
+
+    // SELL (close position)
+    if (!position_id)
+      return NextResponse.json({ error: "position_id required" }, { status: 400 });
+
+    const sellQty = quantity || 0;
+
+    const { data: position } = await supabase
+      .from("options_positions")
+      .select("*")
+      .eq("id", position_id)
+      .eq("user_id", user.id)
+      .eq("status", "open")
+      .single();
+
+    if (!position)
+      return NextResponse.json({ error: "Position not found" }, { status: 404 });
+
+    const closePremium = premium ?? position.current_premium ?? position.entry_premium;
+    const qtyToSell = sellQty > 0 ? Math.min(sellQty, position.quantity) : position.quantity;
+    const proceeds = closePremium * qtyToSell * CONTRACT_SIZE;
+    const realizedPnl = (closePremium - position.entry_premium) * qtyToSell * CONTRACT_SIZE;
+    const remainingQty = position.quantity - qtyToSell;
+
+    await supabase
+      .from("profiles")
+      .update({ balance: profile.balance + proceeds })
+      .eq("id", user.id);
+
+    if (remainingQty <= 0) {
+      await supabase
+        .from("options_positions")
+        .update({
+          status: "closed",
+          closed_premium: closePremium,
+          realized_pnl: realizedPnl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", position.id);
+    } else {
+      await supabase
+        .from("options_positions")
+        .update({
+          quantity: remainingQty,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", position.id);
+    }
+
+    await supabase.from("trades").insert({
+      user_id: user.id,
+      symbol: position.contract_symbol,
+      side: "sell",
+      quantity: qtyToSell,
+      price: closePremium,
+      total: proceeds,
+      status: "filled",
+    });
+
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("total_pnl")
+      .eq("id", user.id)
+      .single();
+    if (prof) {
+      await supabase
+        .from("profiles")
+        .update({ total_pnl: prof.total_pnl + realizedPnl })
+        .eq("id", user.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Sold ${qtyToSell} ${position.contract_symbol} contract(s)`,
+      realized_pnl: realizedPnl,
+    });
+  } catch (error) {
+    console.error("Options trade error:", error);
+    return NextResponse.json(
+      { error: "Options trade failed" },
+      { status: 500 }
+    );
+  }
+}

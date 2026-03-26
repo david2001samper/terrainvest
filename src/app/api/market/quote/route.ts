@@ -3,9 +3,10 @@ import { getYahooFinance } from "@/lib/yahoo";
 import { getActiveOverrides, applyOverrides } from "@/lib/price-overrides";
 import type { MarketAsset } from "@/lib/types";
 
-function mapYahooQuoteType(qt: string): "stock" | "commodity" | "index" {
+function mapYahooQuoteType(qt: string): "stock" | "commodity" | "index" | "forex" {
   if (qt === "INDEX") return "index";
   if (qt === "FUTURE" || qt === "COMMODITY") return "commodity";
+  if (qt === "CURRENCY") return "forex";
   return "stock";
 }
 
@@ -23,7 +24,33 @@ export async function GET(request: NextRequest) {
     const overrides = await getActiveOverrides();
     let asset: MarketAsset;
 
-    if (type === "crypto") {
+    if (type === "forex") {
+      const yf = await getYahooFinance();
+      const q = await yf.quote(symbol);
+      const qPrice = q?.regularMarketPrice ?? 0;
+      if (!q || qPrice <= 0) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      asset = {
+        symbol: (q as { symbol?: string }).symbol || symbol,
+        name:
+          (q as { shortName?: string }).shortName ||
+          (q as { longName?: string }).longName ||
+          symbol,
+        price: qPrice,
+        change24h: (q as { regularMarketChange?: number }).regularMarketChange ?? 0,
+        changePercent24h:
+          (q as { regularMarketChangePercent?: number }).regularMarketChangePercent ?? 0,
+        volume: (q as { regularMarketVolume?: number }).regularMarketVolume ?? 0,
+        marketCap: 0,
+        high24h:
+          (q as { regularMarketDayHigh?: number }).regularMarketDayHigh ?? qPrice,
+        low24h:
+          (q as { regularMarketDayLow?: number }).regularMarketDayLow ?? qPrice,
+        asset_type: "forex",
+        marketState: (q as { marketState?: string }).marketState ?? null,
+      };
+    } else if (type === "crypto") {
       let cgId = cgIdParam;
       if (!cgId) {
         const searchRes = await fetch(

@@ -32,6 +32,12 @@ async function fetchStocks(): Promise<MarketAsset[]> {
   return res.json();
 }
 
+async function fetchForex(): Promise<MarketAsset[]> {
+  const res = await fetch("/api/market/forex");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export function useMarketData() {
   const queryClient = useQueryClient();
   const wasActiveRef = useRef(false);
@@ -50,6 +56,7 @@ export function useMarketData() {
     if (wasActiveRef.current && !fast) {
       queryClient.invalidateQueries({ queryKey: ["market", "crypto"] });
       queryClient.invalidateQueries({ queryKey: ["market", "stocks"] });
+      queryClient.invalidateQueries({ queryKey: ["market", "forex"] });
     }
     wasActiveRef.current = fast;
   }, [fast, queryClient]);
@@ -68,10 +75,17 @@ export function useMarketData() {
     staleTime: fast ? 1000 : 8000,
   });
 
-  const allAssets = [...(crypto.data || []), ...(stocks.data || [])];
-  const isLoading = crypto.isLoading || stocks.isLoading;
+  const forex = useQuery<MarketAsset[]>({
+    queryKey: ["market", "forex"],
+    queryFn: fetchForex,
+    refetchInterval: fast ? fastMs : 12000,
+    staleTime: fast ? 1000 : 10000,
+  });
 
-  return { allAssets, crypto, stocks, isLoading };
+  const allAssets = [...(crypto.data || []), ...(stocks.data || []), ...(forex.data || [])];
+  const isLoading = crypto.isLoading || stocks.isLoading || forex.isLoading;
+
+  return { allAssets, crypto, stocks, forex, isLoading };
 }
 
 export function useChartData(

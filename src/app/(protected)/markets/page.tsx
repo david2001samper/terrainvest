@@ -21,6 +21,7 @@ import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
 import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
+import { FileText } from "lucide-react";
 
 const TABS = [
   { value: "all", label: "All" },
@@ -28,6 +29,8 @@ const TABS = [
   { value: "stock", label: "Stocks" },
   { value: "commodity", label: "Commodities" },
   { value: "index", label: "Indexes" },
+  { value: "forex", label: "Forex" },
+  { value: "options", label: "Options" },
 ];
 
 export default function MarketsPage() {
@@ -64,8 +67,13 @@ export default function MarketsPage() {
     return () => clearTimeout(timer);
   }, [search, doSearch]);
 
+  const isOptionsTab = activeTab === "options";
+
   const localFiltered = allAssets
-    .filter((a) => activeTab === "all" || a.asset_type === activeTab)
+    .filter((a) => {
+      if (isOptionsTab) return a.asset_type === "stock";
+      return activeTab === "all" || a.asset_type === activeTab;
+    })
     .filter(
       (a) =>
         !search ||
@@ -79,9 +87,10 @@ export default function MarketsPage() {
     ? deduplicateAssets([...localFiltered, ...searchResults])
     : localFiltered;
 
-  const displayAssets = mergedResults.filter(
-    (a) => activeTab === "all" || a.asset_type === activeTab
-  );
+  const displayAssets = mergedResults.filter((a) => {
+    if (isOptionsTab) return a.asset_type === "stock";
+    return activeTab === "all" || a.asset_type === activeTab;
+  });
 
   return (
     <div className="space-y-6">
@@ -158,6 +167,7 @@ export default function MarketsPage() {
               onToggleWatch={() => toggle.mutate(asset.symbol)}
               formatCurrency={formatCurrency}
               formatCompact={formatCompact}
+              optionsMode={isOptionsTab}
             />
           ))}
         </div>
@@ -183,21 +193,27 @@ function AssetCard({
   onToggleWatch,
   formatCurrency,
   formatCompact,
+  optionsMode,
 }: {
   asset: MarketAsset;
   isWatched: boolean;
   onToggleWatch: () => void;
   formatCurrency: (value: number | null | undefined, decimals?: number) => string;
   formatCompact: (value: number | null | undefined) => string;
+  optionsMode?: boolean;
 }) {
   const isUp = (asset.changePercent24h ?? 0) >= 0;
 
   return (
     <Card className="glass-card-hover group relative">
       <Link
-        href={`/markets/${encodeURIComponent(asset.symbol)}?type=${asset.asset_type}${
-          asset.coingecko_id ? `&cg=${encodeURIComponent(asset.coingecko_id)}` : ""
-        }`}
+        href={
+          optionsMode
+            ? `/markets/${encodeURIComponent(asset.symbol)}/options`
+            : `/markets/${encodeURIComponent(asset.symbol)}?type=${asset.asset_type}${
+                asset.coingecko_id ? `&cg=${encodeURIComponent(asset.coingecko_id)}` : ""
+              }`
+        }
         className="absolute inset-0 z-10"
       />
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
@@ -247,6 +263,11 @@ function AssetCard({
             </div>
           </div>
           <div className="text-right space-y-0.5">
+            {optionsMode && (
+              <p className="text-[11px] text-[#00D4FF] flex items-center gap-1 justify-end">
+                <FileText className="w-3 h-3" /> Options
+              </p>
+            )}
             <p className="text-[11px] text-muted-foreground">
               Vol: {formatCompact(asset.volume)}
             </p>

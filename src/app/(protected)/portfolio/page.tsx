@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePositions } from "@/hooks/use-positions";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useProfile } from "@/hooks/use-profile";
+import { useOptionsPositions } from "@/hooks/use-options-positions";
 import { formatPercent } from "@/lib/format";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,18 +31,25 @@ import {
   ArrowDownRight,
   PieChart,
   BarChart3,
+  Activity,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const PERF_FILTERS = ["1d", "7d", "30d", "ytd", "all"] as const;
 
 export default function PortfolioPage() {
   const [perfFilter, setPerfFilter] = useState<(typeof PERF_FILTERS)[number]>("all");
   const [allocationView, setAllocationView] = useState<"asset_class" | "holdings">("asset_class");
+  const [sellingOption, setSellingOption] = useState<string | null>(null);
   const { format: formatCurrency, convert, symbol, pnlPrefix } = useCurrencyFormat();
   const { data: positions, isLoading } = usePositions();
   const { allAssets, crypto, stocks } = useMarketData();
   const { data: profile } = useProfile();
+  const { data: optionsPositions, isLoading: optionsLoading } = useOptionsPositions();
+  const queryClient = useQueryClient();
 
   const enrichedPositions = positions?.map((pos) => {
     const marketData = allAssets.find((a) => a.symbol === pos.symbol);
@@ -238,6 +246,129 @@ export default function PortfolioPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Options Positions */}
+      {(optionsPositions ?? []).length > 0 && (
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-[#00D4FF]" />
+              Options Positions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Contract</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Strike</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Expiry</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Qty</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Entry</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Current</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">P&L</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(optionsPositions ?? []).map((op) => {
+                    const curPrem = op.current_premium ?? op.entry_premium;
+                    const unrealPnl = (curPrem - op.entry_premium) * op.quantity * 100;
+                    const isUp = unrealPnl >= 0;
+                    return (
+                      <TableRow key={op.id} className="border-border hover:bg-accent/30">
+                        <TableCell className="font-medium text-sm">
+                          {op.contract_symbol}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] uppercase ${
+                              op.option_type === "call"
+                                ? "border-green-500/40 text-green-400"
+                                : "border-red-500/40 text-red-400"
+                            }`}
+                          >
+                            {op.option_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(op.strike, 2)}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {new Date(op.expiry).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {op.quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(op.entry_premium, 2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(curPrem, 2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={`font-medium ${isUp ? "text-green-400" : "text-red-400"}`}>
+                            {isUp ? "+" : ""}
+                            {formatCurrency(unrealPnl, 2)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] px-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                            disabled={sellingOption === op.id}
+                            onClick={async () => {
+                              setSellingOption(op.id);
+                              try {
+                                const res = await fetch("/api/options/trade", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    action: "sell",
+                                    position_id: op.id,
+                                    quantity: op.quantity,
+                                    premium: curPrem,
+                                  }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) {
+                                  toast.error(data.error || "Sell failed");
+                                  return;
+                                }
+                                toast.success(data.message);
+                                queryClient.invalidateQueries({ queryKey: ["options-positions"] });
+                                queryClient.invalidateQueries({ queryKey: ["profile"] });
+                              } catch {
+                                toast.error("Sell failed");
+                              } finally {
+                                setSellingOption(null);
+                              }
+                            }}
+                          >
+                            {sellingOption === op.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              "Sell"
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Positions Table */}
       <Card className="glass-card">
