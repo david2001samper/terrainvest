@@ -24,6 +24,21 @@ export async function POST(request: NextRequest) {
       position_id,
     } = body;
 
+    function normalizeExpiry(value: unknown): string | null {
+      if (!value) return null;
+      // If it's already an ISO-like string, validate it directly.
+      if (typeof value === "string" && value.includes("-")) {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) return d.toISOString();
+      }
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const ms = n > 1e12 ? n : n * 1000;
+      const d = new Date(ms);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
     if (!action || !["buy", "sell"].includes(action)) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -53,16 +68,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "buy") {
+      const normalizedExpiry = normalizeExpiry(expiry);
       if (
         !contract_symbol ||
         !underlying_symbol ||
         !option_type ||
         strike == null ||
-        !expiry ||
+        !normalizedExpiry ||
         !quantity ||
         premium == null
       ) {
-        return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        return NextResponse.json({ error: "Missing or invalid fields (expiry)" }, { status: 400 });
       }
 
       const totalCost = premium * quantity * CONTRACT_SIZE;
@@ -119,7 +135,7 @@ export async function POST(request: NextRequest) {
           underlying_symbol,
           option_type,
           strike,
-          expiry,
+          expiry: normalizedExpiry,
           quantity,
           entry_premium: premium,
           current_premium: premium,

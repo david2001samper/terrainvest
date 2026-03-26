@@ -1,6 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getYahooFinance } from "@/lib/yahoo";
 
+function normalizeEpochToIso(value: unknown): string {
+  if (value == null) return "";
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  // Yahoo can sometimes return seconds, milliseconds, or Date-like values.
+  // Treat >1e12 as milliseconds, otherwise seconds.
+  const ms = n > 1e12 ? n : n * 1000;
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString();
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol")?.trim();
@@ -36,9 +48,7 @@ export async function GET(request: NextRequest) {
       return {
         contractSymbol: c.contractSymbol ?? "",
         strike: c.strike ?? 0,
-        expiry: c.expiration
-          ? new Date(c.expiration * 1000).toISOString()
-          : "",
+        expiry: normalizeEpochToIso(c.expiration),
         type,
         lastPrice: c.lastPrice ?? 0,
         bid: c.bid ?? 0,
