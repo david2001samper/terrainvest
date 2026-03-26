@@ -128,8 +128,13 @@ export async function POST(request: NextRequest) {
         if (insErr) {
           // try to refund on failure
           await supabase.from("profiles").update({ balance: profile.balance }).eq("id", user.id);
+          console.error("Options insert error:", insErr);
           return NextResponse.json(
-            { error: "Failed to create options position. Is the database migration applied?" },
+            {
+              error: "Failed to create options position",
+              details: insErr.message,
+              code: insErr.code,
+            },
             { status: 500 }
           );
         }
