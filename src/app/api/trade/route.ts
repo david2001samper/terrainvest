@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { tradeSchema } from "@/lib/validations";
 import { fetchMarketPrice } from "@/lib/market-price";
+import { isMarketOpen, resolveAssetTypeFromSymbol } from "@/lib/market-hours";
 
 const UNREALISTIC_THRESHOLD = 0.15;
 const SLIPPAGE_MAX = 0.003;
@@ -84,6 +85,10 @@ export async function POST(request: NextRequest) {
     }
 
     const assetType = resolveAssetType(symbol, clientAssetType);
+    const hours = isMarketOpen(assetType);
+    if (!hours.open) {
+      return NextResponse.json({ error: hours.reason || "Market is closed." }, { status: 400 });
+    }
     const permMap: Record<string, string> = {
       crypto: "can_trade_crypto",
       stock: "can_trade_stocks",
@@ -238,9 +243,5 @@ function resolveAssetType(symbol: string, clientHint: string): string {
   if (clientHint && ["crypto", "stock", "index", "commodity", "forex"].includes(clientHint)) {
     return clientHint;
   }
-  const s = symbol.toUpperCase();
-  if (s.endsWith("=X")) return "forex";
-  if (s.startsWith("^")) return "index";
-  if (s.endsWith("=F")) return "commodity";
-  return "stock";
+  return resolveAssetTypeFromSymbol(symbol);
 }

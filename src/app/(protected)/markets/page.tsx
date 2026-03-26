@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useWatchlist } from "@/hooks/use-watchlist";
+import { useProfile } from "@/hooks/use-profile";
 import { formatPercent } from "@/lib/format";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
   Heart,
   TrendingUp,
   Loader2,
+  ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
@@ -38,6 +40,7 @@ export default function MarketsPage() {
   const { format: formatCurrency, formatCompact } = useCurrencyFormat();
   const { allAssets, isLoading } = useMarketData();
   const { isWatched, toggle } = useWatchlist();
+  const { data: profile } = useProfile();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [searchResults, setSearchResults] = useState<MarketAsset[]>([]);
@@ -70,6 +73,23 @@ export default function MarketsPage() {
 
   const isOptionsTab = activeTab === "options";
 
+  const hasTabPermission = (tab: string): boolean => {
+    if (!profile) return true;
+    const map: Record<string, keyof typeof profile> = {
+      crypto: "can_trade_crypto",
+      stock: "can_trade_stocks",
+      commodity: "can_trade_commodities",
+      index: "can_trade_indexes",
+      forex: "can_trade_forex",
+      options: "can_trade_options",
+    };
+    const field = map[tab];
+    if (!field) return true;
+    return profile[field] !== false;
+  };
+
+  const isBlockedTab = activeTab !== "all" && !hasTabPermission(activeTab);
+
   const localFiltered = allAssets
     .filter((a) => {
       if (isOptionsTab) return a.asset_type === "stock";
@@ -88,10 +108,12 @@ export default function MarketsPage() {
     ? deduplicateAssets([...localFiltered, ...searchResults])
     : localFiltered;
 
-  const displayAssets = mergedResults.filter((a) => {
-    if (isOptionsTab) return a.asset_type === "stock";
-    return activeTab === "all" || a.asset_type === activeTab;
-  });
+  const displayAssets = isBlockedTab
+    ? []
+    : mergedResults.filter((a) => {
+        if (isOptionsTab) return a.asset_type === "stock";
+        return activeTab === "all" || a.asset_type === activeTab;
+      });
 
   return (
     <div className="space-y-6">
@@ -113,6 +135,7 @@ export default function MarketsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 bg-background/50 border-border focus:border-[#00D4FF] h-10"
+            disabled={isBlockedTab}
           />
           {searching && (
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00D4FF] animate-spin" />
@@ -141,7 +164,25 @@ export default function MarketsPage() {
         </p>
       )}
 
-      {isLoading && !isSearchMode ? (
+      {isBlockedTab ? (
+        <Card className="glass-card">
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#00D4FF]/10 flex items-center justify-center border border-[#00D4FF]/20">
+                <ShieldAlert className="w-6 h-6 text-[#00D4FF]" />
+              </div>
+              <h3 className="text-lg font-semibold">Permission Required</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                You do not have permission to access{" "}
+                <span className="text-foreground font-medium">
+                  {TABS.find((t) => t.value === activeTab)?.label ?? activeTab}
+                </span>
+                . Contact your account manager to enable it.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isLoading && !isSearchMode ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />

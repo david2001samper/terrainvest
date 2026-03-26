@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isMarketOpen } from "@/lib/market-hours";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,12 @@ export async function POST(request: NextRequest) {
 
     const CONTRACT_SIZE = 100;
 
+    // Market hours: options are treated as US session hours (same as stocks)
+    const hours = isMarketOpen("stock");
+    if (!hours.open) {
+      return NextResponse.json({ error: hours.reason || "Market is closed." }, { status: 400 });
+    }
+
     if (action === "buy") {
       if (
         !contract_symbol ||
@@ -67,10 +74,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await supabase
+      const { error: balErr } = await supabase
         .from("profiles")
         .update({ balance: profile.balance - totalCost })
         .eq("id", user.id);
+      if (balErr) {
+        return NextResponse.json({ error: balErr.message }, { status: 500 });
+      }
 
       const { data: existing } = await supabase
         .from("options_positions")
@@ -86,7 +96,7 @@ export async function POST(request: NextRequest) {
           (existing.entry_premium * existing.quantity +
             premium * quantity) /
           newQty;
-        await supabase
+        const { error: upErr } = await supabase
           .from("options_positions")
           .update({
             quantity: newQty,
@@ -94,8 +104,16 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
+        if (upErr) {
+          // try to refund on failure
+          await supabase.from("profiles").update({ balance: profile.balance }).eq("id", user.id);
+          return NextResponse.json(
+            { error: "Failed to update options position. Please try again." },
+            { status: 500 }
+          );
+        }
       } else {
-        await supabase.from("options_positions").insert({
+        const { error: insErr } = await supabase.from("options_positions").insert({
           user_id: user.id,
           contract_symbol,
           underlying_symbol,
@@ -107,9 +125,17 @@ export async function POST(request: NextRequest) {
           current_premium: premium,
           status: "open",
         });
+        if (insErr) {
+          // try to refund on failure
+          await supabase.from("profiles").update({ balance: profile.balance }).eq("id", user.id);
+          return NextResponse.json(
+            { error: "Failed to create options position. Is the database migration applied?" },
+            { status: 500 }
+          );
+        }
       }
 
-      await supabase.from("trades").insert({
+      const { error: tradeErr } = await supabase.from("trades").insert({
         user_id: user.id,
         symbol: contract_symbol,
         side: "buy",
@@ -118,6 +144,9 @@ export async function POST(request: NextRequest) {
         total: totalCost,
         status: "filled",
       });
+      if (tradeErr) {
+        return NextResponse.json({ error: tradeErr.message }, { status: 500 });
+      }
 
       return NextResponse.json({
         success: true,
@@ -148,13 +177,16 @@ export async function POST(request: NextRequest) {
     const realizedPnl = (closePremium - position.entry_premium) * qtyToSell * CONTRACT_SIZE;
     const remainingQty = position.quantity - qtyToSell;
 
-    await supabase
+    const { error: creditErr } = await supabase
       .from("profiles")
       .update({ balance: profile.balance + proceeds })
       .eq("id", user.id);
+    if (creditErr) {
+      return NextResponse.json({ error: creditErr.message }, { status: 500 });
+    }
 
     if (remainingQty <= 0) {
-      await supabase
+      const { error: closeErr } = await supabase
         .from("options_positions")
         .update({
           status: "closed",
@@ -163,17 +195,19 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", position.id);
+      if (closeErr) return NextResponse.json({ error: closeErr.message }, { status: 500 });
     } else {
-      await supabase
+      const { error: remErr } = await supabase
         .from("options_positions")
         .update({
           quantity: remainingQty,
           updated_at: new Date().toISOString(),
         })
         .eq("id", position.id);
+      if (remErr) return NextResponse.json({ error: remErr.message }, { status: 500 });
     }
 
-    await supabase.from("trades").insert({
+    const { error: sellTradeErr } = await supabase.from("trades").insert({
       user_id: user.id,
       symbol: position.contract_symbol,
       side: "sell",
@@ -182,6 +216,7 @@ export async function POST(request: NextRequest) {
       total: proceeds,
       status: "filled",
     });
+    if (sellTradeErr) return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });
 
     const { data: prof } = await supabase
       .from("profiles")
