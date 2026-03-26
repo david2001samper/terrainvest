@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
+import { stripYahooInstrumentSuffixes } from "@/lib/market-display";
 
 export default function AssetDetailPage() {
   const params = useParams();
@@ -223,7 +224,7 @@ export default function AssetDetailPage() {
                 />
               </div>
               <p className="text-muted-foreground text-sm mt-0.5 flex items-center gap-3">
-                {asset.symbol}
+                {stripYahooInstrumentSuffixes(asset.symbol)}
                 <LastUpdated dataUpdatedAt={dataUpdatedAt} />
               </p>
             </div>

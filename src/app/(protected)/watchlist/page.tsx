@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { marketCardPrimaryLabel, marketCardSecondaryLabel } from "@/lib/market-display";
 import { Button } from "@/components/ui/button";
 
 export default function WatchlistPage() {
@@ -83,9 +84,9 @@ export default function WatchlistPage() {
                     <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={40} />
                     <div>
                       <CardTitle className="text-lg font-bold group-hover:text-[#00D4FF] transition-colors">
-                        {asset.symbol}
+                        {marketCardPrimaryLabel(asset)}
                       </CardTitle>
-                      <p className="text-xs text-muted-foreground">{asset.name}</p>
+                      <p className="text-xs text-muted-foreground">{marketCardSecondaryLabel(asset)}</p>
                     </div>
                   </Link>
                   <Button

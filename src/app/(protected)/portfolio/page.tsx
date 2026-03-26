@@ -6,6 +6,7 @@ import { useMarketData } from "@/hooks/use-market-data";
 import { useProfile } from "@/hooks/use-profile";
 import { useOptionsPositions } from "@/hooks/use-options-positions";
 import { formatPercent } from "@/lib/format";
+import { positionRowLabel } from "@/lib/market-display";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,10 @@ export default function PortfolioPage() {
     const unrealizedPnl = (currentPrice - pos.entry_price) * pos.quantity;
     const unrealizedPnlPercent =
       pos.entry_price > 0 ? ((currentPrice - pos.entry_price) / pos.entry_price) * 100 : 0;
+    const assetType =
+      marketData?.asset_type ||
+      (pos as { asset_type?: string }).asset_type ||
+      "stock";
 
     return {
       ...pos,
@@ -65,8 +70,9 @@ export default function PortfolioPage() {
       currentValue,
       unrealizedPnl,
       unrealizedPnlPercent,
-      assetType: marketData?.asset_type || "stock",
+      assetType,
       marketState: marketData?.marketState,
+      displayName: positionRowLabel(pos.symbol, assetType, marketData?.name),
     };
   }) || [];
 
@@ -420,7 +426,7 @@ export default function PortfolioPage() {
                         >
                           <AssetLogo symbol={pos.symbol} assetType={pos.assetType} size={32} />
                           <div>
-                            <p className="font-medium">{pos.symbol}</p>
+                            <p className="font-medium">{pos.displayName}</p>
                             <Badge variant="outline" className="text-[9px] uppercase mt-0.5 border-border">
                               {pos.assetType}
                             </Badge>

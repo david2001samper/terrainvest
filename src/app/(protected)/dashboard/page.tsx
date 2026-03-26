@@ -24,6 +24,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import Link from "next/link";
+import { marketCardPrimaryLabel, marketCardSecondaryLabel } from "@/lib/market-display";
 
 export default function DashboardPage() {
   const { data: profile, isLoading: profileLoading } = useProfile();
@@ -200,10 +201,10 @@ export default function DashboardPage() {
                       <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={32} />
                       <div className="min-w-0">
                         <p className="font-medium text-sm group-hover:text-[#00D4FF] transition-colors">
-                          {asset.symbol}
+                          {marketCardPrimaryLabel(asset)}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {asset.name}
+                          {marketCardSecondaryLabel(asset)}
                         </p>
                       </div>
                     </div>

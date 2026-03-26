@@ -6,6 +6,7 @@ import { formatPercent } from "@/lib/format";
 import { AssetLogo } from "@/components/asset-logo";
 import { useRef, useEffect, useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { marketCardPrimaryLabel } from "@/lib/market-display";
 
 export function TickerTape() {
   const { format: formatCurrency } = useCurrencyFormat();
@@ -67,7 +68,9 @@ export function TickerTape() {
               }`}
             >
               <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={18} />
-              <span className="text-xs font-semibold text-foreground">{asset.symbol}</span>
+              <span className="text-xs font-semibold text-foreground">
+                {marketCardPrimaryLabel(asset)}
+              </span>
               <span className="text-xs font-medium text-muted-foreground">
                 {formatCurrency(asset.price, (asset.price ?? 0) < 1 ? 4 : 2)}
               </span>

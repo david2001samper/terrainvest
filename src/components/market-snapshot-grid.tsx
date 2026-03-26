@@ -1,5 +1,6 @@
 import type { SnapshotAsset } from "@/lib/market-snapshot";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { stripYahooInstrumentSuffixes } from "@/lib/market-display";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -50,9 +51,12 @@ export function MarketSnapshotGrid({ assets }: MarketSnapshotGridProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {assets.map((asset) => {
           const isUp = (asset.changePercent24h ?? 0) >= 0;
-          const displaySymbol = DISPLAY_NAMES[asset.symbol] ?? asset.symbol;
+          const displaySymbol =
+            DISPLAY_NAMES[asset.symbol] ?? stripYahooInstrumentSuffixes(asset.symbol);
           const color = LOGO_COLORS[asset.symbol] ?? "#00D4FF";
-          const text = LOGO_TEXT[asset.symbol] ?? asset.symbol.replace(/[^A-Z]/g, "").slice(0, 3);
+          const text =
+            LOGO_TEXT[asset.symbol] ??
+            stripYahooInstrumentSuffixes(asset.symbol).replace(/[^A-Z]/g, "").slice(0, 3);
           return (
             <div
               key={asset.symbol}

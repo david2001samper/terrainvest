@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
+import { marketCardPrimaryLabel, marketCardSecondaryLabel } from "@/lib/market-display";
 import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
 import { FileText } from "lucide-react";
@@ -203,6 +204,8 @@ function AssetCard({
   optionsMode?: boolean;
 }) {
   const isUp = (asset.changePercent24h ?? 0) >= 0;
+  const cardTitle = marketCardPrimaryLabel(asset);
+  const cardSubtitle = marketCardSecondaryLabel(asset);
 
   return (
     <Card className="glass-card-hover group relative">
@@ -221,9 +224,9 @@ function AssetCard({
           <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={36} className="relative z-0" />
           <div className="min-w-0">
             <CardTitle className="text-base font-bold group-hover:text-[#00D4FF] transition-colors">
-              {asset.symbol}
+              {cardTitle}
             </CardTitle>
-            <p className="text-xs text-muted-foreground truncate">{asset.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{cardSubtitle}</p>
           </div>
         </div>
         <button
