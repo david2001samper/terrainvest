@@ -1,74 +1,146 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useInView } from "@/hooks/use-in-view";
+import {
+  getCachedAssetIconUrl,
+  setCachedAssetIconUrl,
+} from "@/lib/asset-icon-cache";
 
 const COINGECKO_IDS: Record<string, string> = {
-  BTC: "bitcoin", ETH: "ethereum", SOL: "solana", XRP: "ripple",
-  ADA: "cardano", DOGE: "dogecoin", DOT: "polkadot", AVAX: "avalanche-2",
-  MATIC: "matic-network", LINK: "chainlink", BNB: "binancecoin",
-  SHIB: "shiba-inu", UNI: "uniswap", ATOM: "cosmos", FTM: "fantom",
-  NEAR: "near", APT: "aptos", ARB: "arbitrum", OP: "optimism",
-  LTC: "litecoin", BCH: "bitcoin-cash", TRX: "tron", ALGO: "algorand",
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  SOL: "solana",
+  XRP: "ripple",
+  ADA: "cardano",
+  DOGE: "dogecoin",
+  DOT: "polkadot",
+  AVAX: "avalanche-2",
+  MATIC: "matic-network",
+  LINK: "chainlink",
+  BNB: "binancecoin",
+  SHIB: "shiba-inu",
+  UNI: "uniswap",
+  ATOM: "cosmos",
+  FTM: "fantom",
+  NEAR: "near",
+  APT: "aptos",
+  ARB: "arbitrum",
+  OP: "optimism",
+  LTC: "litecoin",
+  BCH: "bitcoin-cash",
+  TRX: "tron",
+  ALGO: "algorand",
 };
 
 const STOCK_COLORS: Record<string, string> = {
-  AAPL: "#555555", TSLA: "#CC0000", NVDA: "#76B900", AMZN: "#FF9900",
-  GOOGL: "#4285F4", MSFT: "#00A4EF", META: "#1877F2", NFLX: "#E50914",
-  AMD: "#ED1C24", JPM: "#003A70",
+  AAPL: "#555555",
+  TSLA: "#CC0000",
+  NVDA: "#76B900",
+  AMZN: "#FF9900",
+  GOOGL: "#4285F4",
+  MSFT: "#00A4EF",
+  META: "#1877F2",
+  NFLX: "#E50914",
+  AMD: "#ED1C24",
+  JPM: "#003A70",
 };
+
+const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface AssetLogoProps {
   symbol: string;
   assetType: string;
   size?: number;
   className?: string;
+  /** CoinGecko coin id (from search / quote). Enables icons for assets beyond the built-in symbol map. */
+  coingeckoId?: string | null;
+  /**
+   * lazy: load icon only when this component scrolls into view (or near it).
+   * eager: load immediately — use for search hits or guaranteed-visible heroes.
+   */
+  fetchMode?: "lazy" | "eager";
 }
 
-export function AssetLogo({ symbol, assetType, size = 40, className = "" }: AssetLogoProps) {
+export function AssetLogo({
+  symbol,
+  assetType,
+  size = 40,
+  className = "",
+  coingeckoId: coingeckoIdProp,
+  fetchMode = "lazy",
+}: AssetLogoProps) {
   const [imgError, setImgError] = useState(false);
+  const { ref: inViewRef, inView } = useInView({ rootMargin: "100px", once: true });
 
-  const cgId = COINGECKO_IDS[symbol];
+  const resolvedCgId = useMemo(() => {
+    if (assetType !== "crypto") return null;
+    const fromProp = coingeckoIdProp?.trim();
+    if (fromProp) return fromProp;
+    return COINGECKO_IDS[symbol.toUpperCase()] ?? null;
+  }, [assetType, coingeckoIdProp, symbol]);
+
+  const shouldFetchNetwork =
+    assetType === "crypto" &&
+    !!resolvedCgId &&
+    (fetchMode === "eager" || inView);
+
   const { data: logoUrl } = useQuery<string | null>({
-    queryKey: ["logo", symbol],
+    queryKey: ["asset-icon", "crypto", resolvedCgId],
     queryFn: async () => {
-      if (assetType === "crypto" && cgId) {
-        try {
-          const res = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`);
-          if (res.ok) {
-            const data = await res.json();
-            return data.image?.small || data.image?.large || null;
-          }
-        } catch { /* fallback */ }
-      }
-      return null;
-    },
-    staleTime: 24 * 60 * 60 * 1000,
-    enabled: assetType === "crypto" && !!cgId,
-  });
+      if (!resolvedCgId) return null;
 
-  if (logoUrl && !imgError) {
-    return (
-      <img
-        src={logoUrl}
-        alt={symbol}
-        width={size}
-        height={size}
-        className={`rounded-full object-cover ${className}`}
-        onError={() => setImgError(true)}
-      />
-    );
-  }
+      const cached = getCachedAssetIconUrl(resolvedCgId);
+      if (cached) return cached;
+
+      try {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/${resolvedCgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`
+        );
+        if (!res.ok) return null;
+        const data = (await res.json()) as { image?: { small?: string; large?: string } };
+        const url = data.image?.small || data.image?.large || null;
+        if (url) setCachedAssetIconUrl(resolvedCgId, url);
+        return url;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: STALE_MS,
+    gcTime: STALE_MS,
+    enabled: shouldFetchNetwork,
+  });
 
   const color = STOCK_COLORS[symbol] || symbolColor(symbol);
   const label = symbol.replace(/[^A-Z]/g, "").slice(0, 3) || symbol.slice(0, 2);
   const iconMap: Record<string, string> = {
-    "GC=F": "Au", "SI=F": "Ag", "CL=F": "Oil", "NG=F": "Gas", "PL=F": "Pt",
-    "^GSPC": "SPX", "^IXIC": "NDQ", "^DJI": "DJI", "^RUT": "RUT",
+    "GC=F": "Au",
+    "SI=F": "Ag",
+    "CL=F": "Oil",
+    "NG=F": "Gas",
+    "PL=F": "Pt",
+    "^GSPC": "SPX",
+    "^IXIC": "NDQ",
+    "^DJI": "DJI",
+    "^RUT": "RUT",
   };
   const text = iconMap[symbol] || label;
 
-  return (
+  const showRemote = logoUrl && !imgError;
+
+  const inner = showRemote ? (
+    <img
+      src={logoUrl}
+      alt={symbol}
+      width={size}
+      height={size}
+      className={`rounded-full object-cover ${className}`}
+      onError={() => setImgError(true)}
+      loading="lazy"
+      decoding="async"
+    />
+  ) : (
     <div
       className={`rounded-full flex items-center justify-center font-bold text-white shrink-0 ${className}`}
       style={{
@@ -79,6 +151,16 @@ export function AssetLogo({ symbol, assetType, size = 40, className = "" }: Asse
       }}
     >
       {text}
+    </div>
+  );
+
+  if (fetchMode === "eager") {
+    return <>{inner}</>;
+  }
+
+  return (
+    <div ref={inViewRef} className="inline-flex shrink-0" style={{ width: size, height: size }}>
+      {inner}
     </div>
   );
 }

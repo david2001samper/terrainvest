@@ -169,6 +169,7 @@ export default function MarketsPage() {
               formatCurrency={formatCurrency}
               formatCompact={formatCompact}
               optionsMode={isOptionsTab}
+              iconFetchMode={isSearchMode ? "eager" : "lazy"}
             />
           ))}
         </div>
@@ -195,6 +196,7 @@ function AssetCard({
   formatCurrency,
   formatCompact,
   optionsMode,
+  iconFetchMode,
 }: {
   asset: MarketAsset;
   isWatched: boolean;
@@ -202,6 +204,7 @@ function AssetCard({
   formatCurrency: (value: number | null | undefined, decimals?: number) => string;
   formatCompact: (value: number | null | undefined) => string;
   optionsMode?: boolean;
+  iconFetchMode?: "lazy" | "eager";
 }) {
   const isUp = (asset.changePercent24h ?? 0) >= 0;
   const cardTitle = marketCardPrimaryLabel(asset);
@@ -221,7 +224,14 @@ function AssetCard({
       />
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={36} className="relative z-0" />
+          <AssetLogo
+            symbol={asset.symbol}
+            assetType={asset.asset_type}
+            coingeckoId={asset.coingecko_id}
+            fetchMode={iconFetchMode ?? "lazy"}
+            size={36}
+            className="relative z-0"
+          />
           <div className="min-w-0">
             <CardTitle className="text-base font-bold group-hover:text-[#00D4FF] transition-colors">
               {cardTitle}

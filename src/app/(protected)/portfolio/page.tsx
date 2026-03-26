@@ -70,6 +70,7 @@ export default function PortfolioPage() {
       assetType,
       marketState: marketData?.marketState,
       displayName: positionRowLabel(pos.symbol, assetType, marketData?.name),
+      coingeckoId: marketData?.coingecko_id,
     };
   }) || [];
 
@@ -400,7 +401,12 @@ export default function PortfolioPage() {
                           href={`/markets/${encodeURIComponent(pos.symbol)}?type=${pos.assetType}`}
                           className="flex items-center gap-3 hover:text-[#00D4FF] transition-colors"
                         >
-                          <AssetLogo symbol={pos.symbol} assetType={pos.assetType} size={32} />
+                          <AssetLogo
+                            symbol={pos.symbol}
+                            assetType={pos.assetType}
+                            coingeckoId={pos.coingeckoId}
+                            size={32}
+                          />
                           <div>
                             <p className="font-medium">{pos.displayName}</p>
                             <Badge variant="outline" className="text-[9px] uppercase mt-0.5 border-border">

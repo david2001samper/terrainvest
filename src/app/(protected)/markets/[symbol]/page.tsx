@@ -207,6 +207,8 @@ export default function AssetDetailPage() {
             <AssetLogo
               symbol={asset.symbol}
               assetType={resolvedType}
+              coingeckoId={coingeckoId}
+              fetchMode="eager"
               size={48}
             />
             <div>

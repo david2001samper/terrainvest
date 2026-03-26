@@ -198,7 +198,12 @@ export default function DashboardPage() {
                     className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover:bg-accent/50 transition-all group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={32} />
+                      <AssetLogo
+                        symbol={asset.symbol}
+                        assetType={asset.asset_type}
+                        coingeckoId={asset.coingecko_id}
+                        size={32}
+                      />
                       <div className="min-w-0">
                         <p className="font-medium text-sm group-hover:text-[#00D4FF] transition-colors">
                           {marketCardPrimaryLabel(asset)}
@@ -293,7 +298,7 @@ export default function DashboardPage() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <AssetLogo symbol="BTC" assetType="crypto" size={24} />
+              <AssetLogo symbol="BTC" assetType="crypto" fetchMode="eager" size={24} />
               Bitcoin (BTC) — 30 Day
             </CardTitle>
           </CardHeader>

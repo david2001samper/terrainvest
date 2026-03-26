@@ -81,7 +81,12 @@ export default function WatchlistPage() {
                     href={`/markets/${encodeURIComponent(asset.symbol)}?type=${asset.asset_type}`}
                     className="flex items-center gap-3 min-w-0"
                   >
-                    <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={40} />
+                    <AssetLogo
+                      symbol={asset.symbol}
+                      assetType={asset.asset_type}
+                      coingeckoId={asset.coingecko_id}
+                      size={40}
+                    />
                     <div>
                       <CardTitle className="text-lg font-bold group-hover:text-[#00D4FF] transition-colors">
                         {marketCardPrimaryLabel(asset)}

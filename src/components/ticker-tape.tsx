@@ -67,7 +67,12 @@ export function TickerTape() {
                 flash === "up" ? "flash-up" : flash === "down" ? "flash-down" : ""
               }`}
             >
-              <AssetLogo symbol={asset.symbol} assetType={asset.asset_type} size={18} />
+              <AssetLogo
+                symbol={asset.symbol}
+                assetType={asset.asset_type}
+                coingeckoId={asset.coingecko_id}
+                size={18}
+              />
               <span className="text-xs font-semibold text-foreground">
                 {marketCardPrimaryLabel(asset)}
               </span>
