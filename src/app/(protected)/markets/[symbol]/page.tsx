@@ -388,6 +388,9 @@ export default function AssetDetailPage() {
             symbol={asset.symbol}
             name={asset.name}
             price={asset.price}
+            bid={asset.bid}
+            ask={asset.ask}
+            spreadPips={asset.spreadPips}
             assetType={resolvedType}
           />
         </div>

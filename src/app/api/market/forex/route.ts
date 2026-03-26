@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getYahooFinance } from "@/lib/yahoo";
 import { getActiveOverrides, applyOverrides } from "@/lib/price-overrides";
+import { parseForexSymbol, inferPipSize, DEFAULT_CONTRACT_SIZE } from "@/lib/forex/instruments";
+import { midToBidAsk } from "@/lib/forex/pricing";
 
 const FOREX_SYMBOLS = [
   { symbol: "EURUSD=X", name: "EUR/USD" },
@@ -19,6 +21,13 @@ interface RawForex {
   symbol: string;
   name: string;
   price: number;
+  bid?: number;
+  ask?: number;
+  spreadPips?: number;
+  pipSize?: number;
+  base?: string;
+  quote?: string;
+  contractSize?: number;
   change24h: number;
   changePercent24h: number;
   volume: number;
@@ -77,7 +86,27 @@ export async function GET() {
     }
 
     const overrides = await getActiveOverrides();
-    const data = applyOverrides(rawData, overrides);
+    const data = applyOverrides(rawData, overrides).map((r) => {
+      const parsed = parseForexSymbol(r.symbol);
+      const base = parsed?.base ?? "";
+      const quote = parsed?.quote ?? "";
+      const pipSize = inferPipSize(r.symbol);
+      const bidAsk = midToBidAsk({
+        instrument: { pipSize, typicalSpreadPips: quote === "JPY" ? 1.4 : 1.1 },
+        mid: r.price,
+        changePercent24h: r.changePercent24h,
+      });
+      return {
+        ...r,
+        base,
+        quote,
+        pipSize,
+        contractSize: DEFAULT_CONTRACT_SIZE,
+        bid: bidAsk.bid,
+        ask: bidAsk.ask,
+        spreadPips: bidAsk.spreadPips,
+      };
+    });
 
     const hasOverrides = Object.keys(overrides).length > 0;
     return NextResponse.json(data, {

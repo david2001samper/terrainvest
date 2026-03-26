@@ -38,6 +38,25 @@ import {
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+
+type ForexPositionRow = {
+  id: string;
+  symbol: string;
+  base: string;
+  quote: string;
+  units_signed: number;
+  avg_entry_price: number;
+  leverage: number;
+  margin_used_usd: number;
+  swap_accrued_usd: number;
+  mid: number;
+  bid: number;
+  ask: number;
+  spreadPips: number;
+  mark: number;
+  unrealized_pnl_usd: number;
+};
 
 export default function PortfolioPage() {
   const [allocationView, setAllocationView] = useState<"asset_class" | "holdings">("asset_class");
@@ -47,6 +66,16 @@ export default function PortfolioPage() {
   const { allAssets, crypto, stocks } = useMarketData();
   const { data: profile } = useProfile();
   const { data: optionsPositions, isLoading: optionsLoading } = useOptionsPositions();
+  const { data: forexPositions = [] } = useQuery<ForexPositionRow[]>({
+    queryKey: ["forex-positions"],
+    queryFn: async () => {
+      const res = await fetch("/api/forex/positions");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 15000,
+    staleTime: 8000,
+  });
   const queryClient = useQueryClient();
 
   const enrichedPositions = positions?.map((pos) => {
@@ -343,6 +372,58 @@ export default function PortfolioPage() {
                             )}
                           </Button>
                         </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Forex Positions */}
+      {forexPositions.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-[#00D4FF]" />
+              Forex Positions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Pair</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Lots</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Entry</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Mark</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">P&L</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Margin</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {forexPositions.map((fp) => {
+                    const lots = Math.abs(fp.units_signed) / 100000;
+                    const isUp = fp.unrealized_pnl_usd >= 0;
+                    return (
+                      <TableRow key={fp.id} className="border-border hover:bg-accent/30">
+                        <TableCell className="font-medium">
+                          {fp.base}/{fp.quote}{" "}
+                          <span className="text-xs text-muted-foreground">({fp.symbol})</span>
+                        </TableCell>
+                        <TableCell className="text-right">{lots.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(fp.avg_entry_price, fp.avg_entry_price < 1 ? 6 : 4)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(fp.mark, fp.mark < 1 ? 6 : 4)}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={`font-medium ${isUp ? "text-green-400" : "text-red-400"}`}>
+                            {isUp ? "+" : ""}
+                            {formatCurrency(fp.unrealized_pnl_usd, 2)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm">{formatCurrency(fp.margin_used_usd, 2)}</TableCell>
                       </TableRow>
                     );
                   })}

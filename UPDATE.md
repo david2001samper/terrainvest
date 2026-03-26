@@ -45,6 +45,7 @@ If the update includes new SQL migrations:
 - `supabase-migration-login-logs.sql` – add login_logs table for admin login history
 - `supabase-migration-permissions-forex-options.sql` – trading permissions, leverage, options_positions table
 - `supabase-migration-notifications.sql` – in-app notifications table
+- `supabase-migration-forex-realistic.sql` – realistic FX (lots, bid/ask spread, swap) + forex_positions
 
 ---
 

@@ -103,6 +103,13 @@ export interface MarketAsset {
   symbol: string;
   name: string;
   price: number;
+  bid?: number;
+  ask?: number;
+  spreadPips?: number;
+  pipSize?: number;
+  base?: string;
+  quote?: string;
+  contractSize?: number;
   change24h: number;
   changePercent24h: number;
   volume: number;

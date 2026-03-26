@@ -34,16 +34,29 @@ interface TradePanelProps {
   symbol: string;
   name: string;
   price: number;
+  bid?: number;
+  ask?: number;
+  spreadPips?: number;
   assetType?: string;
   compact?: boolean;
 }
 
 type InputMode = "quantity" | "amount";
 
-export function TradePanel({ symbol, name, price, assetType, compact = false }: TradePanelProps) {
+export function TradePanel({
+  symbol,
+  name,
+  price,
+  bid,
+  ask,
+  spreadPips,
+  assetType,
+  compact = false,
+}: TradePanelProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [quantity, setQuantity] = useState("");
+  const [lots, setLots] = useState("0.01");
   const [dollarAmount, setDollarAmount] = useState("");
   const [inputMode, setInputMode] = useState<InputMode>("quantity");
   const [limitPrice, setLimitPrice] = useState("");
@@ -72,17 +85,24 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
 
   const feePerTrade = platformSettings?.fee_per_trade ?? 0.1;
 
+  const midPrice = price;
+
   const execPrice =
     orderType === "market"
-      ? price
+      ? midPrice
       : orderType === "limit"
-      ? parseFloat(limitPrice) || price
+      ? parseFloat(limitPrice) || midPrice
       : orderType === "stop"
-      ? parseFloat(stopPrice) || price
-      : parseFloat(limitPrice) || price;
+      ? parseFloat(stopPrice) || midPrice
+      : parseFloat(limitPrice) || midPrice;
+
+  const forexUnits =
+    assetType === "forex" ? (parseFloat(lots) || 0) * 100000 : 0;
 
   const qty =
-    inputMode === "quantity"
+    assetType === "forex"
+      ? forexUnits
+      : inputMode === "quantity"
       ? parseFloat(quantity) || 0
       : execPrice > 0
       ? Math.floor(((parseFloat(dollarAmount) || 0) / execPrice) * 100000) / 100000
@@ -196,7 +216,14 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
       const res = await fetch("/api/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, side, quantity: qty, price: execPrice, asset_type: assetType }),
+        body: JSON.stringify({
+          symbol,
+          side,
+          quantity: qty,
+          lots: assetType === "forex" ? parseFloat(lots) || null : null,
+          price: execPrice,
+          asset_type: assetType,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -232,7 +259,21 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
         <CardTitle className="text-sm font-medium text-muted-foreground">
           Trade {name} ({symbol})
         </CardTitle>
-        <p className="text-2xl font-bold accent-gradient">{formatCurrency(price)}</p>
+        <p className="text-2xl font-bold accent-gradient">
+          {formatCurrency(price)}
+        </p>
+        {isForex && bid != null && ask != null && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Bid: <span className="text-foreground font-medium">{formatCurrency(bid, bid < 1 ? 6 : 4)}</span>{" "}
+            · Ask: <span className="text-foreground font-medium">{formatCurrency(ask, ask < 1 ? 6 : 4)}</span>
+            {spreadPips != null && (
+              <>
+                {" "}
+                · Spread: <span className="text-foreground font-medium">{spreadPips.toFixed(1)} pips</span>
+              </>
+            )}
+          </p>
+        )}
       </CardHeader>
       <CardContent className={compact ? "p-4 pt-0" : ""}>
         <div className="space-y-4">
@@ -293,7 +334,7 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Quantity
+                {isForex ? "Lots" : "Quantity"}
               </button>
               <button
                 type="button"
@@ -304,7 +345,7 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Amount ($)
+                {isForex ? "Units" : "Amount ($)"}
               </button>
             </div>
           </div>
@@ -312,39 +353,56 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
           {/* Quantity or Dollar Amount */}
           {inputMode === "quantity" ? (
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Quantity (shares/coins)</Label>
+              <Label className="text-xs text-muted-foreground">
+                {isForex ? "Lots (e.g. 0.01)" : "Quantity (shares/coins)"}
+              </Label>
               <Input
                 type="number"
                 placeholder="0.00000"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                value={isForex ? lots : quantity}
+                onChange={(e) => (isForex ? setLots(e.target.value) : setQuantity(e.target.value))}
                 className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
                 min="0"
                 step="any"
               />
+              {isForex && (
+                <p className="text-xs text-muted-foreground">
+                  ≈ <span className="text-foreground font-medium">{Math.abs(qty).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> units
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Amount ($)</Label>
+              <Label className="text-xs text-muted-foreground">
+                {isForex ? "Units" : "Amount ($)"}
+              </Label>
               <Input
                 type="number"
-                placeholder="e.g. 100.00"
-                value={dollarAmount}
-                onChange={(e) => setDollarAmount(e.target.value)}
+                placeholder={isForex ? "e.g. 10000" : "e.g. 100.00"}
+                value={isForex ? quantity : dollarAmount}
+                onChange={(e) => (isForex ? setQuantity(e.target.value) : setDollarAmount(e.target.value))}
                 className="bg-background/50 border-border focus:border-[#00D4FF] h-10"
                 min="0"
-                step="0.01"
+                step={isForex ? "1" : "0.01"}
               />
               {qty > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  ≈ <span className="text-foreground font-medium">{qty.toFixed(5)}</span> {symbol} @ {formatCurrency(execPrice)}
+                  {isForex ? (
+                    <>
+                      ≈ <span className="text-foreground font-medium">{(Math.abs(qty) / 100000).toFixed(2)}</span> lots
+                    </>
+                  ) : (
+                    <>
+                      ≈ <span className="text-foreground font-medium">{qty.toFixed(5)}</span> {symbol} @ {formatCurrency(execPrice)}
+                    </>
+                  )}
                 </p>
               )}
             </div>
           )}
 
           {/* Quick % buttons */}
-          {side === "buy" && buyingPower > 0 && (
+          {side === "buy" && buyingPower > 0 && !isForex && (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 % of Buying Power ({formatCurrency(buyingPower)})
@@ -401,7 +459,7 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
               </div>
             </div>
           )}
-          {side === "sell" && ownedQty > 0 && (
+          {side === "sell" && ownedQty > 0 && !isForex && (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 % of Holdings ({ownedQty.toLocaleString(undefined, { maximumFractionDigits: 5 })} {symbol})
