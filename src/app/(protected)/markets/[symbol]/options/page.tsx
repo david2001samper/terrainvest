@@ -77,7 +77,7 @@ export default function OptionsChainPage() {
     () =>
       (chainData?.expirationDates ?? []).map((ts) => ({
         value: String(ts),
-        label: new Date(ts * 1000).toLocaleDateString("en-US", {
+        label: new Date((ts > 1e12 ? ts : ts * 1000)).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
