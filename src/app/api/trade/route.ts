@@ -3,18 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { tradeSchema } from "@/lib/validations";
 import { fetchMarketPrice } from "@/lib/market-price";
 
-function detectAssetType(symbol: string): string {
-  const s = symbol.toUpperCase();
-  if (s.endsWith("=X")) return "forex";
-  const cryptoSyms = ["BTC","ETH","SOL","XRP","ADA","DOGE","DOT","AVAX","MATIC","LINK","BNB","SHIB","UNI","ATOM","LTC","NEAR","APT"];
-  if (cryptoSyms.includes(s)) return "crypto";
-  const indexSyms = ["^GSPC","^IXIC","^DJI","^RUT","^VIX","^FTSE","^N225","^HSI","^GDAXI","^FCHI"];
-  if (indexSyms.includes(s) || s.startsWith("^")) return "index";
-  const commoditySyms = ["GC=F","CL=F","SI=F","NG=F","HG=F","PL=F","XAU","XAG"];
-  if (commoditySyms.includes(s) || s.endsWith("=F")) return "commodity";
-  return "stock";
-}
-
 const UNREALISTIC_THRESHOLD = 0.15;
 const SLIPPAGE_MAX = 0.003;
 const DELAY_MIN_MS = 1000;
@@ -45,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { symbol, side, quantity, price: userPrice } = parsed.data;
+    const clientAssetType = (body.asset_type as string) || "";
 
     let marketPrice: number | null = null;
     const [feeRow] = await Promise.all([
@@ -94,7 +83,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const assetType = detectAssetType(symbol);
+    const assetType = resolveAssetType(symbol, clientAssetType);
     const permMap: Record<string, string> = {
       crypto: "can_trade_crypto",
       stock: "can_trade_stocks",
@@ -193,11 +182,6 @@ export async function POST(request: NextRequest) {
         });
       }
     } else {
-      await supabase
-        .from("profiles")
-        .update({ balance: profile.balance + total - fee })
-        .eq("id", user.id);
-
       const { data: position } = await supabase
         .from("positions")
         .select("*")
@@ -206,8 +190,15 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (position) {
+        const posLeverage = position.leverage || 1;
         const newQty = position.quantity - quantity;
         const pnl = (execPrice - position.entry_price) * quantity;
+        const sellProceeds = (quantity * position.entry_price) / posLeverage + pnl;
+
+        await supabase
+          .from("profiles")
+          .update({ balance: profile.balance + sellProceeds - fee })
+          .eq("id", user.id);
 
         if (newQty <= 0.00000001) {
           await supabase.from("positions").delete().eq("id", position.id);
@@ -241,4 +232,15 @@ export async function POST(request: NextRequest) {
     console.error("Trade error:", error);
     return NextResponse.json({ error: "Trade execution failed" }, { status: 500 });
   }
+}
+
+function resolveAssetType(symbol: string, clientHint: string): string {
+  if (clientHint && ["crypto", "stock", "index", "commodity", "forex"].includes(clientHint)) {
+    return clientHint;
+  }
+  const s = symbol.toUpperCase();
+  if (s.endsWith("=X")) return "forex";
+  if (s.startsWith("^")) return "index";
+  if (s.endsWith("=F")) return "commodity";
+  return "stock";
 }

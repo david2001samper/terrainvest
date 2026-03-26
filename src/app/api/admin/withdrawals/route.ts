@@ -100,16 +100,37 @@ export async function PATCH(request: NextRequest) {
       if (updateError) throw updateError;
     }
 
+    const newStatus = action === "approve" ? "approved" : "rejected";
     const { error: reqError } = await supabase
       .from("withdrawal_requests")
       .update({
-        status: action === "approve" ? "approved" : "rejected",
+        status: newStatus,
         processed_at: new Date().toISOString(),
         processed_by: admin.id,
       })
       .eq("id", id);
 
     if (reqError) throw reqError;
+
+    // Check if user wants withdrawal notifications
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("notify_withdrawal")
+      .eq("id", userId)
+      .single();
+
+    if (userProfile?.notify_withdrawal !== false) {
+      const serviceClient = action === "approve" ? await createServiceClient() : await createServiceClient();
+      await serviceClient.from("notifications").insert({
+        user_id: userId,
+        type: "withdrawal",
+        title: action === "approve" ? "Withdrawal Approved" : "Withdrawal Rejected",
+        message:
+          action === "approve"
+            ? `Your withdrawal of $${amount.toFixed(2)} has been approved and processed.`
+            : `Your withdrawal of $${amount.toFixed(2)} has been rejected. Contact support for details.`,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (e) {

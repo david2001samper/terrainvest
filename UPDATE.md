@@ -44,6 +44,7 @@ If the update includes new SQL migrations:
 - `supabase-migration-notification-prefs.sql` – notification preferences (withdrawal + deposit toggles)
 - `supabase-migration-login-logs.sql` – add login_logs table for admin login history
 - `supabase-migration-permissions-forex-options.sql` – trading permissions, leverage, options_positions table
+- `supabase-migration-notifications.sql` – in-app notifications table
 
 ---
 

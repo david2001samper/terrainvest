@@ -39,10 +39,7 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-const PERF_FILTERS = ["1d", "7d", "30d", "ytd", "all"] as const;
-
 export default function PortfolioPage() {
-  const [perfFilter, setPerfFilter] = useState<(typeof PERF_FILTERS)[number]>("all");
   const [allocationView, setAllocationView] = useState<"asset_class" | "holdings">("asset_class");
   const [sellingOption, setSellingOption] = useState<string | null>(null);
   const { format: formatCurrency, convert, symbol, pnlPrefix } = useCurrencyFormat();
@@ -106,32 +103,13 @@ export default function PortfolioPage() {
         <LastUpdated dataUpdatedAt={latestUpdate || undefined} />
       </div>
 
-      {/* Performance time filters */}
+      {/* Performance */}
       <Card className="glass-card">
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
-              Performance
-            </CardTitle>
-            <div className="flex gap-2">
-              {PERF_FILTERS.map((f) => (
-                <Button
-                  key={f}
-                  variant={perfFilter === f ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPerfFilter(f)}
-                  className={
-                    perfFilter === f
-                      ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"
-                      : ""
-                  }
-                >
-                  {f === "ytd" ? "YTD" : f === "all" ? "All" : f.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
+            Performance
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-baseline gap-4">
@@ -148,9 +126,7 @@ export default function PortfolioPage() {
             </p>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {perfFilter === "all"
-              ? "All-time return (realized + unrealized)"
-              : `${perfFilter} returns — historical data coming soon`}
+            All-time return (realized + unrealized)
           </p>
         </CardContent>
       </Card>

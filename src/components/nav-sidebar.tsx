@@ -25,6 +25,7 @@ import {
   ArrowUpCircle,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
+import { NotificationBell } from "@/components/notification-bell";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -111,9 +112,14 @@ export function NavSidebar() {
 
       <div className="p-3 border-t border-border space-y-1">
         {!collapsed && profile && (
-          <div className="px-3 py-2 mb-2">
-            <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
-            <p className="text-xs text-[#00D4FF]">VIP Level {profile.vip_level}</p>
+          <div className="px-3 py-2 mb-2 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+              <p className="text-xs text-[#00D4FF]">VIP Level {profile.vip_level}</p>
+            </div>
+            <div className="hidden lg:block shrink-0">
+              <NotificationBell />
+            </div>
           </div>
         )}
         <button
@@ -129,8 +135,8 @@ export function NavSidebar() {
 
   return (
     <>
-      {/* Mobile hamburger */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-4 left-4 right-4 z-50 flex items-center justify-between">
         <Button
           variant="outline"
           size="icon"
@@ -139,6 +145,7 @@ export function NavSidebar() {
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
+        <NotificationBell />
       </div>
 
       {/* Mobile overlay */}

@@ -79,7 +79,27 @@ export async function PATCH(request: NextRequest) {
       if (total_pnl !== undefined) updates.total_pnl = total_pnl;
     }
 
-    if (balance !== undefined) updates.balance = balance;
+    if (balance !== undefined) {
+      updates.balance = balance;
+
+      // Send deposit notification if balance increased
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("balance, notify_deposit")
+        .eq("id", userId)
+        .single();
+
+      if (currentProfile && balance > (currentProfile.balance ?? 0) && currentProfile.notify_deposit !== false) {
+        const depositAmount = balance - (currentProfile.balance ?? 0);
+        const serviceClient = await createServiceClient();
+        await serviceClient.from("notifications").insert({
+          user_id: userId,
+          type: "deposit",
+          title: "Deposit Confirmed",
+          message: `A deposit of $${depositAmount.toFixed(2)} has been credited to your account.`,
+        });
+      }
+    }
     if (vip_level !== undefined) updates.vip_level = vip_level;
     if (role !== undefined) updates.role = role;
     if (display_name !== undefined) updates.display_name = display_name;

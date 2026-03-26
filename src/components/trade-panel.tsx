@@ -88,16 +88,20 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
       ? Math.floor(((parseFloat(dollarAmount) || 0) / execPrice) * 100000) / 100000
       : 0;
 
+  const isForex = assetType === "forex";
+  const leverage = isForex ? (profile?.max_leverage ?? 1) : 1;
+
   const preview = useMemo(() => {
     const subtotal = qty * execPrice;
+    const marginRequired = subtotal / leverage;
     const fee = qty > 0 ? feePerTrade : 0;
-    const total = side === "buy" ? subtotal + fee : subtotal - fee;
+    const costBasis = side === "buy" ? marginRequired + fee : subtotal - fee;
     const balanceAfter =
       side === "buy"
-        ? (profile?.balance ?? 0) - total
+        ? (profile?.balance ?? 0) - costBasis
         : (profile?.balance ?? 0) + subtotal - fee;
-    return { subtotal, fee, total, balanceAfter };
-  }, [qty, execPrice, side, profile?.balance, feePerTrade]);
+    return { subtotal, marginRequired, fee, total: costBasis, balanceAfter, leverage };
+  }, [qty, execPrice, side, profile?.balance, feePerTrade, leverage]);
 
   function checkPermission(): boolean {
     if (!profile || !assetType) return true;
@@ -118,12 +122,33 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
     return true;
   }
 
+  function checkMarketHours(): boolean {
+    if (!assetType || assetType === "crypto") return true;
+    const now = new Date();
+    const utcDay = now.getUTCDay();
+    const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+    if (assetType === "forex") {
+      if (utcDay === 6) { toast.error("Forex market is closed on Saturday."); return false; }
+      if (utcDay === 0 && utcMins < 22 * 60) { toast.error("Forex market opens Sunday 5:00 PM ET."); return false; }
+      if (utcDay === 5 && utcMins >= 22 * 60) { toast.error("Forex market closed. Opens Sunday 5:00 PM ET."); return false; }
+      return true;
+    }
+
+    if (utcDay === 0 || utcDay === 6) { toast.error("Market is closed on weekends."); return false; }
+    const etMins = ((utcMins - 4 * 60) + 1440) % 1440;
+    if (etMins < 9 * 60 + 30) { toast.error("Market opens at 9:30 AM ET (pre-market)."); return false; }
+    if (etMins >= 16 * 60) { toast.error("Market is closed (after hours)."); return false; }
+    return true;
+  }
+
   function handleSubmit() {
     if (qty <= 0) {
       toast.error("Enter a valid quantity");
       return;
     }
     if (!checkPermission()) return;
+    if (!checkMarketHours()) return;
     if (orderType === "market") {
       setConfirmOpen(true);
     } else {
@@ -171,7 +196,7 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
       const res = await fetch("/api/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, side, quantity: qty, price: execPrice }),
+        body: JSON.stringify({ symbol, side, quantity: qty, price: execPrice, asset_type: assetType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -466,9 +491,21 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
           {qty > 0 && (
             <div className="p-3 rounded-lg bg-background/60 border border-border space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">Notional Value</span>
                 <span className="font-medium">{formatCurrency(preview.subtotal)}</span>
               </div>
+              {isForex && leverage > 1 && side === "buy" && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Leverage</span>
+                  <span className="font-medium text-[#00D4FF]">1:{leverage}</span>
+                </div>
+              )}
+              {isForex && leverage > 1 && side === "buy" && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Margin Required</span>
+                  <span className="font-medium">{formatCurrency(preview.marginRequired)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Fee</span>
                 <span className="font-medium">{formatCurrency(preview.fee)}</span>
@@ -476,7 +513,7 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
               <div className="border-t border-border my-1" />
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground font-medium">
-                  {side === "buy" ? "Total Cost" : "Total Proceeds"}
+                  {side === "buy" ? (isForex && leverage > 1 ? "Margin + Fee" : "Total Cost") : "Total Proceeds"}
                 </span>
                 <span className="font-semibold text-foreground">{formatCurrency(preview.total)}</span>
               </div>
@@ -551,15 +588,27 @@ export function TradePanel({ symbol, name, price, assetType, compact = false }: 
             <span className="font-medium">{formatCurrency(execPrice)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">Notional Value</span>
             <span className="font-medium">{formatCurrency(preview.subtotal)}</span>
           </div>
+          {isForex && leverage > 1 && side === "buy" && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Leverage</span>
+              <span className="font-medium text-[#00D4FF]">1:{leverage}</span>
+            </div>
+          )}
+          {isForex && leverage > 1 && side === "buy" && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Margin Required</span>
+              <span className="font-medium">{formatCurrency(preview.marginRequired)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Fee</span>
             <span className="font-medium">{formatCurrency(preview.fee)}</span>
           </div>
           <div className="border-t border-border pt-2 flex justify-between">
-            <span className="font-medium">{side === "buy" ? "Total Cost" : "Total Proceeds"}</span>
+            <span className="font-medium">{side === "buy" ? (isForex && leverage > 1 ? "Margin + Fee" : "Total Cost") : "Total Proceeds"}</span>
             <span className="font-semibold">{formatCurrency(preview.total)}</span>
           </div>
           {profile && (
