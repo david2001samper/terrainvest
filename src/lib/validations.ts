@@ -9,6 +9,14 @@ export const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   displayName: z.string().min(2, "Name must be at least 2 characters").max(50),
+  countryIso: z.string().length(2, "Select a country code"),
+  nationalPhone: z
+    .string()
+    .trim()
+    .refine((v) => {
+      const digits = v.replace(/\D/g, "");
+      return digits.length >= 6 && digits.length <= 15;
+    }, "Enter a valid phone number (6–15 digits)"),
 });
 
 export const tradeSchema = z.object({

@@ -33,6 +33,7 @@ export async function updateSession(request: NextRequest) {
 
   const publicPaths = ["/auth/login", "/auth/signup", "/auth/callback", "/"];
   const isPublicPath = publicPaths.includes(pathname) || pathname.startsWith("/content/");
+  const isApiPath = pathname.startsWith("/api/");
 
   let profile: { role?: string } | null = null;
   if (user) {
@@ -46,7 +47,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (!user && !isPublicPath) {
+  if (!user && !isPublicPath && !isApiPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
