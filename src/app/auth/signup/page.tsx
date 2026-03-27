@@ -164,7 +164,7 @@ export default function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Phone</Label>
-              <div className="flex gap-2">
+              <div className="relative flex gap-2">
                 <Select value={countryIso} onValueChange={(v) => setCountryIso(v ?? "US")}>
                   <SelectTrigger
                     aria-label="Country calling code"
@@ -188,22 +188,28 @@ export default function SignupPage() {
                       ) : null}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-h-64 w-[min(100vw-2rem,280px)]">
+                  <SelectContent
+                    align="start"
+                    alignItemWithTrigger={false}
+                    side="bottom"
+                    sideOffset={6}
+                    className="z-[200] !min-w-[min(100vw-1.5rem,380px)] !w-[min(100vw-1.5rem,380px)] max-h-[min(72vh,480px)] p-1.5 shadow-lg"
+                  >
                     {DIAL_COUNTRIES.map((c) => (
-                      <SelectItem key={c.iso} value={c.iso}>
-                        <span className="flex items-center gap-2">
-                          <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-sm ring-1 ring-border/60">
+                      <SelectItem key={c.iso} value={c.iso} className="py-2.5 pr-10">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-sm ring-1 ring-border/60">
                             <Image
                               src={`https://flagcdn.com/w40/${c.iso.toLowerCase()}.png`}
                               alt=""
-                              width={20}
-                              height={20}
+                              width={24}
+                              height={24}
                               className="object-cover"
                               unoptimized
                             />
                           </span>
-                          <span className="tabular-nums text-muted-foreground">{c.dial}</span>
-                          <span className="truncate">{c.name}</span>
+                          <span className="shrink-0 tabular-nums text-muted-foreground">{c.dial}</span>
+                          <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
                         </span>
                       </SelectItem>
                     ))}

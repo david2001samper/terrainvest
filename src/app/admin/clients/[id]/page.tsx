@@ -161,6 +161,11 @@ export default function AdminClientDetailPage() {
             Portfolio: {profile?.display_name || profile?.email || "User"}
           </h1>
           <p className="text-muted-foreground text-sm">{profile?.email}</p>
+          {profile?.phone_e164 ? (
+            <p className="text-muted-foreground text-sm mt-0.5 tabular-nums">
+              Phone: {profile.phone_e164}
+            </p>
+          ) : null}
         </div>
       </div>
 

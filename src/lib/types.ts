@@ -2,6 +2,7 @@ export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
+  phone_e164?: string | null;
   role: "user" | "admin";
   balance: number;
   is_locked?: boolean;

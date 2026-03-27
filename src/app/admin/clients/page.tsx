@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,9 +35,25 @@ import {
   Lock,
   Unlock,
   Trash2,
+  UserCircle,
 } from "lucide-react";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
+
+function yesNo(v: boolean | undefined | null) {
+  if (v === true) return "Yes";
+  if (v === false) return "No";
+  return "—";
+}
+
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium break-all">{value ?? "—"}</p>
+    </div>
+  );
+}
 
 export default function AdminClientsPage() {
   const [search, setSearch] = useState("");
@@ -53,6 +69,7 @@ export default function AdminClientsPage() {
   const [passwordReset, setPasswordReset] = useState("");
   const [editLocked, setEditLocked] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [infoClient, setInfoClient] = useState<Profile | null>(null);
   const [activityMap, setActivityMap] = useState<Record<string, { trade_count: number; avg_trade_size: number; last_login_at: string | null; recent_logins: string[] }>>({});
   const queryClient = useQueryClient();
 
@@ -317,6 +334,15 @@ export default function AdminClientsPage() {
                         {formatDate(client.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setInfoClient(client)}
+                          className="h-8 w-8 hover:text-[#00D4FF] mr-1"
+                          title="Client details"
+                        >
+                          <UserCircle className="w-4 h-4" />
+                        </Button>
                         <Link href={`/admin/clients/${client.id}`}>
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-[#00D4FF] mr-1">
                             <Wallet className="w-4 h-4" />
@@ -388,6 +414,92 @@ export default function AdminClientsPage() {
           </Button>
         </div>
       )}
+
+      <Dialog open={!!infoClient} onOpenChange={(open) => !open && setInfoClient(null)}>
+        <DialogContent className="glass-card accent-border max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Client details</DialogTitle>
+          </DialogHeader>
+          {infoClient && (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailRow label="User ID" value={infoClient.id} />
+                <DetailRow label="Email" value={infoClient.email} />
+                <DetailRow label="Display name" value={infoClient.display_name || "—"} />
+                <DetailRow
+                  label="Phone (E.164)"
+                  value={infoClient.phone_e164?.trim() ? infoClient.phone_e164 : "—"}
+                />
+                <DetailRow label="Role" value={infoClient.role} />
+                <DetailRow label="VIP level" value={String(infoClient.vip_level)} />
+                <DetailRow label="Balance" value={formatCurrency(infoClient.balance)} />
+                <DetailRow label={"Total P&L"} value={formatCurrency(infoClient.total_pnl)} />
+                <DetailRow label="Preferred currency" value={infoClient.preferred_currency || "—"} />
+                <DetailRow label="Account locked" value={yesNo(infoClient.is_locked)} />
+                <DetailRow
+                  label="Joined"
+                  value={infoClient.created_at ? formatDate(infoClient.created_at) : "—"}
+                />
+                <DetailRow
+                  label="Last updated"
+                  value={infoClient.updated_at ? formatDate(infoClient.updated_at) : "—"}
+                />
+                <DetailRow
+                  label="Last login (profile)"
+                  value={infoClient.last_login_at ? formatDate(infoClient.last_login_at) : "—"}
+                />
+                <DetailRow
+                  label="Avatar URL"
+                  value={infoClient.avatar_url?.trim() ? infoClient.avatar_url : "—"}
+                />
+              </div>
+              <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Notifications
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                  <span className="text-muted-foreground">Withdrawal alerts</span>
+                  <span>{yesNo(infoClient.notify_withdrawal)}</span>
+                  <span className="text-muted-foreground">Deposit alerts</span>
+                  <span>{yesNo(infoClient.notify_deposit)}</span>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Trading permissions
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                  <span className="text-muted-foreground">Crypto</span>
+                  <span>{yesNo(infoClient.can_trade_crypto)}</span>
+                  <span className="text-muted-foreground">Stocks</span>
+                  <span>{yesNo(infoClient.can_trade_stocks)}</span>
+                  <span className="text-muted-foreground">Indexes</span>
+                  <span>{yesNo(infoClient.can_trade_indexes)}</span>
+                  <span className="text-muted-foreground">Commodities</span>
+                  <span>{yesNo(infoClient.can_trade_commodities)}</span>
+                  <span className="text-muted-foreground">Forex</span>
+                  <span>{yesNo(infoClient.can_trade_forex)}</span>
+                  <span className="text-muted-foreground">Options</span>
+                  <span>{yesNo(infoClient.can_trade_options)}</span>
+                  <span className="text-muted-foreground">Max leverage</span>
+                  <span>{infoClient.max_leverage != null ? String(infoClient.max_leverage) : "—"}</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/clients/${infoClient.id}`} onClick={() => setInfoClient(null)}>
+                  <Button variant="outline" size="sm" className="accent-border">
+                    <Wallet className="w-4 h-4 mr-2" />
+                    Open portfolio
+                  </Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={() => setInfoClient(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editClient} onOpenChange={() => setEditClient(null)}>
