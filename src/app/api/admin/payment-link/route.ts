@@ -12,6 +12,10 @@ async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return profile?.role === "admin" ? user : null;
 }
 
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -41,24 +45,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const walletRes = await fetch(
-      `https://api.paygate.to/control/wallet.php?address=${encodeURIComponent(wallet)}`,
-      { signal: AbortSignal.timeout(15000) }
-    );
+    const callbackUrl = `${request.nextUrl.origin}/api/admin/payment-link`;
+    const walletApiUrl =
+      `https://api.paygate.to/control/wallet.php?address=${encodeURIComponent(wallet)}` +
+      `&callback=${encodeURIComponent(callbackUrl)}`;
+
+    const walletRes = await fetch(walletApiUrl, { signal: AbortSignal.timeout(15000) });
+
+    let walletBody: string | null = null;
+    try {
+      walletBody = await walletRes.text();
+    } catch { /* ignore */ }
 
     if (!walletRes.ok) {
+      console.error("PayGate wallet API error:", walletRes.status, walletBody);
       return NextResponse.json(
-        { error: `PayGate API returned ${walletRes.status}` },
+        { error: `PayGate API error (${walletRes.status}). Ensure your USDC Polygon wallet is valid.` },
         { status: 502 }
       );
     }
 
-    const walletData = await walletRes.json();
-    const addressIn = walletData?.address_in;
+    let walletData: Record<string, unknown> | null = null;
+    try {
+      walletData = walletBody ? JSON.parse(walletBody) : null;
+    } catch {
+      console.error("PayGate returned non-JSON:", walletBody);
+      return NextResponse.json(
+        { error: "PayGate returned an unexpected response. Try again." },
+        { status: 502 }
+      );
+    }
+
+    const addressIn = walletData?.address_in as string | undefined;
 
     if (!addressIn) {
+      console.error("PayGate wallet response missing address_in:", walletData);
       return NextResponse.json(
-        { error: "PayGate API did not return a receiving address. Check your wallet." },
+        { error: "PayGate did not return a receiving address. Verify your wallet starts with 0x." },
         { status: 502 }
       );
     }
