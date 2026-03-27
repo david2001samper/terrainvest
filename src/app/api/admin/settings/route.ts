@@ -24,7 +24,7 @@ export async function GET() {
       .select("key, value")
       .in("key", [
         "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
-        "wallet_btc", "wallet_usdt",
+        "wallet_btc", "wallet_usdt", "paygate_wallet",
         "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
         "home_journey", "home_mission", "home_values", "home_cta",
       ]);
@@ -53,6 +53,7 @@ export async function GET() {
       currency_rates,
       wallet_btc: settings.wallet_btc ?? "",
       wallet_usdt: settings.wallet_usdt ?? "",
+      paygate_wallet: settings.paygate_wallet ?? "",
       about_us: settings.about_us ?? "",
       terms_of_service: settings.terms_of_service ?? "",
       privacy_policy: settings.privacy_policy ?? "",
@@ -78,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const keys = [
       "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
-      "wallet_btc", "wallet_usdt",
+      "wallet_btc", "wallet_usdt", "paygate_wallet",
       "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
       "home_journey", "home_mission", "home_values", "home_cta",
     ];

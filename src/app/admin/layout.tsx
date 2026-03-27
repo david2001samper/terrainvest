@@ -17,6 +17,7 @@ import {
   ArrowUpCircle,
   MessageSquare,
   Shield,
+  CreditCard,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const adminNav = [
   { href: "/admin/price-overrides", label: "Price Overrides", icon: TrendingUp },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquare },
+  { href: "/admin/payment-links", label: "Payment Links", icon: CreditCard },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
