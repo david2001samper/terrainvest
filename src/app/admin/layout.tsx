@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Shield,
   CreditCard,
+  Banknote,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 const adminNav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/clients", label: "Clients", icon: Users },
+  { href: "/admin/deposits", label: "Deposits", icon: Banknote },
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpCircle },
   { href: "/admin/trades", label: "All Trades", icon: History },
   { href: "/admin/assets", label: "Assets", icon: Layers },

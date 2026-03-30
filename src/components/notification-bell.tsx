@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -30,11 +31,47 @@ export function NotificationBell() {
       if (!res.ok) return [];
       return res.json();
     },
-    refetchInterval: 30000,
-    staleTime: 15000,
+    refetchInterval: 12000,
+    staleTime: 8000,
+    refetchOnWindowFocus: true,
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const seenIdsRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") return;
+
+    if (seenIdsRef.current === null) {
+      seenIdsRef.current = new Set(notifications.map((n) => n.id));
+      return;
+    }
+
+    for (const n of notifications) {
+      if (seenIdsRef.current.has(n.id)) continue;
+      seenIdsRef.current.add(n.id);
+      if (
+        n.type === "deposit" &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification(n.title, { body: n.message, tag: n.id });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, [notifications]);
+
+  async function requestDesktopPermission() {
+    if (typeof Notification === "undefined") return;
+    const r = await Notification.requestPermission();
+    if (r === "granted") {
+      toast.success("Desktop alerts enabled for new deposits while this tab is open");
+    } else if (r === "denied") {
+      toast.error("Notifications blocked — enable them in your browser settings");
+    }
+  }
 
   async function markRead(id: string) {
     await fetch("/api/notifications", {
@@ -106,6 +143,19 @@ export function NotificationBell() {
             </Button>
           )}
         </div>
+        {typeof Notification !== "undefined" && Notification.permission === "default" && (
+          <div className="px-4 py-2 border-b border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs justify-start gap-2"
+              onClick={requestDesktopPermission}
+            >
+              <MonitorSmartphone className="w-3.5 h-3.5" />
+              Enable desktop alerts (deposits)
+            </Button>
+          </div>
+        )}
         <div className="max-h-[360px] overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">

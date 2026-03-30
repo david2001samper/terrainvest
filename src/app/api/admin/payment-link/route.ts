@@ -86,14 +86,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const params = new URLSearchParams({
-      address: addressIn,
-      amount: String(amount),
-      currency,
-    });
-    if (email) params.set("email", email);
+    // PayGate returns address_in already percent-encoded. URLSearchParams would
+    // encode "%" again (%25…) and break checkout — same as WooCommerce: raw concat.
+    const parts = [
+      `address=${addressIn}`,
+      `amount=${Number(amount)}`,
+      `currency=${encodeURIComponent(currency)}`,
+    ];
+    parts.push(`email=${encodeURIComponent(email || "")}`);
 
-    const checkoutUrl = `https://checkout.paygate.to/pay.php?${params.toString()}`;
+    const checkoutUrl = `https://checkout.paygate.to/pay.php?${parts.join("&")}`;
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (e) {
