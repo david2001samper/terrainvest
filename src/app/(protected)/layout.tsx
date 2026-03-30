@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NavSidebar } from "@/components/nav-sidebar";
 import { TickerTape } from "@/components/ticker-tape";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { NotificationActivitySync } from "@/components/notification-activity-sync";
 
 export default function ProtectedLayout({
   children,
@@ -11,6 +12,7 @@ export default function ProtectedLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen">
+      <NotificationActivitySync />
       <TickerTape />
       <AnnouncementBanner />
       <div className="flex flex-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Check, CheckCheck, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,31 +37,6 @@ export function NotificationBell() {
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const seenIdsRef = useRef<Set<string> | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof Notification === "undefined") return;
-
-    if (seenIdsRef.current === null) {
-      seenIdsRef.current = new Set(notifications.map((n) => n.id));
-      return;
-    }
-
-    for (const n of notifications) {
-      if (seenIdsRef.current.has(n.id)) continue;
-      seenIdsRef.current.add(n.id);
-      if (
-        n.type === "deposit" &&
-        Notification.permission === "granted"
-      ) {
-        try {
-          new Notification(n.title, { body: n.message, tag: n.id });
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-  }, [notifications]);
 
   async function requestDesktopPermission() {
     if (typeof Notification === "undefined") return;
