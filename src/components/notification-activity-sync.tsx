@@ -37,15 +37,79 @@ const typeTitle: Record<string, string> = {
   system: "text-foreground",
 };
 
-/** Popup toasts for new notifications + refresh profile balance. OS deposit alerts if permitted. */
+function showNotificationToast(n: NotificationRow) {
+  const b = typeBorder[n.type] ?? "border-l-[#00D4FF]";
+  const ic = typeIcon[n.type] ?? "text-[#00D4FF]";
+  const tit = typeTitle[n.type] ?? "text-[#00D4FF]";
+
+  toast.custom(
+    () => (
+      <div
+        className={cn(
+          "pointer-events-auto flex w-[min(calc(100vw-2rem),24rem)] gap-3 rounded-xl border border-white/10 bg-[#151822] p-4 shadow-xl border-l-[3px]",
+          b
+        )}
+      >
+        <Bell className={cn("h-5 w-5 shrink-0 mt-0.5", ic)} />
+        <div className="flex-1 min-w-0">
+          <p className={cn("text-sm font-semibold leading-snug", tit)}>{n.title}</p>
+          <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{n.message}</p>
+        </div>
+      </div>
+    ),
+    { id: `notif-toast-${n.id}`, duration: 12000 }
+  );
+
+  if (
+    n.type === "deposit" &&
+    typeof Notification !== "undefined" &&
+    Notification.permission === "granted"
+  ) {
+    try {
+      new Notification(n.title, { body: n.message, tag: n.id });
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function patchMarkRead(id: string) {
+  await fetch("/api/notifications", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+}
+
+async function patchMarkAllRead() {
+  await fetch("/api/notifications", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mark_all_read: true }),
+  });
+}
+
+function tabIsVisible(): boolean {
+  return typeof document === "undefined" || document.visibilityState === "visible";
+}
+
+/**
+ * While logged in with the tab visible: new notifications are shown once and marked read on the server.
+ * At session start (e.g. after login): unread backlog is shown once, then marked read — they stay in history, no repeat toasts later.
+ * If the tab is hidden, delivery is deferred until the tab is visible.
+ */
 export function NotificationActivitySync() {
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const userId = profile?.id;
-  const seenIdsRef = useRef<Set<string> | null>(null);
-  const lastUserIdRef = useRef<string | undefined>(undefined);
 
-  const { data: notifications = [] } = useQuery<NotificationRow[]>({
+  const initialHandledRef = useRef(false);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const sessionGenRef = useRef(0);
+  const pendingLiveRef = useRef<NotificationRow[]>([]);
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+
+  const { data: notificationsData, isFetched } = useQuery<NotificationRow[]>({
     queryKey: ["notifications", userId],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
@@ -58,71 +122,106 @@ export function NotificationActivitySync() {
     refetchOnWindowFocus: true,
   });
 
+  const notifications = notificationsData ?? [];
+
   useEffect(() => {
-    if (userId !== lastUserIdRef.current) {
-      lastUserIdRef.current = userId;
-      seenIdsRef.current = null;
+    if (!userId) {
+      prevUserIdRef.current = undefined;
+      return;
     }
+    if (prevUserIdRef.current === userId) return;
+    prevUserIdRef.current = userId;
+    sessionGenRef.current += 1;
+    initialHandledRef.current = false;
+    knownIdsRef.current = new Set();
+    pendingLiveRef.current = [];
   }, [userId]);
+
+  const flushPendingLive = async (uid: string) => {
+    const batch = pendingLiveRef.current.splice(0);
+    if (batch.length === 0) return;
+    for (const n of batch) {
+      showNotificationToast(n);
+      await patchMarkRead(n.id);
+    }
+    await queryClient.invalidateQueries({ queryKey: ["notifications", uid] });
+    await queryClient.invalidateQueries({ queryKey: ["profile"] });
+  };
 
   useEffect(() => {
     if (!userId) return;
 
-    if (seenIdsRef.current === null) {
-      seenIdsRef.current = new Set(notifications.map((n) => n.id));
-      return;
-    }
-
-    const fresh: NotificationRow[] = [];
-    for (const n of notifications) {
-      if (seenIdsRef.current.has(n.id)) continue;
-      seenIdsRef.current.add(n.id);
-      fresh.push(n);
-    }
-
-    if (fresh.length === 0) return;
-
-    for (const n of fresh) {
-      const b = typeBorder[n.type] ?? "border-l-[#00D4FF]";
-      const ic = typeIcon[n.type] ?? "text-[#00D4FF]";
-      const tit = typeTitle[n.type] ?? "text-[#00D4FF]";
-
-      toast.custom(
-        () => (
-          <div
-            className={cn(
-              "pointer-events-auto flex w-[min(calc(100vw-2rem),24rem)] gap-3 rounded-xl border border-white/10 bg-[#151822] p-4 shadow-xl border-l-[3px]",
-              b
-            )}
-          >
-            <Bell className={cn("h-5 w-5 shrink-0 mt-0.5", ic)} />
-            <div className="flex-1 min-w-0">
-              <p className={cn("text-sm font-semibold leading-snug", tit)}>{n.title}</p>
-              <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{n.message}</p>
-            </div>
-          </div>
-        ),
-        {
-          id: `notif-toast-${n.id}`,
-          duration: 12000,
-        }
-      );
-
-      if (
-        n.type === "deposit" &&
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
-      ) {
-        try {
-          new Notification(n.title, { body: n.message, tag: n.id });
-        } catch {
-          /* ignore */
-        }
+    function onVisibility() {
+      if (!tabIsVisible()) return;
+      if (!initialHandledRef.current) {
+        const state = queryClient.getQueryState(["notifications", userId]);
+        if (!state || state.fetchStatus === "fetching" || state.status === "pending") return;
+        const latest =
+          queryClient.getQueryData<NotificationRow[]>(["notifications", userId]) ?? [];
+        void processInitialSession(latest, userId);
+      } else {
+        void flushPendingLive(userId);
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-  }, [notifications, queryClient, userId]);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [userId, queryClient]);
+
+  async function processInitialSession(rows: NotificationRow[], uid: string) {
+    if (initialHandledRef.current) return;
+    initialHandledRef.current = true;
+    const gen = sessionGenRef.current;
+
+    for (const n of rows) {
+      knownIdsRef.current.add(n.id);
+    }
+
+    const unread = rows.filter((n) => !n.read);
+    for (const n of unread) {
+      showNotificationToast(n);
+    }
+
+    await patchMarkAllRead();
+
+    if (gen !== sessionGenRef.current) return;
+
+    await queryClient.invalidateQueries({ queryKey: ["notifications", uid] });
+    await queryClient.invalidateQueries({ queryKey: ["profile"] });
+  }
+
+  useEffect(() => {
+    if (!userId || !isFetched) return;
+
+    if (!initialHandledRef.current) {
+      if (tabIsVisible()) {
+        void processInitialSession(notifications, userId);
+      }
+      return;
+    }
+
+    const newRows = notifications.filter((n) => !knownIdsRef.current.has(n.id));
+    for (const n of newRows) {
+      knownIdsRef.current.add(n.id);
+    }
+
+    const unreadNew = newRows.filter((n) => !n.read);
+    if (unreadNew.length === 0) return;
+
+    if (!tabIsVisible()) {
+      pendingLiveRef.current.push(...unreadNew);
+      return;
+    }
+
+    void (async () => {
+      for (const n of unreadNew) {
+        showNotificationToast(n);
+        await patchMarkRead(n.id);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+    })();
+  }, [notifications, queryClient, userId, isFetched]);
 
   return null;
 }
