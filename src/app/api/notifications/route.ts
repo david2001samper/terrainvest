@@ -30,20 +30,32 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
 
     if (body.mark_all_read) {
-      await supabase
+      const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("user_id", user.id)
         .eq("read", false);
+      if (error) {
+        console.error("notifications mark_all_read:", error);
+        return NextResponse.json({ error: "Update failed" }, { status: 500 });
+      }
       return NextResponse.json({ success: true });
     }
 
     if (body.id) {
-      await supabase
+      const { data, error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("id", body.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("id");
+      if (error) {
+        console.error("notifications mark read:", error);
+        return NextResponse.json({ error: "Update failed" }, { status: 500 });
+      }
+      if (!data?.length) {
+        return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+      }
       return NextResponse.json({ success: true });
     }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema } from "@/lib/validations";
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +57,7 @@ export default function LoginPage() {
         .select("role")
         .eq("id", authData.user?.id ?? "")
         .single();
+      queryClient.removeQueries({ queryKey: ["notifications"] });
       toast.success("Welcome back to Terra Invest VIP");
       router.push(profile?.role === "admin" ? "/admin" : "/dashboard");
       router.refresh();

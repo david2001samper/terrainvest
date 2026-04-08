@@ -27,6 +27,7 @@ import {
 import { PlatformLogo } from "@/components/platform-logo";
 import { NotificationBell } from "@/components/notification-bell";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
@@ -44,6 +45,7 @@ const navItems = [
 export function NavSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { data: positions } = usePositions();
   const { allAssets } = useMarketData();
@@ -63,6 +65,8 @@ export function NavSidebar() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    queryClient.removeQueries({ queryKey: ["notifications"] });
+    queryClient.removeQueries({ queryKey: ["profile"] });
     toast.success("Signed out successfully");
     router.push("/auth/login");
     router.refresh();

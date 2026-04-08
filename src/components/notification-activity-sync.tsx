@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useProfile } from "@/hooks/use-profile";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,21 +40,34 @@ const typeTitle: Record<string, string> = {
 /** Popup toasts for new notifications + refresh profile balance. OS deposit alerts if permitted. */
 export function NotificationActivitySync() {
   const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  const userId = profile?.id;
   const seenIdsRef = useRef<Set<string> | null>(null);
+  const lastUserIdRef = useRef<string | undefined>(undefined);
 
   const { data: notifications = [] } = useQuery<NotificationRow[]>({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", userId],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: Boolean(userId),
     refetchInterval: 12000,
-    staleTime: 8000,
+    staleTime: 0,
     refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
+    if (userId !== lastUserIdRef.current) {
+      lastUserIdRef.current = userId;
+      seenIdsRef.current = null;
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
     if (seenIdsRef.current === null) {
       seenIdsRef.current = new Set(notifications.map((n) => n.id));
       return;
@@ -108,7 +122,7 @@ export function NotificationActivitySync() {
     }
 
     queryClient.invalidateQueries({ queryKey: ["profile"] });
-  }, [notifications, queryClient]);
+  }, [notifications, queryClient, userId]);
 
   return null;
 }

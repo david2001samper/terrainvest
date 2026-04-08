@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useProfile } from "@/hooks/use-profile";
 import { Bell, Check, CheckCheck, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,16 +24,19 @@ interface Notification {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  const userId = profile?.id;
 
   const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", userId],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: Boolean(userId),
     refetchInterval: 12000,
-    staleTime: 8000,
+    staleTime: 0,
     refetchOnWindowFocus: true,
   });
 
@@ -49,21 +53,29 @@ export function NotificationBell() {
   }
 
   async function markRead(id: string) {
-    await fetch("/api/notifications", {
+    const res = await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    if (!res.ok) {
+      toast.error("Could not mark notification as read");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
   }
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
+    const res = await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mark_all_read: true }),
     });
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    if (!res.ok) {
+      toast.error("Could not mark all as read");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
   }
 
   function timeAgo(dateStr: string): string {
