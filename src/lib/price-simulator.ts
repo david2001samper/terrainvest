@@ -18,18 +18,18 @@ interface SymbolState {
 const states = new Map<string, SymbolState>();
 
 const VOLATILITY: Record<string, number> = {
-  crypto: 0.0015,
-  stock: 0.0008,
-  commodity: 0.001,
-  index: 0.0006,
-  forex: 0.0003,
+  crypto: 0.00035,
+  stock: 0.0002,
+  commodity: 0.00025,
+  index: 0.00015,
+  forex: 0.00008,
 };
 
 const DRIFT = 0.0;
-const REVERSION_STRENGTH = 0.15;
+const REVERSION_STRENGTH = 0.35;
 const WINDOW_SIZE = 20;
-const SR_PROXIMITY = 0.003;
-const SR_FORCE = 0.4;
+const SR_PROXIMITY = 0.002;
+const SR_FORCE = 0.3;
 
 function boxMuller(): number {
   let u = 0;

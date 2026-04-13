@@ -36,17 +36,16 @@ async function upsertOverride(
 }
 
 /**
- * Generate a natural-looking price path from startPrice to targetPrice.
+ * State-machine price path with realistic resistance patterns.
  *
- * Works in progress space (0 = start, 1 = target). A soft correction
- * pulls progress toward a linear timeline while random noise makes it
- * bounce up and down. A hard ceiling guarantees progress NEVER reaches
- * 1.0 (the target) until the very last tick.
+ * Cycles through TREND → PULLBACK → HOLD phases. Pullback sizes are
+ * proportional to the TOTAL price distance (not per-tick), making
+ * resistance clearly visible. The price never crosses start or target.
  *
- * All scaling is derived from the price difference and step count:
- *   - Large diff + few steps  → bigger per-tick moves
- *   - Small diff + many steps → tiny per-tick moves
- *   - Noise amplitude shrinks toward the end for a smooth landing
+ * BTC 73,000 → 72,500 (60 ticks) example:
+ *   73000 → 72920 → 72860 → 72900(↑pullback) → 72910(↑) →
+ *   72840 → 72780 → 72780(hold) → 72720 → 72660 → 72700(↑) →
+ *   72630 → 72580 → 72540 → 72500
  */
 function generateNaturalPath(
   startPrice: number,
@@ -56,61 +55,106 @@ function generateNaturalPath(
   if (steps <= 0) return [];
   if (steps === 1) return [targetPrice];
 
-  const totalDrift = targetPrice - startPrice;
-  const prices: number[] = [];
-  let progress = 0; // 0 = at startPrice, 1 = at targetPrice
+  const totalDist = targetPrice - startPrice;
+  const absDist = Math.abs(totalDist);
+  const direction = totalDist > 0 ? 1 : -1;
 
-  for (let i = 1; i <= steps; i++) {
-    // Last tick always snaps to target
-    if (i === steps) {
+  if (absDist < 0.0001) {
+    return Array.from({ length: steps }, () =>
+      startPrice + startPrice * 0.0001 * (Math.random() - 0.5)
+    );
+  }
+
+  const prices: number[] = [];
+  let current = startPrice;
+
+  const pullbackMin = absDist * 0.06;
+  const pullbackMax = absDist * 0.16;
+
+  type Phase = "trend" | "pullback" | "hold";
+  let phase: Phase = "trend";
+  let phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
+  let currentPullbackSize = 0;
+
+  for (let i = 0; i < steps; i++) {
+    if (i === steps - 1) {
       prices.push(targetPrice);
       break;
     }
 
-    const t = i / steps;
     const remaining = steps - i;
+    const distLeftAbs = Math.abs(targetPrice - current);
+    const avgStepMag = distLeftAbs / remaining;
+    const nearEnd = remaining <= Math.max(4, Math.ceil(steps * 0.12));
 
-    // Where progress should ideally be on a linear timeline
-    const ideal = t;
-    const error = ideal - progress;
+    let move: number;
 
-    // Correction: gently pull toward the linear path, stronger near end
-    const pullStrength = 0.15 + 0.35 * t;
-    const correction = error * pullStrength;
+    if (phase === "trend") {
+      const scale = nearEnd
+        ? 1.2 + Math.random() * 0.8
+        : 0.7 + Math.random() * 1.3;
+      move = direction * avgStepMag * scale;
+    } else if (phase === "pullback") {
+      const perTick = currentPullbackSize / Math.max(1, phaseTicksLeft + 1);
+      const jitter = perTick * (0.6 + Math.random() * 0.8);
+      move = -direction * jitter;
+    } else {
+      move = absDist * 0.001 * (Math.random() - 0.5);
+    }
 
-    // Random noise: average size = one step worth of progress
-    // Amplitude decays toward end so the price converges smoothly
-    const baseAmp = 1.0 / steps;
-    const decay = 1.0 - t * 0.6;
-    const noise = (Math.random() - 0.5) * 2 * baseAmp * decay;
+    current += move;
 
-    progress += correction + noise;
+    if (direction > 0) {
+      current = Math.min(current, targetPrice);
+      current = Math.max(current, startPrice - absDist * 0.01);
+    } else {
+      current = Math.max(current, targetPrice);
+      current = Math.min(current, startPrice + absDist * 0.01);
+    }
 
-    // === HARD CEILING: progress can NEVER reach 1.0 before the last tick ===
-    // The ceiling rises gradually in the final ticks for a smooth landing
-    const ceiling = remaining <= 5
-      ? 1.0 - remaining * 0.015 // last 5: 0.925 → 0.94 → 0.955 → 0.97 → 0.985
-      : 0.90;
-    // Floor: allow small bounce past start but not too far
-    const floor = -0.05;
+    prices.push(current);
 
-    progress = Math.max(floor, Math.min(ceiling, progress));
-
-    prices.push(startPrice + progress * totalDrift);
+    phaseTicksLeft--;
+    if (phaseTicksLeft <= 0) {
+      if (nearEnd) {
+        phase = "trend";
+        phaseTicksLeft = remaining;
+      } else {
+        const roll = Math.random();
+        switch (phase) {
+          case "trend":
+            if (roll < 0.28) {
+              phase = "pullback";
+              phaseTicksLeft = 1 + (Math.random() < 0.4 ? 1 : 0);
+              currentPullbackSize =
+                pullbackMin + Math.random() * (pullbackMax - pullbackMin);
+            } else if (roll < 0.40) {
+              phase = "hold";
+              phaseTicksLeft = 1;
+            } else {
+              phase = "trend";
+              phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
+            }
+            break;
+          case "pullback":
+            if (roll < 0.75) {
+              phase = "trend";
+              phaseTicksLeft = 2 + Math.floor(Math.random() * 3);
+            } else {
+              phase = "hold";
+              phaseTicksLeft = 1;
+            }
+            break;
+          case "hold":
+            phase = "trend";
+            phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
+            break;
+        }
+      }
+    }
   }
 
   return prices;
-}
-
-/**
- * Recovery path: same algorithm in reverse (from hold price back to real).
- */
-function generateRecoveryPath(
-  holdPrice: number,
-  realPrice: number,
-  steps: number
-): number[] {
-  return generateNaturalPath(holdPrice, realPrice, steps);
 }
 
 export async function POST(request: NextRequest) {
@@ -205,7 +249,7 @@ export async function POST(request: NextRequest) {
       activeSimulations.delete(sym);
     }
 
-    const TICK_INTERVAL_MS = 2000; // update price every 2s
+    const TICK_INTERVAL_MS = 1000;
     const rampTicks = Math.max(1, Math.round((rampSec * 1000) / TICK_INTERVAL_MS));
     const holdTicks = Math.max(0, Math.round((holdSec * 1000) / TICK_INTERVAL_MS));
     const recoveryTicks = Math.max(1, Math.round((recoverySec * 1000) / TICK_INTERVAL_MS));
@@ -214,18 +258,28 @@ export async function POST(request: NextRequest) {
     const totalDurationMs = totalTicks * TICK_INTERVAL_MS;
     const endTime = new Date(Date.now() + totalDurationMs + 2000);
 
-    // Phase 1: ramp from current price to target
+    // Phase 1: ramp from current price to target with resistance waves
     const rampPrices = generateNaturalPath(currentPrice, target_price, rampTicks);
 
-    // Phase 2: hold at target with tiny fluctuations
+    // Phase 2: hold near target with natural-looking oscillation
     const holdPrices: number[] = [];
+    const holdRange = Math.abs(target_price - currentPrice) * 0.04;
+    let holdCurrent = rampPrices.length > 0
+      ? rampPrices[rampPrices.length - 1]
+      : target_price;
     for (let i = 0; i < holdTicks; i++) {
-      const jitter = target_price * 0.001 * (Math.random() - 0.5);
-      holdPrices.push(target_price + jitter);
+      const drift = (target_price - holdCurrent) * 0.15;
+      const noise = holdRange * (Math.random() - 0.5) * 0.6;
+      holdCurrent += drift + noise;
+      const minH = Math.min(target_price, currentPrice);
+      const maxH = Math.max(target_price, currentPrice);
+      const buffer = holdRange * 2;
+      holdCurrent = Math.max(minH - buffer, Math.min(maxH + buffer, holdCurrent));
+      holdPrices.push(holdCurrent);
     }
 
-    // Phase 3: recover from target back to real price
-    const recoveryPrices = generateRecoveryPath(
+    // Phase 3: recover from target back to real price with resistance waves
+    const recoveryPrices = generateNaturalPath(
       target_price,
       currentPrice,
       recoveryTicks
