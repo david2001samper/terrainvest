@@ -70,7 +70,7 @@ export function simulatePrice(
   const key = symbol.toUpperCase();
   let state = states.get(key);
 
-  if (!state || Math.abs(state.target - targetPrice) > targetPrice * 0.01) {
+  if (!state) {
     state = {
       current: targetPrice * (1 + (Math.random() - 0.5) * 0.001),
       target: targetPrice,
@@ -80,6 +80,18 @@ export function simulatePrice(
     states.set(key, state);
     return state.current;
   }
+
+  // Hard-reset current price only on massive jumps (> 5%) to avoid jarring snaps
+  if (Math.abs(state.target - targetPrice) > targetPrice * 0.05) {
+    state.current = targetPrice * (1 + (Math.random() - 0.5) * 0.001);
+    state.window = [targetPrice];
+    state.lastTick = Date.now();
+  }
+
+  // Always track the latest override price — this is the key fix.
+  // Without this, mean reversion pulls toward a stale target and fights
+  // the simulation path, preventing the price from reaching the goal.
+  state.target = targetPrice;
 
   const now = Date.now();
   const elapsedMs = Math.min(now - state.lastTick, 30000);
