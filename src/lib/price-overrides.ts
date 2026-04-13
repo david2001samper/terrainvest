@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { simulatePrice } from "@/lib/price-simulator";
 
 export async function getActiveOverrides(): Promise<Record<string, number>> {
   const supabase = await createClient();
@@ -14,15 +15,16 @@ export async function getActiveOverrides(): Promise<Record<string, number>> {
   return map;
 }
 
-export function applyOverrides<T extends { symbol: string; price?: number }>(
-  items: T[],
-  overrides: Record<string, number>
-): T[] {
+export function applyOverrides<
+  T extends { symbol: string; price?: number; asset_type?: string },
+>(items: T[], overrides: Record<string, number>): T[] {
   if (Object.keys(overrides).length === 0) return items;
   return items.map((item) => {
     const override = overrides[item.symbol?.toUpperCase()];
     if (override != null) {
-      return { ...item, price: override };
+      const assetType = (item as { asset_type?: string }).asset_type || "stock";
+      const simulated = simulatePrice(item.symbol, override, assetType);
+      return { ...item, price: simulated };
     }
     return item;
   });

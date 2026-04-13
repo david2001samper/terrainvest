@@ -24,7 +24,8 @@ import type { MarketAsset } from "@/lib/types";
 import { marketCardPrimaryLabel, marketCardSecondaryLabel } from "@/lib/market-display";
 import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
-import { FileText } from "lucide-react";
+import { FileText, LayoutGrid } from "lucide-react";
+import { MarketHeatmap } from "@/components/market-heatmap";
 
 const TABS = [
   { value: "all", label: "All" },
@@ -43,6 +44,7 @@ export default function MarketsPage() {
   const { data: profile } = useProfile();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [viewMode, setViewMode] = useState<"list" | "heatmap">("list");
   const [searchResults, setSearchResults] = useState<MarketAsset[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -128,6 +130,29 @@ export default function MarketsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex p-0.5 rounded-md bg-background/60 border border-border">
+          <button
+            onClick={() => setViewMode("list")}
+            className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
+              viewMode === "list"
+                ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setViewMode("heatmap")}
+            className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all flex items-center gap-1 ${
+              viewMode === "heatmap"
+                ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="w-3 h-3" />
+            Heatmap
+          </button>
+        </div>
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -191,7 +216,7 @@ export default function MarketsPage() {
       ) : displayAssets.length === 0 ? (
         <Card className="glass-card">
           <CardContent className="p-12 text-center">
-            <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+            <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-60" />
             <p className="text-muted-foreground">
               {isSearchMode
                 ? `No results for "${search}". Try a different term.`
@@ -199,6 +224,8 @@ export default function MarketsPage() {
             </p>
           </CardContent>
         </Card>
+      ) : viewMode === "heatmap" ? (
+        <MarketHeatmap assets={displayAssets} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayAssets.map((asset) => (

@@ -5,8 +5,14 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useMarketData, useChartData, useLiveChartData } from "@/hooks/use-market-data";
 import { useWatchlist } from "@/hooks/use-watchlist";
+import { useOrderBook } from "@/hooks/use-order-book";
+import { useProfile } from "@/hooks/use-profile";
 import { PriceChart } from "@/components/price-chart";
+import { CandlestickChart } from "@/components/candlestick-chart";
 import { TradePanel } from "@/components/trade-panel";
+import { OrderBook } from "@/components/order-book";
+import { DepthChart } from "@/components/depth-chart";
+import { AssetNews } from "@/components/asset-news";
 import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
 import { LastUpdated } from "@/components/last-updated";
@@ -30,10 +36,14 @@ import {
   Heart,
   BarChart3,
   Activity,
+  CandlestickChart as CandlestickIcon,
+  Newspaper,
 } from "lucide-react";
 import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
 import { stripYahooInstrumentSuffixes } from "@/lib/market-display";
+
+type ChartViewMode = "price" | "candle" | "volume" | "news";
 
 export default function AssetDetailPage() {
   const params = useParams();
@@ -42,7 +52,7 @@ export default function AssetDetailPage() {
   const symbol = decodeURIComponent(params.symbol as string);
   const assetType = searchParams.get("type") || "stock";
   const [timeframe, setTimeframe] = useState<TimeframeValue>("1m");
-  const [chartMode, setChartMode] = useState<"price" | "volume">("price");
+  const [chartMode, setChartMode] = useState<ChartViewMode>("price");
 
   const { allAssets, isLoading, crypto, stocks, forex } = useMarketData();
   const { isWatched, toggle } = useWatchlist();
@@ -288,52 +298,76 @@ export default function AssetDetailPage() {
                   <CardTitle className="text-base flex items-center gap-2">
                     {chartMode === "volume" ? (
                       <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
+                    ) : chartMode === "news" ? (
+                      <Newspaper className="w-4 h-4 text-[#00D4FF]" />
+                    ) : chartMode === "candle" ? (
+                      <CandlestickIcon className="w-4 h-4 text-[#00D4FF]" />
                     ) : (
                       <Activity className="w-4 h-4 text-[#00D4FF]" />
                     )}
-                    {chartMode === "volume" ? "Volume" : "Price Chart"}
+                    {chartMode === "volume"
+                      ? "Volume"
+                      : chartMode === "news"
+                      ? "News"
+                      : chartMode === "candle"
+                      ? "Candlestick"
+                      : "Price Chart"}
                   </CardTitle>
-                  {/* Price / Volume toggle */}
                   <div className="flex p-0.5 rounded-md bg-background/60 border border-border">
-                    <button
-                      onClick={() => setChartMode("price")}
-                      className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
-                        chartMode === "price"
-                          ? "bg-[#00D4FF]/15 text-[#00D4FF]"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      Price
-                    </button>
-                    <button
-                      onClick={() => setChartMode("volume")}
-                      className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
-                        chartMode === "volume"
-                          ? "bg-[#00D4FF]/15 text-[#00D4FF]"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      Volume
-                    </button>
+                    {(
+                      [
+                        { key: "price", label: "Price" },
+                        { key: "candle", label: "Candle" },
+                        { key: "volume", label: "Volume" },
+                        { key: "news", label: "News" },
+                      ] as { key: ChartViewMode; label: string }[]
+                    ).map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setChartMode(tab.key)}
+                        className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
+                          chartMode === tab.key
+                            ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <TimeframeSelector
-                  value={timeframe}
-                  onChange={setTimeframe}
-                />
+                {chartMode !== "news" && (
+                  <TimeframeSelector
+                    value={timeframe}
+                    onChange={setTimeframe}
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent>
-              <PriceChart
-                symbol={symbol}
-                assetType={resolvedType}
-                height={400}
-                days={isLive ? 1 : tfConfig.days}
-                interval={isLive ? "5m" : tfConfig.interval}
-                coingeckoId={coingeckoId}
-                chartMode={chartMode}
-                liveData={isLive ? liveData : undefined}
-              />
+              {chartMode === "news" ? (
+                <AssetNews symbol={symbol} />
+              ) : chartMode === "candle" ? (
+                <CandlestickChart
+                  symbol={symbol}
+                  assetType={resolvedType}
+                  height={400}
+                  days={isLive ? 1 : tfConfig.days}
+                  interval={isLive ? "5m" : tfConfig.interval}
+                  coingeckoId={coingeckoId}
+                />
+              ) : (
+                <PriceChart
+                  symbol={symbol}
+                  assetType={resolvedType}
+                  height={400}
+                  days={isLive ? 1 : tfConfig.days}
+                  interval={isLive ? "5m" : tfConfig.interval}
+                  coingeckoId={coingeckoId}
+                  chartMode={chartMode === "volume" ? "volume" : "price"}
+                  liveData={isLive ? liveData : undefined}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -395,6 +429,30 @@ export default function AssetDetailPage() {
           />
         </div>
       </div>
+
+      {/* Order Book & Depth Chart */}
+      <OrderBookSection symbol={asset.symbol} assetType={resolvedType} />
+    </div>
+  );
+}
+
+function OrderBookSection({
+  symbol,
+  assetType,
+}: {
+  symbol: string;
+  assetType: string;
+}) {
+  const { data: profile } = useProfile();
+  const canView = profile?.can_view_order_book ?? false;
+  const { data, isLoading } = useOrderBook(symbol, assetType, canView);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <OrderBook symbol={symbol} assetType={assetType} />
+      {canView && (
+        <DepthChart data={data} isLoading={isLoading} />
+      )}
     </div>
   );
 }

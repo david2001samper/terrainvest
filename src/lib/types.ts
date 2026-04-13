@@ -19,6 +19,7 @@ export interface Profile {
   can_trade_commodities?: boolean;
   can_trade_forex?: boolean;
   can_trade_options?: boolean;
+  can_view_order_book?: boolean;
   max_leverage?: number;
   created_at: string;
   updated_at: string;

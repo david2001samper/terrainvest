@@ -27,6 +27,7 @@ export async function GET() {
         "wallet_btc", "wallet_usdt", "paygate_wallet",
         "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
         "home_journey", "home_mission", "home_values", "home_cta",
+        "order_book_cache_minutes",
       ]);
 
     if (error) throw error;
@@ -63,6 +64,7 @@ export async function GET() {
       home_mission: settings.home_mission ?? "",
       home_values: settings.home_values ?? "",
       home_cta: settings.home_cta ?? "",
+      order_book_cache_minutes: settings.order_book_cache_minutes ?? "5",
     });
   } catch (error) {
     console.error("Settings error:", error);
@@ -82,6 +84,7 @@ export async function PATCH(request: NextRequest) {
       "wallet_btc", "wallet_usdt", "paygate_wallet",
       "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
       "home_journey", "home_mission", "home_values", "home_cta",
+      "order_book_cache_minutes",
     ];
 
     for (const key of keys) {

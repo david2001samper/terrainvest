@@ -34,6 +34,7 @@ interface PermClient {
   can_trade_commodities: boolean;
   can_trade_forex: boolean;
   can_trade_options: boolean;
+  can_view_order_book: boolean;
   max_leverage: number;
 }
 
@@ -44,6 +45,7 @@ const PERM_COLS = [
   { key: "can_trade_commodities", label: "Commodities" },
   { key: "can_trade_forex", label: "Forex" },
   { key: "can_trade_options", label: "Options" },
+  { key: "can_view_order_book", label: "Order Book" },
 ] as const;
 
 const LEVERAGE_OPTIONS = [1, 5, 10, 25, 50, 100];

@@ -8,6 +8,7 @@ const PERM_FIELDS = [
   "can_trade_commodities",
   "can_trade_forex",
   "can_trade_options",
+  "can_view_order_book",
   "max_leverage",
 ] as const;
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("profiles")
       .select(
-        "id, email, display_name, role, can_trade_crypto, can_trade_stocks, can_trade_indexes, can_trade_commodities, can_trade_forex, can_trade_options, max_leverage"
+        "id, email, display_name, role, can_trade_crypto, can_trade_stocks, can_trade_indexes, can_trade_commodities, can_trade_forex, can_trade_options, can_view_order_book, max_leverage"
       )
       .order("created_at", { ascending: false });
 

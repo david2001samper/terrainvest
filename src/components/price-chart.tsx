@@ -129,8 +129,8 @@ export function PriceChart({
         <AreaChart data={chartData}>
           <defs>
             <linearGradient id={`g-${symbol}-${days}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="95%" stopColor={color} stopOpacity={0} />
+              <stop offset="5%" stopColor={color} stopOpacity={0.45} />
+              <stop offset="95%" stopColor={color} stopOpacity={0.08} />
             </linearGradient>
           </defs>
           <Area
@@ -153,35 +153,35 @@ export function PriceChart({
     return (
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(160,174,192,0.06)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(160,174,192,0.12)" />
           <XAxis
             dataKey="time"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#718096", fontSize: 11 }}
+            tick={{ fill: "#94A3B8", fontSize: 11 }}
             interval="preserveStartEnd"
           />
           <YAxis
             domain={[0, maxVol * 1.1]}
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#718096", fontSize: 11 }}
+            tick={{ fill: "#94A3B8", fontSize: 11 }}
             tickFormatter={(v: number) => formatVolume(v)}
             width={65}
           />
           <Tooltip
             contentStyle={{
               background: "#151822",
-              border: "1px solid rgba(160,174,192,0.15)",
+              border: "1px solid rgba(160,174,192,0.25)",
               borderRadius: "8px",
               color: "#E2E8F0",
               fontSize: 13,
             }}
             formatter={(value: number) => [formatVolume(value), "Volume"]}
           />
-          <Bar dataKey="volume" radius={[2, 2, 0, 0]} maxBarSize={12}>
+          <Bar dataKey="volume" radius={[2, 2, 0, 0]} maxBarSize={20}>
             {chartData.map((entry, idx) => (
-              <Cell key={idx} fill={entry.isUp ? "rgba(34,197,94,0.55)" : "rgba(229,62,62,0.55)"} />
+              <Cell key={idx} fill={entry.isUp ? "rgba(34,197,94,0.82)" : "rgba(229,62,62,0.82)"} />
             ))}
           </Bar>
         </BarChart>
@@ -197,23 +197,23 @@ export function PriceChart({
       <AreaChart data={chartData}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
+            <stop offset="5%" stopColor={color} stopOpacity={0.38} />
+            <stop offset="95%" stopColor={color} stopOpacity={0.05} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(160,174,192,0.06)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(160,174,192,0.12)" />
         <XAxis
           dataKey="time"
           axisLine={false}
           tickLine={false}
-          tick={{ fill: "#718096", fontSize: 11 }}
+          tick={{ fill: "#94A3B8", fontSize: 11 }}
           interval="preserveStartEnd"
         />
         <YAxis
           domain={[minPrice * 0.998, maxPrice * 1.002]}
           axisLine={false}
           tickLine={false}
-          tick={{ fill: "#718096", fontSize: 11 }}
+          tick={{ fill: "#94A3B8", fontSize: 11 }}
           tickFormatter={(v: number) => {
             const vc = convert(v);
             if (vc >= 1000) return `${currencySymbol}${(vc / 1000).toFixed(1)}k`;
@@ -224,7 +224,7 @@ export function PriceChart({
         <Tooltip
           contentStyle={{
             background: "#151822",
-            border: "1px solid rgba(160,174,192,0.15)",
+            border: "1px solid rgba(160,174,192,0.25)",
             borderRadius: "8px",
             color: "#E2E8F0",
             fontSize: 13,

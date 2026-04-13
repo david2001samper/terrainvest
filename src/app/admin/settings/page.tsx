@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText, Home } from "lucide-react";
+import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText, Home, BookOpen } from "lucide-react";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
@@ -30,6 +30,7 @@ export default function AdminSettingsPage() {
   const [homeMission, setHomeMission] = useState("");
   const [homeValues, setHomeValues] = useState("");
   const [homeCta, setHomeCta] = useState("");
+  const [orderBookCacheMinutes, setOrderBookCacheMinutes] = useState("5");
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -59,6 +60,7 @@ export default function AdminSettingsPage() {
       setHomeMission(settings.home_mission ?? "");
       setHomeValues(settings.home_values ?? "");
       setHomeCta(settings.home_cta ?? "");
+      setOrderBookCacheMinutes(settings.order_book_cache_minutes ?? "5");
       if (settings.currency_rates) {
         const rates: Record<string, string> = {};
         for (const c of CURRENCIES) {
@@ -98,6 +100,7 @@ export default function AdminSettingsPage() {
           home_mission: homeMission,
           home_values: homeValues,
           home_cta: homeCta,
+          order_book_cache_minutes: orderBookCacheMinutes,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -179,6 +182,37 @@ export default function AdminSettingsPage() {
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Save Settings
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[#00D4FF]" />
+              Order Book Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Cache Duration (minutes)</Label>
+              <Input
+                type="number"
+                value={orderBookCacheMinutes}
+                onChange={(e) => setOrderBookCacheMinutes(e.target.value)}
+                className="bg-background/50"
+                min="1"
+                max="60"
+                step="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                How often the order book data is refreshed from the market data provider.
+                Higher values reduce API usage. Default: 5 minutes.
+              </p>
+            </div>
+            <Button onClick={saveSettings} disabled={saving} variant="outline">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save
             </Button>
           </CardContent>
         </Card>

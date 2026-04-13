@@ -256,7 +256,7 @@ export function TradePanel({
     <>
     <Card className={`glass-card accent-border ${compact ? "" : "w-full max-w-sm"}`}>
       <CardHeader className={compact ? "p-4 pb-2" : ""}>
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="text-sm font-medium text-foreground">
           Trade {name} ({symbol})
         </CardTitle>
         <p className="text-2xl font-bold accent-gradient">

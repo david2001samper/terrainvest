@@ -21,8 +21,6 @@ import {
   X,
   Settings,
   ClipboardList,
-  ArrowDownCircle,
-  ArrowUpCircle,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { NotificationBell } from "@/components/notification-bell";
@@ -34,8 +32,6 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/markets", label: "Markets", icon: TrendingUp },
   { href: "/portfolio", label: "Portfolio", icon: Wallet },
-  { href: "/deposits", label: "Deposits", icon: ArrowDownCircle },
-  { href: "/withdrawals", label: "Withdrawals", icon: ArrowUpCircle },
   { href: "/orders", label: "Orders", icon: ClipboardList },
   { href: "/history", label: "Trade History", icon: History },
   { href: "/watchlist", label: "Watchlist", icon: Heart },

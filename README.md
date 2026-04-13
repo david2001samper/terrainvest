@@ -10,6 +10,14 @@ A luxurious, full-featured trading platform built with Next.js 14+, TypeScript, 
 - **Portfolio** — Active positions with unrealized P&L, realized P&L tracking
 - **Watchlist** — Save favorite assets with heart toggle
 - **Admin Panel** — Client management, balance editing, trade viewing, asset management, analytics
+- **Order Book** — Real Level 2 market depth (iTick for stocks/forex, Binance for crypto), per-user permission, admin-configurable cache
+- **Candlestick Charts** — OHLC candlestick view powered by TradingView Lightweight Charts
+- **P&L Analytics** — Cumulative P&L curve, daily breakdown, per-symbol win rate
+- **News Feed** — Per-asset financial news from Yahoo Finance
+- **Market Heatmap** — Color-coded grid view of all assets by 24h % change
+- **Depth Chart** — Cumulative bid/ask staircase visualization
+- **Options Greeks** — Delta, Gamma, Theta, Vega on options positions
+- **Price Simulation** — GBM + mean reversion engine with S/R zones for realistic override-priced charts
 - **VIP Design** — Dark luxurious theme with gold accents, glassmorphism cards, premium typography
 
 ## Tech Stack
@@ -20,7 +28,7 @@ A luxurious, full-featured trading platform built with Next.js 14+, TypeScript, 
 | Language   | TypeScript                                   |
 | Styling    | Tailwind CSS v4 + shadcn/ui + Lucide icons   |
 | Backend    | Supabase (Auth, Postgres, Realtime)           |
-| Charts     | Recharts                                     |
+| Charts     | Recharts + TradingView Lightweight Charts    |
 | Validation | Zod                                          |
 | Data       | React Query (@tanstack/react-query)           |
 | Market API | CoinGecko (crypto) + yahoo-finance2 (stocks) |
@@ -48,6 +56,10 @@ Create a `.env.local` file in the project root:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Optional: iTick API key for real order book depth (stocks/forex)
+# Sign up at https://itick.org — $79/mo for real Level 2 data
+ITICK_API_KEY=your-itick-api-key
 ```
 
 ### 4. Set Up Database

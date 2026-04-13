@@ -18,6 +18,8 @@ import { AssetLogo } from "@/components/asset-logo";
 import { AssetAllocationChart } from "@/components/asset-allocation-chart";
 import { LastUpdated } from "@/components/last-updated";
 import { MarketStatusBadge } from "@/components/market-status-badge";
+import { PnlAnalytics } from "@/components/pnl-analytics";
+import { OptionsGreeks } from "@/components/options-greeks";
 import {
   Table,
   TableBody,
@@ -34,11 +36,14 @@ import {
   BarChart3,
   Activity,
   Loader2,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from "lucide-react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+
+type PortfolioTab = "holdings" | "pnl";
 
 type ForexPositionRow = {
   id: string;
@@ -59,6 +64,7 @@ type ForexPositionRow = {
 };
 
 export default function PortfolioPage() {
+  const [activeTab, setActiveTab] = useState<PortfolioTab>("holdings");
   const [allocationView, setAllocationView] = useState<"asset_class" | "holdings">("asset_class");
   const [sellingOption, setSellingOption] = useState<string | null>(null);
   const { format: formatCurrency, convert, symbol, pnlPrefix } = useCurrencyFormat();
@@ -133,6 +139,34 @@ export default function PortfolioPage() {
         <LastUpdated dataUpdatedAt={latestUpdate || undefined} />
       </div>
 
+      {/* Tab Strip */}
+      <div className="flex p-0.5 rounded-md bg-background/60 border border-border w-fit">
+        <button
+          onClick={() => setActiveTab("holdings")}
+          className={`px-4 py-1.5 text-sm rounded font-medium transition-all ${
+            activeTab === "holdings"
+              ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Holdings
+        </button>
+        <button
+          onClick={() => setActiveTab("pnl")}
+          className={`px-4 py-1.5 text-sm rounded font-medium transition-all ${
+            activeTab === "pnl"
+              ? "bg-[#00D4FF]/15 text-[#00D4FF]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          P&L Analytics
+        </button>
+      </div>
+
+      {activeTab === "pnl" ? (
+        <PnlAnalytics />
+      ) : (
+      <>
       {/* Performance */}
       <Card className="glass-card">
         <CardHeader>
@@ -158,6 +192,20 @@ export default function PortfolioPage() {
           <p className="text-xs text-muted-foreground mt-1">
             All-time return (realized + unrealized)
           </p>
+          <div className="flex gap-3 mt-4">
+            <Link href="/deposits">
+              <Button className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9 px-5">
+                <ArrowDownToLine className="w-4 h-4 mr-1.5" />
+                Deposit
+              </Button>
+            </Link>
+            <Link href="/withdrawals">
+              <Button variant="outline" className="accent-border hover:bg-[#00D4FF]/10 font-semibold h-9 px-5">
+                <ArrowUpFromLine className="w-4 h-4 mr-1.5" />
+                Withdraw
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
@@ -281,6 +329,7 @@ export default function PortfolioPage() {
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Entry</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Current</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">P&L</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Greeks</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -330,6 +379,14 @@ export default function PortfolioPage() {
                             {isUp ? "+" : ""}
                             {formatCurrency(unrealPnl, 2)}
                           </span>
+                        </TableCell>
+                        <TableCell>
+                          <OptionsGreeks
+                            delta={(op as Record<string, unknown>).delta as number | undefined}
+                            gamma={(op as Record<string, unknown>).gamma as number | undefined}
+                            theta={(op as Record<string, unknown>).theta as number | undefined}
+                            vega={(op as Record<string, unknown>).vega as number | undefined}
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -451,7 +508,7 @@ export default function PortfolioPage() {
             </div>
           ) : enrichedPositions.length === 0 ? (
             <div className="text-center py-12">
-              <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+              <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-60" />
               <p className="text-muted-foreground mb-2">No open positions</p>
               <Link
                 href="/markets"
@@ -525,7 +582,7 @@ export default function PortfolioPage() {
                             <ArrowDownRight className="w-3 h-3" />
                           )}
                           <span>{formatCurrency(Math.abs(pos.unrealizedPnl))}</span>
-                          <span className="text-xs opacity-70">
+                          <span className="text-xs text-foreground/70">
                             ({formatPercent(pos.unrealizedPnlPercent)})
                           </span>
                         </div>
@@ -538,6 +595,8 @@ export default function PortfolioPage() {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }
