@@ -8,7 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Settings, Loader2, Shield, Megaphone, DollarSign, Wallet, FileText, Home, BookOpen } from "lucide-react";
+import {
+  Settings,
+  Loader2,
+  Shield,
+  Megaphone,
+  DollarSign,
+  Wallet,
+  FileText,
+  Home,
+  BookOpen,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
@@ -33,6 +46,10 @@ export default function AdminSettingsPage() {
   const [orderBookCacheMinutes, setOrderBookCacheMinutes] = useState("5");
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [changingPwd, setChangingPwd] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ["admin", "settings"],
@@ -129,6 +146,34 @@ export default function AdminSettingsPage() {
       toast.error("Seed failed");
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function handleChangeAdminPassword() {
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setChangingPwd(true);
+    try {
+      const res = await fetch("/api/user/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success("Password updated");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setChangingPwd(false);
     }
   }
 
@@ -460,6 +505,68 @@ export default function AdminSettingsPage() {
                 <Shield className="w-4 h-4 mr-2" />
               )}
               Create Admin Account
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card accent-border">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="w-4 h-4 text-[#00D4FF]" />
+              Change your password
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Updates the password for the account you are signed in with. Use a strong password
+              you do not reuse elsewhere.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="adminNewPassword" className="text-sm text-muted-foreground">
+                New password
+              </Label>
+              <div className="relative max-w-sm">
+                <Input
+                  id="adminNewPassword"
+                  type={showPwd ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="bg-background/50 pr-10"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-[#00D4FF]"
+                  onClick={() => setShowPwd((v) => !v)}
+                  tabIndex={-1}
+                  aria-label={showPwd ? "Hide password" : "Show password"}
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adminConfirmPassword" className="text-sm text-muted-foreground">
+                Confirm new password
+              </Label>
+              <Input
+                id="adminConfirmPassword"
+                type={showPwd ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                className="bg-background/50 max-w-sm"
+                autoComplete="new-password"
+              />
+            </div>
+            <Button
+              onClick={handleChangeAdminPassword}
+              disabled={changingPwd || !newPassword || !confirmPassword}
+              className="bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] font-semibold"
+            >
+              {changingPwd ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Update password
             </Button>
           </CardContent>
         </Card>

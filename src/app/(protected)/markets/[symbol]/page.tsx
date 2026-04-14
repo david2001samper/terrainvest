@@ -8,7 +8,6 @@ import { useWatchlist } from "@/hooks/use-watchlist";
 import { useOrderBook } from "@/hooks/use-order-book";
 import { useProfile } from "@/hooks/use-profile";
 import { PriceChart } from "@/components/price-chart";
-import { CandlestickChart } from "@/components/candlestick-chart";
 import { TradePanel } from "@/components/trade-panel";
 import { OrderBook } from "@/components/order-book";
 import { DepthChart } from "@/components/depth-chart";
@@ -36,14 +35,13 @@ import {
   Heart,
   BarChart3,
   Activity,
-  CandlestickChart as CandlestickIcon,
   Newspaper,
 } from "lucide-react";
 import Link from "next/link";
 import type { MarketAsset } from "@/lib/types";
 import { stripYahooInstrumentSuffixes } from "@/lib/market-display";
 
-type ChartViewMode = "price" | "candle" | "volume" | "news";
+type ChartViewMode = "price" | "volume" | "news";
 
 export default function AssetDetailPage() {
   const params = useParams();
@@ -300,8 +298,6 @@ export default function AssetDetailPage() {
                       <BarChart3 className="w-4 h-4 text-[#00D4FF]" />
                     ) : chartMode === "news" ? (
                       <Newspaper className="w-4 h-4 text-[#00D4FF]" />
-                    ) : chartMode === "candle" ? (
-                      <CandlestickIcon className="w-4 h-4 text-[#00D4FF]" />
                     ) : (
                       <Activity className="w-4 h-4 text-[#00D4FF]" />
                     )}
@@ -309,15 +305,12 @@ export default function AssetDetailPage() {
                       ? "Volume"
                       : chartMode === "news"
                       ? "News"
-                      : chartMode === "candle"
-                      ? "Candlestick"
                       : "Price Chart"}
                   </CardTitle>
                   <div className="flex p-0.5 rounded-md bg-background/60 border border-border">
                     {(
                       [
                         { key: "price", label: "Price" },
-                        { key: "candle", label: "Candle" },
                         { key: "volume", label: "Volume" },
                         { key: "news", label: "News" },
                       ] as { key: ChartViewMode; label: string }[]
@@ -347,15 +340,6 @@ export default function AssetDetailPage() {
             <CardContent>
               {chartMode === "news" ? (
                 <AssetNews symbol={symbol} />
-              ) : chartMode === "candle" ? (
-                <CandlestickChart
-                  symbol={symbol}
-                  assetType={resolvedType}
-                  height={400}
-                  days={isLive ? 1 : tfConfig.days}
-                  interval={isLive ? "5m" : tfConfig.interval}
-                  coingeckoId={coingeckoId}
-                />
               ) : (
                 <PriceChart
                   symbol={symbol}
