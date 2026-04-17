@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terra Invest VIP — Managed Investment Account Agreement</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&amp;family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #e8e4df;
+    font-family: 'Libre Baskerville', 'Georgia', serif;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .document-wrapper {
+    width: 210mm;
+    max-width: 100%;
+    background: #faf8f5;
+    box-shadow: 0 2px 30px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+    position: relative;
+  }
+
+  .document-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1a3a2a, #2d6b4a, #1a3a2a);
+  }
+
+  .page {
+    padding: 50px 65px 60px;
+    min-height: 297mm;
+    position: relative;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .page:last-child {
+    border-bottom: none;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 28px;
+    border-bottom: 2px solid #1a3a2a;
+    margin-bottom: 30px;
+  }
+
+  .logo-area {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .logo-icon {
+    width: 70px;
+    height: 70px;
+    border: 2px solid #1a3a2a;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .logo-icon::before {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background: #1a3a2a;
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+
+  .logo-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .logo-text-main {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: #1a3a2a;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .logo-text-vip {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #8b7332;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-left: 2px;
+  }
+
+  .logo-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    color: #666;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-left: 54px;
+  }
+
+  .header-right {
+    text-align: right;
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    color: #888;
+    letter-spacing: 0.5px;
+    line-height: 1.8;
+  }
+
+  .header-right .doc-id {
+    font-weight: 400;
+    color: #1a3a2a;
+    font-size: 9.5px;
+    letter-spacing: 1px;
+  }
+
+  .doc-title {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .doc-title h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: #1a3a2a;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .doc-title .subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: #888;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .confidential-bar {
+    text-align: center;
+    margin: 18px 0 26px;
+    padding: 8px;
+    border: 1px solid rgba(26,58,42,0.2);
+    background: rgba(26,58,42,0.03);
+  }
+
+  .confidential-bar span {
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #1a3a2a;
+  }
+
+  .parties {
+    margin-bottom: 28px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10.5px;
+    line-height: 2;
+    color: #333;
+  }
+
+  .parties .label {
+    color: #888;
+    font-weight: 400;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .recitals {
+    margin-bottom: 24px;
+  }
+
+  .recitals p {
+    font-size: 10.5px;
+    line-height: 1.9;
+    color: #444;
+    text-align: justify;
+    margin-bottom: 8px;
+    text-indent: 24px;
+  }
+
+  .recitals p:first-child {
+    text-indent: 0;
+  }
+
+  .article {
+    margin-bottom: 22px;
+  }
+
+  .article-heading {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #1a3a2a;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(26,58,42,0.15);
+  }
+
+  .clause {
+    margin-bottom: 14px;
+    padding-left: 20px;
+    position: relative;
+  }
+
+  .clause::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 6px;
+    height: 1px;
+    background: #999;
+  }
+
+  .clause-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 10.5px;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+
+  .clause-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    line-height: 1.85;
+    color: #444;
+    text-align: justify;
+  }
+
+  .clause-text em {
+    color: #333;
+    font-style: italic;
+  }
+
+  .tier-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5px;
+  }
+
+  .tier-table thead th {
+    background: #1a3a2a;
+    color: #fff;
+    font-weight: 400;
+    padding: 9px 14px;
+    text-align: left;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-size: 8.5px;
+  }
+
+  .tier-table thead th:first-child {
+    border-radius: 3px 0 0 0;
+  }
+
+  .tier-table thead th:last-child {
+    border-radius: 0 3px 0 0;
+  }
+
+  .tier-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.07);
+    color: #333;
+    line-height: 1.5;
+  }
+
+  .tier-table tbody tr:nth-child(even) {
+    background: rgba(26,58,42,0.025);
+  }
+
+  .tier-table tbody tr:last-child td {
+    border-bottom: 2px solid #1a3a2a;
+  }
+
+  .tier-badge {
+    display: inline-block;
+    background: #1a3a2a;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+  }
+
+  .tier-badge.premium {
+    background: linear-gradient(135deg, #8b7332, #c4a84d);
+    color: #1a1a1a;
+  }
+
+  .tier-badge.elite {
+    background: linear-gradient(135deg, #2a2a2a, #555);
+    color: #fff;
+  }
+
+  .sub-clause {
+    margin-bottom: 10px;
+    padding-left: 36px;
+    position: relative;
+  }
+
+  .sub-clause::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 7px;
+    width: 4px;
+    height: 4px;
+    border: 1px solid #999;
+    border-radius: 50%;
+  }
+
+  .sub-clause .clause-text {
+    font-size: 9.5px;
+    line-height: 1.8;
+  }
+
+  .highlight-box {
+    background: rgba(26,58,42,0.04);
+    border-left: 3px solid #1a3a2a;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5px;
+    line-height: 1.8;
+    color: #333;
+  }
+
+  .disclaimer {
+    margin: 20px 0;
+    padding: 14px 16px;
+    border: 1px solid rgba(180,50,50,0.2);
+    background: rgba(180,50,50,0.025);
+    border-radius: 2px;
+  }
+
+  .disclaimer-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    color: #8b2020;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .disclaimer-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    line-height: 1.8;
+    color: #666;
+  }
+
+  .signature-section {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+  }
+
+  .sig-block {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+  }
+
+  .sig-party {
+    flex: 1;
+  }
+
+  .sig-party .party-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    color: #888;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .sig-image-slot {
+    height: 56px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .sig-image-slot img {
+    max-height: 52px;
+    max-width: 100%;
+    object-fit: contain;
+    opacity: 0.85;
+  }
+
+  .sig-line {
+    border-bottom: 1px solid #333;
+    margin-bottom: 6px;
+    min-width: 180px;
+  }
+
+  .sig-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5px;
+    color: #888;
+    letter-spacing: 0.5px;
+    margin-bottom: 18px;
+  }
+
+  .sig-label-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    color: #1a1a1a;
+    letter-spacing: 0.3px;
+    margin-bottom: 18px;
+  }
+
+  .page-footer {
+    position: absolute;
+    bottom: 30px;
+    left: 65px;
+    right: 65px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 7.5px;
+    color: #aaa;
+    letter-spacing: 0.5px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    padding-top: 10px;
+  }
+
+  .page-num {
+    font-weight: 400;
+    color: #1a3a2a;
+  }
+
+  .watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 64px;
+    font-weight: 400;
+    color: rgba(26,58,42,0.025);
+    letter-spacing: 10px;
+    text-transform: uppercase;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+  }
+
+  .page > *:not(.watermark) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .elite-section {
+    margin: 20px 0;
+    padding: 18px;
+    border: 1.5px solid #c4a84d;
+    background: linear-gradient(135deg, rgba(196,168,77,0.04), rgba(139,115,50,0.04));
+    position: relative;
+  }
+
+  .elite-section::before {
+    content: 'PREMIUM TIER';
+    position: absolute;
+    top: -9px;
+    left: 18px;
+    background: #faf8f5;
+    padding: 0 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 7.5px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: #8b7332;
+  }
+
+  .elite-section .clause-title {
+    color: #8b7332;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+      padding: 0;
+    }
+    .document-wrapper {
+      box-shadow: none;
+      width: 100%;
+    }
+    .document-wrapper::before,
+    .tier-table thead th,
+    .tier-badge,
+    .tier-badge.premium,
+    .tier-badge.elite,
+    .confidential-bar,
+    .highlight-box,
+    .disclaimer,
+    .elite-section,
+    .logo-icon,
+    .logo-icon::before,
+    .logo-text-vip {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 16px 8px;
+    }
+    .page {
+      padding: 30px 28px 50px;
+      min-height: auto;
+    }
+    .header {
+      flex-direction: column;
+      gap: 14px;
+    }
+    .sig-block {
+      flex-direction: column;
+      gap: 28px;
+    }
+    .tier-table {
+      font-size: 8px;
+    }
+    .tier-table thead th,
+    .tier-table tbody td {
+      padding: 6px 8px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="document-wrapper">
+
+  <!-- ========== PAGE 1 ========== -->
+  <div class="page">
+    <div class="watermark">Terra Invest VIP</div>
+
+    <div class="header">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <div>
+                        <img class="logo-icon" src="C:\Users\d\Downloads\logo.png" alt="Signature of Sarah Lane">
+
+          </div>
+          <div class="logo-text-group">
+            <div class="logo-text-main">Terra Invest</div>
+            <div class="logo-text-vip">VIP</div>
+          </div>
+        </div>
+        <div class="logo-sub">Global Trading Services &amp; Advisory Platform</div>
+      </div>
+      <div class="header-right">
+        <div class="doc-id">REF: LA-SL-2026/00847</div>
+        <div>terrainvest.vip</div>
+        <div>Legal &amp; Compliance Division</div>
+        <div>Date of Issue: 13/04/2026</div>
+      </div>
+    </div>
+
+    <div class="doc-title">
+      <h1>Platform Trading &amp; Advisory Agreement</h1>
+      <div class="subtitle">Private Client — Standard Terms &amp; Conditions</div>
+    </div>
+
+    
+
+    <div class="parties">
+      <span class="label">Between:</span><br>
+      Terra Invest VIP (hereinafter referred to as the "Company", "We", "Us", or "Our"), a registered trading services and advisory entity operating a proprietary trading platform at terrainvest.vip, providing digital asset and forex trading opportunities and investment management services;<br><br>
+      <span class="label">And:</span><br>
+      Lars Ake Andersson (hereinafter referred to as the "Client", "You", or "Your"), whose identification and account details are set forth in Schedule A appended to this Agreement.<br><br>
+      <span class="label">Collectively referred to as:</span> "The Parties"
+    </div>
+
+    <div class="recitals">
+      <p>WHEREAS, the Company is engaged in the business of providing professional trading services, advisory, and access to a proprietary trading platform to qualified individuals and entities across global markets, including but not limited to foreign exchange (Forex), digital assets, commodities, and derivative instruments;</p>
+      <p>WHEREAS, the Client desires to engage the Company to access the Company's trading platform and receive managed investment services, including the provision of trade signals, investment directives, and portfolio management guidance, subject to the terms and conditions herein;</p>
+      <p>WHEREAS, the Company operates on a dedicated account manager model, whereby each Client is assigned a named individual account manager who serves as the sole and primary point of contact for the provision of all trade signals, platform guidance, performance updates, and service-related matters throughout the duration of this Agreement;</p>
+      <p>WHEREAS, both Parties acknowledge that this Agreement constitutes a binding arrangement whereby the Company shall provide trade recommendations and the Client shall execute such trades directly on the Company's proprietary platform. The Client retains full discretionary authority to execute trades within their account on the Terra Invest VIP platform.</p>
+      <p>NOW, THEREFORE, in consideration of the mutual covenants, representations, and agreements contained herein, and for other good and valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the Parties agree as follows:</p>
+    </div>
+
+    <div class="article">
+      <div class="article-heading">Article I — Definitions &amp; Interpretation</div>
+      <div class="clause">
+        <div class="clause-title">1.1 Definitions</div>
+        <div class="clause-text">
+          In this Agreement, unless the context otherwise requires: <em>"Account"</em> means the Client's trading account held within the Company's proprietary platform designated for the purposes of this Agreement; <em>"Trade Signal"</em> means any investment directive, entry/exit recommendation, or trade instruction provided by the Company to the Client via the platform or account manager; <em>"Trading Day"</em> means any business day during which the relevant markets are operational and the Company's management team is active; <em>"Return"</em> means the projected or historical performance metric communicated to the Client based on prior trading outcomes; <em>"Dedicated Account Manager"</em> means the named individual assigned by the Company to manage the Client's account relationship, provide trade signals, and handle all communications on behalf of the Company.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">1.2 Interpretation</div>
+        <div class="clause-text">
+          References to "Articles" and "Clauses" are to articles and clauses of this Agreement. Headings are inserted for convenience only and shall not affect the interpretation of this Agreement. Words importing the singular include the plural and vice versa.
+        </div>
+      </div>
+    </div>
+
+    <div class="article">
+      <div class="article-heading">Article II — Account Eligibility &amp; Minimum Thresholds</div>
+      <div class="clause">
+        <div class="clause-title">2.1 Minimum Account Size</div>
+        <div class="clause-text">
+          The minimum account size required to engage the Company's platform and managed investment services shall be One Hundred Thousand United States Dollars (USD $100,000.00) or its equivalent in any other freely convertible currency as determined by the prevailing exchange rate at the time of onboarding. Accounts falling below this threshold shall not be eligible for services under this Agreement.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">2.2 Equivalent Currency Valuation</div>
+        <div class="clause-text">
+          Where the Client's account is denominated in a currency other than USD, the Company shall determine equivalent value using the real-time mid-market exchange rate as published by authoritative financial data providers at the time of account verification. The Company reserves the right to request re-verification of account value if material currency fluctuation occurs.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">2.3 Account Verification</div>
+        <div class="clause-text">
+          Prior to the commencement of services, the Client shall provide verifiable proof of account funding meeting the minimum threshold. The Company may, at its sole discretion, employ third-party verification mechanisms to confirm the account balance held on the platform.
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Terra Invest VIP — terrainvest.vip</span>
+      <span>Platform Trading &amp; Advisory Agreement — Private &amp; Confidential</span>
+      <span class="page-num">Page 1 of 3</span>
+    </div>
+  </div>
+
+  <!-- ========== PAGE 2 ========== -->
+  <div class="page">
+    <div class="watermark">Terra Invest VIP</div>
+
+    <div class="article">
+      <div class="article-heading">Article III — Trade Allocation &amp; Daily Trade Limits</div>
+      <div class="clause">
+        <div class="clause-title">3.1 Trade Provision Framework</div>
+        <div class="clause-text">
+          The Company's investment management division shall provide trade signals and investment directives to the Client on a per-trading-day basis via the platform. The number of trades provided is determined exclusively by the Client's verified account size, categorized into the following tiers:
+        </div>
+      </div>
+
+      <table class="tier-table">
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Account Size (USD Equivalent)</th>
+            <th>Trades Per Day</th>
+            <th>Classification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>I</td>
+            <td>$100,000 — $249,999</td>
+            <td><span class="tier-badge">3 Trades</span></td>
+            <td>Basic</td>
+          </tr>
+          <tr>
+            <td>II</td>
+            <td>$250,000 — $749,999</td>
+            <td><span class="tier-badge">5 Trades</span></td>
+            <td>Standard</td>
+          </tr>
+          <tr>
+            <td>III</td>
+            <td>$750,000 — $1,999,999</td>
+            <td><span class="tier-badge">7 Trades</span></td>
+            <td><span>Premium</span></td>
+          </tr>
+          <tr>
+            <td>IV</td>
+            <td>$2,000,000 &amp; Above</td>
+            <td><span class="tier-badge elite">Custom</span></td>
+            <td><span>Elite</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="clause">
+        <div class="clause-title">3.2 Nature of Trade Provision</div>
+        <div class="clause-text">
+          All trades referenced in Article III, Section 3.1 shall be executed by the Client directly on the Terra Invest VIP trading platform. The Company's investment management team shall communicate the specific <em>trade amount, entry point, stop-loss parameters, and take-profit targets</em> for each trade signal issued via the platform interface or the Dedicated Account Manager. It is expressly understood and agreed that the Client retains full and unrestricted discretion to execute, modify, or decline any trade signal provided within the platform. The Company provides the venue for trading (the platform) and the advisory inputs, but the Client authorizes all final execution commands on the platform.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">3.3 Non-Rollover Policy</div>
+        <div class="clause-text">
+          Trades allocated for a given Trading Day shall not be carried over, accumulated, or rolled over into any subsequent Trading Day. If the Client fails to act upon, or the Company is unable to deliver, the allocated number of trades within the specified Trading Day, such trades shall be deemed forfeited for that day. This policy is strictly enforced to maintain disciplined risk management and ensure the integrity of the Company's trading methodology. No compensation, credit, or makeup trades shall be provided for unutilised daily allocations.
+        </div>
+      </div>
+    </div>
+
+    <div class="article">
+      <div class="article-heading">Article IV — Dedicated Account Manager</div>
+      <div class="clause">
+        <div class="clause-title">4.1 Assignment of Dedicated Account Manager</div>
+        <div class="clause-text">
+          The Company shall assign to each Client a Dedicated Account Manager who shall be responsible for the day-to-day management of the Client's account relationship. The Dedicated Account Manager shall serve as the Client's sole and primary point of contact with the Company for the duration of this Agreement. All trade signals, performance communications, account updates, and service-related inquiries shall be channelled exclusively through the Client's designated Dedicated Account Manager.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">4.2 Designated Account Manager for This Agreement</div>
+        <div class="clause-text">
+          For the purposes of this Agreement, the Client, Lars Ake Andersson, is hereby assigned the following Dedicated Account Manager:
+        </div>
+      </div>
+
+      <div class="highlight-box">
+        Designated Account Manager: Sarah Lane<br>
+        Capacity: Senior Account Manager — Terra Invest VIP<br>
+        Scope of Authority: Provision of all trade signals, entry/exit instructions, trade amounts, stop-loss and take-profit parameters, daily performance summaries, and all operational communications pertaining to the Client's managed account. Sarah Lane is authorised to communicate on behalf of Terra Invest VIP in all matters relating to this Agreement.
+      </div>
+
+      <div class="clause">
+        <div class="clause-title">4.3 Duties of the Dedicated Account Manager</div>
+        <div class="clause-text">
+          The Dedicated Account Manager shall: (i) deliver all trade signals in real-time during Trading Days in accordance with the tier allocation set forth in Article III; (ii) provide the Client with the specified trade amount, entry price, stop-loss level, and take-profit target for each trade; (iii) communicate any material changes to market conditions, risk assessments, or trading strategies that may affect the Client's account; (iv) assist the Client with platform navigation and execution as needed; (v) respond to Client inquiries in a timely and professional manner; (vi) provide periodic performance summaries as reasonably requested by the Client.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">4.4 Continuity &amp; Replacement</div>
+        <div class="clause-text">
+          In the event that the assigned Dedicated Account Manager becomes unavailable due to leave, reassignment, or any other reason, the Company shall designate a qualified replacement and shall notify the Client within twenty-four (24) hours of such change. The Company shall ensure a seamless transition with no disruption to the provision of trade signals or account management services. The Client may request a change of Dedicated Account Manager by submitting a written request to the Company's management, which shall be reviewed at the Company's sole discretion.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">4.5 Exclusivity of Communication</div>
+        <div class="clause-text">
+          The Client acknowledges and agrees that all trade signals, investment directives, and material account communications received from any source other than the Client's designated Dedicated Account Manager or the official Terra Invest VIP platform interface shall be considered unauthorised and shall not be relied upon. The Client shall not engage with or accept instructions from any other individual purporting to represent the Company unless such individual is formally introduced by the Dedicated Account Manager or confirmed in writing by the Company's management.
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Terra Invest VIP — terrainvest.vip</span>
+      <span>Platform Trading &amp; Advisory Agreement — Private &amp; Confidential</span>
+      <span class="page-num">Page 2 of 3</span>
+    </div>
+  </div>
+
+  <!-- ========== PAGE 3 ========== -->
+  <div class="page">
+    <div class="watermark">Terra Invest VIP</div>
+
+    <div class="article">
+      <div class="article-heading">Article V — Historical Returns &amp; Performance Indicators</div>
+      <div class="clause">
+        <div class="clause-title">5.1 Past Performance Disclosure</div>
+        <div class="clause-text">
+          Based on the Company's historical trading records and audited performance data, the Company's managed investment strategies have, on average, generated returns in the range of approximately one percent to three percent (1% — 3%) per Trading Day. This figure is derived from the aggregate performance of all managed accounts on the platform over the preceding performance period and represents the mean daily return across varying market conditions and account tiers. Performance data shall be communicated to the Client by the Dedicated Account Manager on a regular basis.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">5.2 Return Timeline</div>
+        <div class="clause-text">
+          Returns referenced in Section 5.1 are calculated on a per-trading-day basis. The Client should expect the performance cycle to align with standard market trading sessions. Realised returns are reflected in the Client's account balance on the Terra Invest VIP platform upon the closure of each trade and are subject to the settlement timelines of the platform.
+        </div>
+      </div>
+
+      
+    </div>
+
+    <div class="article">
+      <div class="article-heading">Article VI — Client Obligations &amp; General Rules</div>
+      <div class="clause">
+        <div class="clause-title">6.1 Account Maintenance</div>
+        <div class="clause-text">
+          The Client shall at all times maintain the minimum account balance as stipulated in Article II within the Terra Invest VIP platform. Should the account balance fall below the minimum threshold due to trading losses or withdrawals, the Company reserves the right to suspend services until the balance is restored to the required level.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.2 Communication Obligations</div>
+        <div class="clause-text">
+          The Client shall maintain active and responsive communication with their Dedicated Account Manager, Sarah Lane, during Trading Days. The Client is responsible for ensuring timely receipt of trade signals through the designated communication platform(s) established by the Dedicated Account Manager and by monitoring the Terra Invest VIP trading interface. Failure to receive or act upon a trade signal due to the Client's inaction, device failure, connectivity issues, or any cause attributable to the Client shall not constitute a breach by the Company.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.3 Compliance with Applicable Law</div>
+        <div class="clause-text">
+          The Client represents and warrants that their participation in this Agreement does not violate any laws, regulations, or regulatory directives applicable to their jurisdiction of residence or citizenship. The Client is solely responsible for ensuring compliance with local tax obligations, reporting requirements, and any regulatory filings arising from investment activities conducted under this Agreement on the Company's platform.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.4 Prohibited Conduct</div>
+        <div class="clause-text">
+          The Client shall not: (i) share, redistribute, or sell any trade signals provided by the Dedicated Account Manager to any third party; (ii) use the Company's platform or services for any purpose other than managing the Client's own designated account; (iii) engage in any form of arbitrage, manipulation, or abusive trading practices in connection with the trades recommended or executed on the platform.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.5 Risk Management Protocol</div>
+        <div class="clause-text">
+          Each trade signal issued by the Dedicated Account Manager shall include predefined risk parameters, including stop-loss levels and position sizing relative to the Client's account balance. The Company shall not be held liable for losses arising from the Client's failure to apply recommended stop-loss parameters when executing trades on the platform.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.6 Indemnification</div>
+        <div class="clause-text">
+          The Client agrees to indemnify, defend, and hold harmless the Company, its directors, officers, employees, affiliates, and Dedicated Account Managers from and against any and all claims, damages, losses, liabilities, costs, and expenses arising out of or related to the Client's use of the Company's platform and services, breach of this Agreement, or violation of any applicable law.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.7 Governing Law &amp; Dispute Resolution</div>
+        <div class="clause-text">
+          This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which the Company is principally registered. Any dispute shall be resolved through binding arbitration, and each Party irrevocably submits to the exclusive jurisdiction of such arbitral tribunal.
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-title">6.8 Amendment &amp; Entire Agreement</div>
+        <div class="clause-text">
+          This Agreement constitutes the entire understanding between the Parties and supersedes all prior communications. The Company may amend these terms by providing no fewer than fourteen (14) calendar days' written notice. Continued use of the platform and services following such notice constitutes acceptance of the amended terms.
+        </div>
+      </div>
+    </div>
+
+    <div class="elite-section">
+      <div class="clause">
+        <div class="clause-title">Article VII — Elite Tier Terms (Accounts Exceeding $2,000,000 USD)</div>
+        <div class="clause-text">
+          Clients maintaining an account balance in excess of Two Million United States Dollars (USD $2,000,000.00) shall be classified under the Elite Tier and shall be entitled to the following supplementary privileges:
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.1 Customised trade allocation exceeding the standard seven (7) trades per day, determined following consultation with the senior portfolio management team.
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.2 Priority access to proprietary research, market intelligence reports, and pre-market analysis briefings.
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.3 Account Manager with and direct access to the chief investment strategist.
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.4 Expedited signal delivery through secure, priority communication channels with reduced latency.
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.5 Quarterly portfolio performance review sessions conducted by the chief investment strategist or designated senior representative.
+        </div>
+      </div>
+      <div class="sub-clause">
+        <div class="clause-text">
+          7.6 Negotiable fee structures and performance-based arrangements, subject to separate agreement.
+        </div>
+      </div>
+    </div>
+
+    <div class="signature-section">
+      <div class="sig-block">
+        <div class="sig-party">
+          <div class="party-name">For and on behalf of Terra Invest VIP</div>
+
+          <!-- SIGNATURE IMAGE — Replace src with your signature file path -->
+          <div class="sig-image-slot">
+            <img src="C:\Users\d\Downloads\signaturegen-1775905733264.png" alt="Signature of Sarah Lane">
+          </div>
+
+          <div class="sig-label-name">Sarah Lane</div>
+          <div class="sig-label">Senior Account Manager</div>
+          
+          
+        </div>
+        <div class="sig-party">
+          <div class="party-name">The Client</div>
+          
+          <div class="sig-label-name">Lars Ake Andersson</div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Date     13/04/2026</div>
+        </div>
+      </div>
+    </div>
+
+    
+  </div>
+
+</div>
+
+
+</body></html>

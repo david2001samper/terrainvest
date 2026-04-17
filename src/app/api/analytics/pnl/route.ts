@@ -27,7 +27,7 @@ export async function GET() {
 
     const { data: trades, error } = await supabase
       .from("trades")
-      .select("symbol, quantity, executed_price, profit_loss, created_at")
+      .select("symbol, side, quantity, price, profit_loss, created_at")
       .eq("user_id", user.id)
       .eq("status", "filled")
       .order("created_at", { ascending: true });

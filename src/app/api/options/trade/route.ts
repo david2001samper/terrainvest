@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
         quantity,
         price: premium,
         total: totalCost,
+        profit_loss: 0,
         status: "filled",
       });
       if (tradeErr) {
@@ -235,6 +236,7 @@ export async function POST(request: NextRequest) {
       quantity: qtyToSell,
       price: closePremium,
       total: proceeds,
+      profit_loss: realizedPnl,
       status: "filled",
     });
     if (sellTradeErr) return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });

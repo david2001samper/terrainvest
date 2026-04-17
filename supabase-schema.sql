@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS trades (
   quantity NUMERIC(20, 8) NOT NULL,
   price NUMERIC(20, 8) NOT NULL,
   total NUMERIC(20, 2) NOT NULL,
+  profit_loss NUMERIC(20, 2) NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'filled' CHECK (status IN ('filled', 'cancelled', 'pending')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

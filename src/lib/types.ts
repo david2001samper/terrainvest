@@ -44,6 +44,7 @@ export interface Trade {
   quantity: number;
   price: number;
   total: number;
+  profit_loss: number;
   status: "filled" | "cancelled" | "pending";
   created_at: string;
 }

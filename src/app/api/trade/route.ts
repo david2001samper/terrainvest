@@ -10,8 +10,8 @@ import { computeSwapDeltaUsd } from "@/lib/forex/swap";
 
 const UNREALISTIC_THRESHOLD = 0.15;
 const SLIPPAGE_MAX = 0.003;
-const DELAY_MIN_MS = 1000;
-const DELAY_MAX_MS = 5000;
+const DELAY_MIN_MS = 300;
+const DELAY_MAX_MS = 2000;
 
 function randomDelay() {
   const ms = DELAY_MIN_MS + Math.random() * (DELAY_MAX_MS - DELAY_MIN_MS);
@@ -137,6 +137,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // For non-forex sells, we need to calculate P&L before inserting the trade
+    // so we can store it on the trade row for analytics.
+    // For buys and forex, profit_loss is 0 at insert time (forex handles P&L separately below).
+    let tradePnl = 0;
+
+    if (side === "sell" && assetType !== "forex") {
+      const { data: posForPnl } = await supabase
+        .from("positions")
+        .select("entry_price")
+        .eq("user_id", user.id)
+        .eq("symbol", symbol)
+        .single();
+      if (posForPnl) {
+        tradePnl = (execPrice - posForPnl.entry_price) * quantity;
+      }
+    }
+
     const { error: tradeError } = await supabase.from("trades").insert({
       user_id: user.id,
       symbol,
@@ -144,6 +161,7 @@ export async function POST(request: NextRequest) {
       quantity,
       price: execPrice,
       total,
+      profit_loss: tradePnl,
       status: "filled",
     });
 
@@ -267,6 +285,38 @@ export async function POST(request: NextRequest) {
           swap_accrued_usd: nextSwapAccrued,
           last_swap_at: swap.newLastSwapAt,
         });
+      }
+
+      // Persist realized P&L on the trade row and update profile total
+      if (Math.abs(next.realizedPnlUsd) > 0.001) {
+        const { data: latestTrade } = await supabase
+          .from("trades")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("symbol", symbol)
+          .eq("status", "filled")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (latestTrade) {
+          await supabase
+            .from("trades")
+            .update({ profit_loss: next.realizedPnlUsd })
+            .eq("id", latestTrade.id);
+        }
+
+        const { data: fxProf } = await supabase
+          .from("profiles")
+          .select("total_pnl")
+          .eq("id", user.id)
+          .single();
+        if (fxProf) {
+          await supabase
+            .from("profiles")
+            .update({ total_pnl: fxProf.total_pnl + next.realizedPnlUsd })
+            .eq("id", user.id);
+        }
       }
 
       return NextResponse.json({ success: true, message: `${side.toUpperCase()} order executed` });
