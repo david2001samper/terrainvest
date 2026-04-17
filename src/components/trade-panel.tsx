@@ -414,7 +414,7 @@ export function TradePanel({
                     type="button"
                     onClick={() => {
                       setCustomPct(String(pct));
-                      const amount = Math.floor(Math.max(0, buyingPower - 0.10) * (pct / 100) * 100) / 100;
+                      const amount = Math.floor(Math.max(0, buyingPower - 0.11) * (pct / 100) * 100) / 100;
                       const calcQty = execPrice > 0
                         ? Math.floor((amount / execPrice) * 100000) / 100000
                         : 0;
@@ -446,7 +446,7 @@ export function TradePanel({
                   onClick={() => {
                     const pct = parseFloat(customPct);
                     if (!pct || pct <= 0 || pct > 100) { toast.error("Enter 1–100%"); return; }
-                    const amount = Math.floor(Math.max(0, buyingPower - 0.10) * (pct / 100) * 100) / 100;
+                    const amount = Math.floor(Math.max(0, buyingPower - 0.11) * (pct / 100) * 100) / 100;
                     const calcQty = execPrice > 0
                       ? Math.floor((amount / execPrice) * 100000) / 100000
                       : 0;
