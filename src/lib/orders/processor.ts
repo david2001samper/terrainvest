@@ -158,17 +158,18 @@ async function getServiceOverrides(supabase: ServiceClient) {
   return map;
 }
 
-function effectivePrice(
-  symbol: string,
-  assetType: string,
-  marketPrice: number,
-  overrides: Record<string, number>
-) {
-  const override = overrides[symbol.toUpperCase()];
-  if (override == null || !Number.isFinite(override) || override <= 0) {
-    return marketPrice;
+
+/**
+ * Returns the price at which the order should actually fill.
+ * Limit orders fill at the limit price (guaranteed price or better).
+ * Stop and stop-limit orders fill at the prevailing market price.
+ */
+function fillPriceFor(order: OrderRow, marketPrice: number): number {
+  if (order.order_type === "limit") {
+    const limit = Number(order.limit_price);
+    return Number.isFinite(limit) && limit > 0 ? limit : marketPrice;
   }
-  return simulatePrice(symbol, override, assetType);
+  return marketPrice;
 }
 
 async function fillOrder(
@@ -503,24 +504,45 @@ export async function processOpenOrders(
       continue;
     }
 
-    const rawPrice = await fetchMarketPrice(order.symbol, assetType);
-    if (!rawPrice || rawPrice <= 0) {
-      summary.skipped += 1;
-      continue;
+    // When an admin price override is active we use the raw override value for
+    // the trigger comparison (no jitter). This is critical: simulatePrice adds
+    // Gaussian noise, so a limit buy set exactly at the override target can
+    // randomly come back $20 above it and fail the "marketPrice <= limit" check.
+    // We still apply simulatePrice for the fill so the fill price looks organic.
+    const overrideRaw = overrides[order.symbol.toUpperCase()];
+    const hasOverride =
+      overrideRaw != null && Number.isFinite(overrideRaw) && overrideRaw > 0;
+
+    let triggerPrice: number; // deterministic — used in shouldTrigger
+    let fillBase: number;     // may carry jitter — used for the actual fill
+
+    if (hasOverride) {
+      // No external API call needed when override is active.
+      triggerPrice = overrideRaw;
+      fillBase     = simulatePrice(order.symbol, overrideRaw, assetType);
+    } else {
+      const rawPrice = await fetchMarketPrice(order.symbol, assetType);
+      if (!rawPrice || rawPrice <= 0) {
+        summary.skipped += 1;
+        continue;
+      }
+      triggerPrice = rawPrice;
+      fillBase     = rawPrice;
     }
-    const marketPrice = effectivePrice(order.symbol, assetType, rawPrice, overrides);
-    if (!shouldTrigger(order, marketPrice)) {
+
+    if (!shouldTrigger(order, triggerPrice)) {
       summary.skipped += 1;
       continue;
     }
     summary.triggered += 1;
 
+    const fillPrice = fillPriceFor(order, fillBase);
     const fillResult = await fillOrder(
       supabase,
       order,
       profile as ProfileRow,
       assetType,
-      marketPrice,
+      fillPrice,
       feePerTrade
     );
     if (!fillResult.ok) {
