@@ -116,6 +116,15 @@ export default function PortfolioPage() {
     0
   );
 
+  // Live unrealized P&L across ALL asset classes (stocks/crypto + forex).
+  // Passed to PnlAnalytics so the "Live Unrealized P&L" card reflects
+  // current mark-to-market values using the same prices shown in Holdings.
+  const forexUnrealizedPnl = forexPositions.reduce(
+    (sum, fp) => sum + (fp.unrealized_pnl_usd ?? 0),
+    0
+  );
+  const liveUnrealizedPnl = totalPnl + forexUnrealizedPnl;
+
   const portfolioTotal = (profile?.balance ?? 0) + totalValue;
   const totalReturn = (profile?.total_pnl ?? 0) + totalPnl;
   const initialBalance = portfolioTotal - totalReturn;
@@ -164,7 +173,7 @@ export default function PortfolioPage() {
       </div>
 
       {activeTab === "pnl" ? (
-        <PnlAnalytics />
+        <PnlAnalytics liveUnrealizedPnl={liveUnrealizedPnl} />
       ) : (
       <>
       {/* Performance */}

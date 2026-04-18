@@ -27,6 +27,7 @@ import {
   Activity,
   Target,
   CalendarDays,
+  BarChart2,
 } from "lucide-react";
 
 interface DayPnl {
@@ -52,7 +53,13 @@ interface PnlData {
   symbols: SymbolBreakdown[];
 }
 
-export function PnlAnalytics() {
+interface PnlAnalyticsProps {
+  /** Live mark-to-market unrealized P&L from all open positions.
+   *  Computed by the parent (portfolio page) from current prices. */
+  liveUnrealizedPnl?: number;
+}
+
+export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
   const { format: formatCurrency } = useCurrencyFormat();
   const tzOffsetMinutes = new Date().getTimezoneOffset();
 
@@ -107,13 +114,15 @@ export function PnlAnalytics() {
     );
   }
 
-  const isPositiveTotal = data.totalPnl >= 0;
-  const isPositiveToday = data.todayPnl >= 0;
-  const chartColor = isPositiveTotal ? "#22C55E" : "#E53E3E";
+  const isPositiveTotal    = data.totalPnl >= 0;
+  const isPositiveToday    = data.todayPnl >= 0;
+  const hasUnrealized      = liveUnrealizedPnl != null;
+  const isPositiveUnreal   = (liveUnrealizedPnl ?? 0) >= 0;
+  const chartColor         = isPositiveTotal ? "#22C55E" : "#E53E3E";
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${hasUnrealized ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         <Card className="glass-card-hover accent-border">
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -139,7 +148,7 @@ export function PnlAnalytics() {
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
               <CalendarDays className="w-3 h-3" />
-              Today&apos;s P&L
+              Today&apos;s Realized P&L
             </p>
             <p
               className={`text-2xl font-bold ${
@@ -149,8 +158,29 @@ export function PnlAnalytics() {
               {isPositiveToday ? "+" : ""}
               {formatCurrency(data.todayPnl)}
             </p>
+            <p className="text-xs text-muted-foreground mt-1">Closed trades today</p>
           </CardContent>
         </Card>
+
+        {hasUnrealized && (
+          <Card className="glass-card-hover">
+            <CardContent className="p-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                <BarChart2 className="w-3 h-3 text-[#00D4FF]" />
+                Live Unrealized P&L
+              </p>
+              <p
+                className={`text-2xl font-bold ${
+                  isPositiveUnreal ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {isPositiveUnreal ? "+" : ""}
+                {formatCurrency(liveUnrealizedPnl!)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Open positions (live)</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-card-hover">
           <CardContent className="p-5">
