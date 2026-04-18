@@ -107,8 +107,8 @@ export async function PATCH(request: NextRequest) {
         );
     }
 
-    revalidateTag("content");
-    revalidateTag("home");
+    revalidateTag("content", "max");
+    revalidateTag("home", "max");
 
     return NextResponse.json({ success: true });
   } catch (error) {

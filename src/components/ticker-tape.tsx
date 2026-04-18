@@ -4,7 +4,7 @@ import { useMarketData } from "@/hooks/use-market-data";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { formatPercent } from "@/lib/format";
 import { AssetLogo } from "@/components/asset-logo";
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { marketCardPrimaryLabel } from "@/lib/market-display";
 
@@ -33,7 +33,9 @@ export function TickerTape() {
     }
 
     if (Object.keys(newFlashes).length > 0) {
-      setFlashMap((old) => ({ ...old, ...newFlashes }));
+      const frame = window.requestAnimationFrame(() => {
+        setFlashMap((old) => ({ ...old, ...newFlashes }));
+      });
       const timer = setTimeout(() => {
         setFlashMap((old) => {
           const cleared = { ...old };
@@ -41,10 +43,16 @@ export function TickerTape() {
           return cleared;
         });
       }, 800);
-      return () => clearTimeout(timer);
+      return () => {
+        window.cancelAnimationFrame(frame);
+        clearTimeout(timer);
+      };
     }
 
-    setPrevPrices(currentPrices);
+    const frame = window.requestAnimationFrame(() => {
+      setPrevPrices(currentPrices);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [topMovers.map((a) => `${a.symbol}:${a.price}`).join(",")]);
 
   if (topMovers.length === 0) return null;

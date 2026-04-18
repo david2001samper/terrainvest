@@ -1,58 +1,32 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { fetchMarketPrice } from "@/lib/market-price";
+import { isMarketOpen, resolveAssetTypeFromSymbol } from "@/lib/market-hours";
+import { processOpenOrders } from "@/lib/orders/processor";
 
 const UNREALISTIC_LIMIT = 0.5;
+const CRYPTO_SYMBOLS = new Set([
+  "BTC",
+  "ETH",
+  "SOL",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "DOT",
+  "AVAX",
+  "MATIC",
+  "LINK",
+]);
 
-function resolveAssetType(symbol: string): string {
-  const s = symbol.toUpperCase();
-  if (s.endsWith("=X")) return "forex";
-  if (s.startsWith("^")) return "index";
-  if (s.endsWith("=F")) return "commodity";
-  return "stock";
-}
-
-function isMarketOpen(assetType: string): { open: boolean; reason: string } {
-  const now = new Date();
-  const utcDay = now.getUTCDay();
-  const utcHour = now.getUTCHours();
-  const utcMin = now.getUTCMinutes();
-  const utcTotalMins = utcHour * 60 + utcMin;
-
-  if (assetType === "crypto") {
-    return { open: true, reason: "" };
+function resolveAssetType(symbol: string, clientHint: unknown): string {
+  if (
+    typeof clientHint === "string" &&
+    ["crypto", "stock", "index", "commodity", "forex"].includes(clientHint)
+  ) {
+    return clientHint;
   }
-
-  if (assetType === "forex") {
-    // Forex: Sun 5pm ET (22:00 UTC) to Fri 5pm ET (22:00 UTC)
-    if (utcDay === 6) return { open: false, reason: "Forex market is closed on Saturday. Opens Sunday evening." };
-    if (utcDay === 0 && utcTotalMins < 22 * 60)
-      return { open: false, reason: "Forex market opens Sunday 5:00 PM ET." };
-    if (utcDay === 5 && utcTotalMins >= 22 * 60)
-      return { open: false, reason: "Forex market is closed. Opens Sunday 5:00 PM ET." };
-    return { open: true, reason: "" };
-  }
-
-  // US stocks, indexes, commodities: Mon-Fri 9:30 AM – 4:00 PM ET
-  // ET = UTC-4 (EDT) or UTC-5 (EST). Approximate with UTC-4.
-  const etOffsetMins = 4 * 60;
-  const etMins = ((utcTotalMins - etOffsetMins) + 1440) % 1440;
-
-  if (utcDay === 0 || utcDay === 6) {
-    return { open: false, reason: "Market is closed on weekends. Opens Monday 9:30 AM ET." };
-  }
-
-  const openMins = 9 * 60 + 30;   // 9:30 AM
-  const closeMins = 16 * 60;       // 4:00 PM
-
-  if (etMins < openMins) {
-    return { open: false, reason: "Market opens at 9:30 AM ET (pre-market)." };
-  }
-  if (etMins >= closeMins) {
-    return { open: false, reason: "Market is closed (after hours). Opens 9:30 AM ET." };
-  }
-
-  return { open: true, reason: "" };
+  if (CRYPTO_SYMBOLS.has(symbol.toUpperCase())) return "crypto";
+  return resolveAssetTypeFromSymbol(symbol);
 }
 
 export async function GET() {
@@ -60,6 +34,15 @@ export async function GET() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Best-effort matching pass so pending orders can fill automatically
+    // without requiring a separate scheduler in smaller deployments.
+    try {
+      const service = await createServiceClient();
+      await processOpenOrders(service, { userId: user.id, maxOrders: 100 });
+    } catch {
+      // Do not fail orders list when processing pass errors.
+    }
 
     const { data, error } = await supabase
       .from("orders")
@@ -81,14 +64,30 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await request.json();
-    const { symbol, side, order_type, quantity, limit_price, stop_price } = body;
+    const body = (await request.json()) as {
+      symbol?: unknown;
+      side?: unknown;
+      order_type?: unknown;
+      quantity?: unknown;
+      limit_price?: unknown;
+      stop_price?: unknown;
+      asset_type?: unknown;
+    };
+    const symbol =
+      typeof body.symbol === "string" ? body.symbol.trim().toUpperCase() : "";
+    const side = body.side;
+    const orderType = body.order_type;
+    const quantity = Number(body.quantity);
 
-    if (!symbol || !side || !order_type || !quantity || quantity <= 0) {
+    if (!symbol || !side || !orderType || !Number.isFinite(quantity) || quantity <= 0) {
       return NextResponse.json({ error: "Invalid order" }, { status: 400 });
     }
 
-    if (!["limit", "stop", "stop-limit"].includes(order_type)) {
+    if (!["buy", "sell"].includes(String(side))) {
+      return NextResponse.json({ error: "Invalid side" }, { status: 400 });
+    }
+
+    if (!["limit", "stop", "stop-limit"].includes(String(orderType))) {
       return NextResponse.json({ error: "Only limit/stop/stop-limit orders supported" }, { status: 400 });
     }
 
@@ -109,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const assetType = resolveAssetType(symbol);
+    const assetType = resolveAssetType(symbol, body.asset_type);
     const permMap: Record<string, string> = {
       crypto: "can_trade_crypto",
       stock: "can_trade_stocks",
@@ -130,19 +129,32 @@ export async function POST(request: NextRequest) {
     const { open, reason } = isMarketOpen(assetType);
     if (!open) {
       return NextResponse.json(
-        { error: reason },
+        { error: reason || "Market is closed." },
         { status: 400 }
       );
     }
 
-    const limitPrice = order_type === "limit" || order_type === "stop-limit" ? limit_price : null;
-    const stopPrice = order_type === "stop" || order_type === "stop-limit" ? stop_price : null;
+    const limitPrice = orderType === "limit" || orderType === "stop-limit"
+      ? Number(body.limit_price)
+      : null;
+    const stopPrice = orderType === "stop" || orderType === "stop-limit"
+      ? Number(body.stop_price)
+      : null;
+    const hasValidLimit = limitPrice != null && Number.isFinite(limitPrice) && limitPrice > 0;
+    const hasValidStop = stopPrice != null && Number.isFinite(stopPrice) && stopPrice > 0;
+    if ((orderType === "limit" || orderType === "stop-limit") && !hasValidLimit) {
+      return NextResponse.json({ error: "Limit price must be greater than 0" }, { status: 400 });
+    }
+    if ((orderType === "stop" || orderType === "stop-limit") && !hasValidStop) {
+      return NextResponse.json({ error: "Stop price must be greater than 0" }, { status: 400 });
+    }
+
     const priceToCheck = limitPrice ?? stopPrice;
 
     if (priceToCheck != null) {
-      const marketPrice = await fetchMarketPrice(symbol);
+      const marketPrice = await fetchMarketPrice(symbol, assetType);
       if (marketPrice && marketPrice > 0) {
-        const ratio = parseFloat(priceToCheck) / marketPrice;
+        const ratio = priceToCheck / marketPrice;
         if (side === "buy" && ratio < UNREALISTIC_LIMIT) {
           return NextResponse.json(
             { error: "Limit price too low. Adjust closer to market or use market order." },
@@ -164,10 +176,10 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         symbol,
         side,
-        order_type,
-        quantity: parseFloat(quantity),
-        limit_price: limitPrice ? parseFloat(limitPrice) : null,
-        stop_price: stopPrice ? parseFloat(stopPrice) : null,
+        order_type: orderType,
+        quantity,
+        limit_price: hasValidLimit ? limitPrice : null,
+        stop_price: hasValidStop ? stopPrice : null,
         status: "open",
       })
       .select()

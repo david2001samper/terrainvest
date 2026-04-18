@@ -9,7 +9,7 @@ interface LastUpdatedProps {
 }
 
 export function LastUpdated({ dataUpdatedAt, className = "" }: LastUpdatedProps) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState<number>(() => dataUpdatedAt ?? 0);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -18,7 +18,8 @@ export function LastUpdated({ dataUpdatedAt, className = "" }: LastUpdatedProps)
 
   if (!dataUpdatedAt) return null;
 
-  const seconds = Math.max(0, Math.floor((now - dataUpdatedAt) / 1000));
+  const baseline = now || dataUpdatedAt;
+  const seconds = Math.max(0, Math.floor((baseline - dataUpdatedAt) / 1000));
   const text = seconds < 5 ? "Just now" : `${seconds}s ago`;
 
   return (

@@ -332,7 +332,10 @@ export default function WithdrawalsPage() {
                                 : `${selectedBank.bank_name} (${selectedBank.account_holder_name})`
                               : null;
                             return (
-                              <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+                              <Select
+                                value={selectedBankId}
+                                onValueChange={(value) => setSelectedBankId(value ?? "")}
+                              >
                                 <SelectTrigger className="bg-background/50">
                                   <SelectValue placeholder="Select account">
                                     {displayLabel}

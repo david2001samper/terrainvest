@@ -382,10 +382,10 @@ export default function PortfolioPage() {
                         </TableCell>
                         <TableCell>
                           <OptionsGreeks
-                            delta={(op as Record<string, unknown>).delta as number | undefined}
-                            gamma={(op as Record<string, unknown>).gamma as number | undefined}
-                            theta={(op as Record<string, unknown>).theta as number | undefined}
-                            vega={(op as Record<string, unknown>).vega as number | undefined}
+                            delta={op.delta ?? undefined}
+                            gamma={op.gamma ?? undefined}
+                            theta={op.theta ?? undefined}
+                            vega={op.vega ?? undefined}
                           />
                         </TableCell>
                         <TableCell className="text-right">

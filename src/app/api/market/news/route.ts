@@ -7,6 +7,13 @@ interface NewsItem {
   publishedAt: string;
 }
 
+type YahooNewsItem = {
+  title?: string;
+  publisher?: string;
+  link?: string;
+  providerPublishTime?: number;
+};
+
 const newsCache = new Map<string, { data: NewsItem[]; ts: number }>();
 const NEWS_CACHE_TTL = 5 * 60 * 1000;
 
@@ -28,23 +35,17 @@ export async function GET(request: NextRequest) {
     const yf = await getYahooFinance();
 
     const result = await yf.search(symbol, { newsCount: 8 });
-    const news: NewsItem[] = (result.news || [])
-      .filter((n: { title?: string }) => n.title)
-      .map(
-        (n: {
-          title: string;
-          publisher?: string;
-          link?: string;
-          providerPublishTime?: number;
-        }) => ({
-          title: n.title,
-          publisher: n.publisher || "Unknown",
-          link: n.link || "#",
-          publishedAt: n.providerPublishTime
-            ? new Date(n.providerPublishTime * 1000).toISOString()
-            : new Date().toISOString(),
-        })
-      );
+    const newsItems = (result.news ?? []) as YahooNewsItem[];
+    const news: NewsItem[] = newsItems
+      .filter((n) => Boolean(n.title))
+      .map((n) => ({
+        title: n.title ?? "",
+        publisher: n.publisher || "Unknown",
+        link: n.link || "#",
+        publishedAt: n.providerPublishTime
+          ? new Date(n.providerPublishTime * 1000).toISOString()
+          : new Date().toISOString(),
+      }));
 
     newsCache.set(symbol, { data: news, ts: Date.now() });
     return NextResponse.json(news);

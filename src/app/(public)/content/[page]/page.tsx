@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { getContent } from "@/lib/content";
@@ -19,7 +20,11 @@ export default async function ContentPage({
   params: Promise<{ page: string }>;
 }) {
   const { page } = await params;
-  const validPage = VALID_PAGES.includes(page) ? page : "about";
+  if (!VALID_PAGES.includes(page)) {
+    notFound();
+  }
+
+  const validPage = page;
   const title = PAGE_TITLES[validPage] ?? "Page";
 
   const content = await getContent(validPage);

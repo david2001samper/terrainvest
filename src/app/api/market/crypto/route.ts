@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { getActiveOverrides, applyOverrides } from "@/lib/price-overrides";
 
+type CoinGeckoMarketRow = {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  price_change_24h: number;
+  price_change_percentage_24h: number;
+  total_volume: number;
+  market_cap: number;
+  high_24h: number;
+  low_24h: number;
+};
+
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin",
   ETH: "ethereum",
@@ -27,12 +40,12 @@ const COINGECKO_NAMES: Record<string, string> = {
   LINK: "Chainlink",
 };
 
-let cachedRaw: { data: Record<string, unknown>[]; timestamp: number } | null = null;
+let cachedRaw: { data: CoinGeckoMarketRow[]; timestamp: number } | null = null;
 const CACHE_TTL = 8000;
 
 export async function GET() {
   try {
-    let rawData: Record<string, unknown>[];
+    let rawData: CoinGeckoMarketRow[];
 
     if (cachedRaw && Date.now() - cachedRaw.timestamp < CACHE_TTL) {
       rawData = cachedRaw.data;
@@ -47,7 +60,7 @@ export async function GET() {
       );
 
       if (!res.ok) throw new Error(`CoinGecko API error: ${res.status}`);
-      rawData = await res.json();
+      rawData = (await res.json()) as CoinGeckoMarketRow[];
       cachedRaw = { data: rawData, timestamp: Date.now() };
     }
 

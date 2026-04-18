@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
-    revalidateTag("testimonials");
+    revalidateTag("testimonials", "max");
     return NextResponse.json(data);
   } catch (error) {
     console.error("Video testimonial create error:", error);

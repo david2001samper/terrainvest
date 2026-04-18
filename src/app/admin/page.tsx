@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +15,7 @@ import {
 import { PlatformLogo } from "@/components/platform-logo";
 
 export default function AdminDashboard() {
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading, isError } = useQuery({
     queryKey: ["admin", "analytics"],
     queryFn: async () => {
       const res = await fetch("/api/admin/analytics");
@@ -77,6 +78,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {isError && (
+        <Card className="glass-card border-red-500/30">
+          <CardContent className="p-4 text-sm text-red-400">
+            Failed to load live admin analytics. The summary below may be incomplete.
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="glass-card-hover">
@@ -107,30 +116,30 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <a
+            <Link
               href="/admin/clients"
               className="p-4 rounded-lg bg-background/50 hover:bg-accent/50 transition-all text-center"
             >
               <Users className="w-6 h-6 mx-auto mb-2 text-blue-400" />
               <p className="text-sm font-medium">Manage Clients</p>
               <p className="text-xs text-muted-foreground">View, edit balances</p>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/trades"
               className="p-4 rounded-lg bg-background/50 hover:bg-accent/50 transition-all text-center"
             >
               <Activity className="w-6 h-6 mx-auto mb-2 text-purple-400" />
               <p className="text-sm font-medium">View All Trades</p>
               <p className="text-xs text-muted-foreground">Full trade history</p>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/assets"
               className="p-4 rounded-lg bg-background/50 hover:bg-accent/50 transition-all text-center"
             >
               <BarChart3 className="w-6 h-6 mx-auto mb-2 text-green-400" />
               <p className="text-sm font-medium">Manage Assets</p>
               <p className="text-xs text-muted-foreground">Add new symbols</p>
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>

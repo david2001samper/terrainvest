@@ -254,7 +254,7 @@ export default function AdminPermissionsPage() {
                           <Select
                             value={String(client.max_leverage)}
                             onValueChange={(v) =>
-                              setLeverage(client, parseInt(v))
+                              setLeverage(client, parseInt(v ?? "1", 10))
                             }
                           >
                             <SelectTrigger className="h-8 w-24 mx-auto bg-background/50 border-border text-xs">

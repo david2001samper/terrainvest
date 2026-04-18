@@ -140,13 +140,15 @@ export function DepthChart({ data, isLoading }: DepthChartProps) {
                 color: "#E2E8F0",
                 fontSize: 12,
               }}
-              formatter={(value: number, name: string) => {
+              formatter={(value, name) => {
+                const safeValue = Number(value ?? 0);
                 const label = name === "bidVol" ? "Bid Volume" : "Ask Volume";
-                return [value.toFixed(2), label];
+                return [safeValue.toFixed(2), label];
               }}
-              labelFormatter={(v: number) =>
-                `Price: ${formatCurrency(v, v < 1 ? 6 : 2)}`
-              }
+              labelFormatter={(label) => {
+                const safeLabel = Number(label ?? 0);
+                return `Price: ${formatCurrency(safeLabel, safeLabel < 1 ? 6 : 2)}`;
+              }}
             />
             {data.midPrice > 0 && (
               <ReferenceLine

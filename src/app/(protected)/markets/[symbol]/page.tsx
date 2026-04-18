@@ -166,7 +166,7 @@ export default function AssetDetailPage() {
         : resolvedType === "forex"
         ? forex.dataUpdatedAt
         : stocks.dataUpdatedAt
-      : Date.now();
+      : undefined;
 
   if (isLoading) {
     return (

@@ -11,14 +11,19 @@ export function usePriceFlash(value: number | null | undefined): FlashDirection 
   useEffect(() => {
     const current = value ?? 0;
     const prev = prevRef.current;
+    prevRef.current = current;
 
     if (prev !== null && prev !== current) {
-      setFlash(current > prev ? "up" : "down");
-      const timer = setTimeout(() => setFlash(null), 800);
-      return () => clearTimeout(timer);
+      const showTimer = window.setTimeout(
+        () => setFlash(current > prev ? "up" : "down"),
+        0
+      );
+      const clearTimer = window.setTimeout(() => setFlash(null), 800);
+      return () => {
+        window.clearTimeout(showTimer);
+        window.clearTimeout(clearTimer);
+      };
     }
-
-    prevRef.current = current;
   }, [value]);
 
   return flash;

@@ -42,7 +42,7 @@ export async function PATCH(
       .single();
 
     if (error) throw error;
-    revalidateTag("testimonials");
+    revalidateTag("testimonials", "max");
     return NextResponse.json(data);
   } catch (error) {
     console.error("Video testimonial update error:", error);
@@ -66,7 +66,7 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) throw error;
-    revalidateTag("testimonials");
+    revalidateTag("testimonials", "max");
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Video testimonial delete error:", error);

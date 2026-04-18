@@ -2,6 +2,65 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getYahooFinance } from "@/lib/yahoo";
 import { getActiveOverrides, applyOverrides } from "@/lib/price-overrides";
 
+type SearchMarketAsset = {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  changePercent24h: number;
+  volume: number;
+  marketCap: number;
+  high24h: number;
+  low24h: number;
+  asset_type: "crypto" | "stock" | "commodity" | "index";
+  coingecko_id?: string;
+};
+
+type CoinGeckoSearchCoin = {
+  id: string;
+  symbol: string;
+  name: string;
+  market_cap_rank?: number | null;
+};
+
+type CoinGeckoSearchResponse = {
+  coins?: CoinGeckoSearchCoin[];
+};
+
+type CoinGeckoMarketRow = {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price?: number | null;
+  price_change_24h?: number | null;
+  price_change_percentage_24h?: number | null;
+  total_volume?: number | null;
+  market_cap?: number | null;
+  high_24h?: number | null;
+  low_24h?: number | null;
+};
+
+type YahooSearchQuote = {
+  symbol?: string;
+  shortname?: string;
+  longname?: string;
+  quoteType?: string;
+};
+
+type YahooQuoteResponse = {
+  quotes?: YahooSearchQuote[];
+};
+
+type YahooMarketQuote = {
+  regularMarketPrice?: number | null;
+  regularMarketChange?: number | null;
+  regularMarketChangePercent?: number | null;
+  regularMarketVolume?: number | null;
+  marketCap?: number | null;
+  regularMarketDayHigh?: number | null;
+  regularMarketDayLow?: number | null;
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim();
@@ -30,27 +89,27 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function searchCrypto(query: string) {
+async function searchCrypto(query: string): Promise<SearchMarketAsset[]> {
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`,
       { headers: { Accept: "application/json" }, next: { revalidate: 60 } }
     );
     if (!res.ok) return [];
-    const data = await res.json();
+    const data = (await res.json()) as CoinGeckoSearchResponse;
 
     const coins = (data.coins || []).slice(0, 8);
 
     if (coins.length === 0) return [];
 
-    const ids = coins.map((c: any) => c.id).join(",");
+    const ids = coins.map((c) => c.id).join(",");
     const priceRes = await fetch(
       `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&sparkline=false&price_change_percentage=24h`,
       { headers: { Accept: "application/json" } }
     );
 
     if (!priceRes.ok) {
-      return coins.map((c: any) => ({
+      return coins.map((c) => ({
         symbol: (c.symbol || "").toUpperCase(),
         name: c.name,
         price: 0,
@@ -65,8 +124,8 @@ async function searchCrypto(query: string) {
       }));
     }
 
-    const prices = await priceRes.json();
-    return prices.map((coin: any) => ({
+    const prices = (await priceRes.json()) as CoinGeckoMarketRow[];
+    return prices.map((coin) => ({
       symbol: (coin.symbol || "").toUpperCase(),
       name: coin.name,
       price: coin.current_price ?? 0,
@@ -84,20 +143,35 @@ async function searchCrypto(query: string) {
   }
 }
 
-async function searchStocks(query: string) {
+async function searchStocks(query: string): Promise<SearchMarketAsset[]> {
   try {
     const yf = await getYahooFinance();
-    const results = await yf.search(query, { quotesCount: 8, newsCount: 0 });
+    const results = (await yf.search(query, {
+      quotesCount: 8,
+      newsCount: 0,
+    })) as YahooSearchQuote[] | YahooQuoteResponse;
 
-    if (!results.quotes || results.quotes.length === 0) return [];
+    const quotes = Array.isArray(results)
+      ? results
+      : (results.quotes ?? []);
 
-    const symbols = results.quotes
-      .filter((q: any) => q.symbol && (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "INDEX" || q.quoteType === "FUTURE" || q.quoteType === "COMMODITY"))
+    if (quotes.length === 0) return [];
+
+    const symbols = quotes
+      .filter(
+        (q) =>
+          q.symbol &&
+          (q.quoteType === "EQUITY" ||
+            q.quoteType === "ETF" ||
+            q.quoteType === "INDEX" ||
+            q.quoteType === "FUTURE" ||
+            q.quoteType === "COMMODITY")
+      )
       .slice(0, 8);
 
-    const quotes = await Promise.allSettled(
-      symbols.map(async (s: any) => {
-        const quote = await yf.quote(s.symbol);
+    const resolvedQuotes = await Promise.allSettled(
+      symbols.map(async (s) => {
+        const quote = (await yf.quote(s.symbol!)) as YahooMarketQuote;
         const type = s.quoteType === "INDEX" ? "index"
           : s.quoteType === "FUTURE" || s.quoteType === "COMMODITY" ? "commodity"
           : "stock";
@@ -116,9 +190,9 @@ async function searchStocks(query: string) {
       })
     );
 
-    return quotes
+    return resolvedQuotes
       .filter((r) => r.status === "fulfilled")
-      .map((r) => (r as PromiseFulfilledResult<any>).value)
+      .map((r) => (r as PromiseFulfilledResult<SearchMarketAsset>).value)
       .filter((item) => item.price > 0);
   } catch {
     return [];

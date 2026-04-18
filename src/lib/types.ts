@@ -77,6 +77,10 @@ export interface OptionsPosition {
   status: "open" | "closed" | "expired" | "exercised";
   closed_premium: number | null;
   realized_pnl: number | null;
+  delta?: number | null;
+  gamma?: number | null;
+  theta?: number | null;
+  vega?: number | null;
   created_at: string;
   updated_at: string;
 }

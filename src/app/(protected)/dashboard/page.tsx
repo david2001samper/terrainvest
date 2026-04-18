@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const { format: formatCurrency, convert, symbol, pnlPrefix } = useCurrencyFormat();
   const { allAssets, isLoading: marketLoading, crypto, stocks } = useMarketData();
   const { data: positions } = usePositions();
-  const { data: trades } = useTrades(5);
+  const { data: trades, isLoading: tradesLoading } = useTrades(5);
 
   const totalPositionValue = positions?.reduce(
     (sum, p) => sum + p.quantity * (allAssets.find((a) => a.symbol === p.symbol)?.price || p.entry_price),
@@ -256,7 +256,13 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {!trades || trades.length === 0 ? (
+            {tradesLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : !trades || trades.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No recent activity
               </p>

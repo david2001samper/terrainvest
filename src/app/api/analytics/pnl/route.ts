@@ -15,7 +15,25 @@ interface SymbolBreakdown {
   winRate: number;
 }
 
-export async function GET() {
+const MAX_TZ_OFFSET_MINUTES = 14 * 60;
+const EPSILON = 1e-8;
+
+function parseTzOffsetMinutes(value: string | null): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  const rounded = Math.trunc(parsed);
+  if (rounded < -MAX_TZ_OFFSET_MINUTES || rounded > MAX_TZ_OFFSET_MINUTES) return 0;
+  return rounded;
+}
+
+function dayKeyForInstant(date: Date, tzOffsetMinutes: number): string {
+  const ms = date.getTime();
+  if (!Number.isFinite(ms)) return "1970-01-01";
+  const shifted = new Date(ms - tzOffsetMinutes * 60_000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const {
@@ -24,6 +42,10 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { searchParams } = new URL(request.url);
+    const tzOffsetMinutes = parseTzOffsetMinutes(
+      searchParams.get("tzOffsetMinutes")
+    );
 
     const { data: trades, error } = await supabase
       .from("trades")
@@ -33,8 +55,18 @@ export async function GET() {
       .order("created_at", { ascending: true });
 
     if (error) throw error;
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("total_pnl")
+      .eq("id", user.id)
+      .single();
 
     const rows = trades || [];
+    const profileTotalPnl = Number(profileRow?.total_pnl);
+    const realizedRows = rows.filter((t) => {
+      const pnl = Number(t.profit_loss) || 0;
+      return t.side === "sell" || Math.abs(pnl) > EPSILON;
+    });
 
     const dailyMap = new Map<string, number>();
     const symbolMap = new Map<
@@ -42,9 +74,9 @@ export async function GET() {
       { pnl: number; count: number; wins: number }
     >();
 
-    for (const t of rows) {
+    for (const t of realizedRows) {
       const pnl = Number(t.profit_loss) || 0;
-      const day = new Date(t.created_at).toISOString().split("T")[0];
+      const day = dayKeyForInstant(new Date(t.created_at), tzOffsetMinutes);
 
       dailyMap.set(day, (dailyMap.get(day) || 0) + pnl);
 
@@ -57,7 +89,14 @@ export async function GET() {
     }
 
     const dailyPnl: DayPnl[] = [];
-    let cumulative = 0;
+    const totalPnlFromTrades = Array.from(dailyMap.values()).reduce(
+      (sum, pnl) => sum + pnl,
+      0
+    );
+    const carryAdjustment = Number.isFinite(profileTotalPnl)
+      ? profileTotalPnl - totalPnlFromTrades
+      : 0;
+    let cumulative = carryAdjustment;
     const sortedDays = Array.from(dailyMap.entries()).sort(
       ([a], [b]) => a.localeCompare(b)
     );
@@ -66,11 +105,15 @@ export async function GET() {
       dailyPnl.push({ date, pnl, cumulative });
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = dayKeyForInstant(new Date(), tzOffsetMinutes);
     const todayPnl = dailyMap.get(todayStr) || 0;
-    const totalPnl = cumulative;
-    const totalTrades = rows.length;
-    const totalWins = rows.filter((t) => (Number(t.profit_loss) || 0) > 0).length;
+    const totalPnl = Number.isFinite(profileTotalPnl)
+      ? profileTotalPnl
+      : totalPnlFromTrades;
+    const totalTrades = realizedRows.length;
+    const totalWins = realizedRows.filter(
+      (t) => (Number(t.profit_loss) || 0) > EPSILON
+    ).length;
     const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
 
     const symbols: SymbolBreakdown[] = Array.from(symbolMap.entries())

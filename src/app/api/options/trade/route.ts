@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isMarketOpen } from "@/lib/market-hours";
+import { getExecutableOptionPremium } from "@/lib/options-market";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
       premium,
       position_id,
     } = body;
+    const requestedQuantity = Number(quantity);
 
     function normalizeExpiry(value: unknown): string | null {
       if (!value) return null;
@@ -41,6 +43,10 @@ export async function POST(request: NextRequest) {
 
     if (!action || !["buy", "sell"].includes(action)) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+      return NextResponse.json({ error: "Quantity must be greater than 0" }, { status: 400 });
     }
 
     const { data: profile } = await supabase
@@ -81,7 +87,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Missing or invalid fields (expiry)" }, { status: 400 });
       }
 
-      const totalCost = premium * quantity * CONTRACT_SIZE;
+      const marketPremium = await getExecutableOptionPremium({
+        underlyingSymbol: underlying_symbol,
+        contractSymbol: contract_symbol,
+        expiryIso: normalizedExpiry,
+        side: "buy",
+      });
+
+      if (!marketPremium) {
+        return NextResponse.json(
+          { error: "Live option pricing is unavailable. Please try again." },
+          { status: 503 }
+        );
+      }
+
+      const totalCost = marketPremium * requestedQuantity * CONTRACT_SIZE;
 
       if (profile.balance < totalCost) {
         return NextResponse.json(
@@ -107,16 +127,17 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (existing) {
-        const newQty = existing.quantity + quantity;
+        const newQty = existing.quantity + requestedQuantity;
         const newAvgPremium =
           (existing.entry_premium * existing.quantity +
-            premium * quantity) /
+            marketPremium * requestedQuantity) /
           newQty;
         const { error: upErr } = await supabase
           .from("options_positions")
           .update({
             quantity: newQty,
             entry_premium: newAvgPremium,
+            current_premium: marketPremium,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
@@ -136,9 +157,9 @@ export async function POST(request: NextRequest) {
           option_type,
           strike,
           expiry: normalizedExpiry,
-          quantity,
-          entry_premium: premium,
-          current_premium: premium,
+          quantity: requestedQuantity,
+          entry_premium: marketPremium,
+          current_premium: marketPremium,
           status: "open",
         });
         if (insErr) {
@@ -160,8 +181,8 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         symbol: contract_symbol,
         side: "buy",
-        quantity,
-        price: premium,
+        quantity: requestedQuantity,
+        price: marketPremium,
         total: totalCost,
         profit_loss: 0,
         status: "filled",
@@ -172,7 +193,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Bought ${quantity} ${contract_symbol} contract(s)`,
+        message: `Bought ${requestedQuantity} ${contract_symbol} contract(s)`,
       });
     }
 
@@ -180,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (!position_id)
       return NextResponse.json({ error: "position_id required" }, { status: 400 });
 
-    const sellQty = quantity || 0;
+    const sellQty = requestedQuantity;
 
     const { data: position } = await supabase
       .from("options_positions")
@@ -193,7 +214,14 @@ export async function POST(request: NextRequest) {
     if (!position)
       return NextResponse.json({ error: "Position not found" }, { status: 404 });
 
-    const closePremium = premium ?? position.current_premium ?? position.entry_premium;
+    const authoritativePremium = await getExecutableOptionPremium({
+      underlyingSymbol: position.underlying_symbol,
+      contractSymbol: position.contract_symbol,
+      expiryIso: position.expiry,
+      side: "sell",
+    });
+    const closePremium =
+      authoritativePremium ?? position.current_premium ?? position.entry_premium;
     const qtyToSell = sellQty > 0 ? Math.min(sellQty, position.quantity) : position.quantity;
     const proceeds = closePremium * qtyToSell * CONTRACT_SIZE;
     const realizedPnl = (closePremium - position.entry_premium) * qtyToSell * CONTRACT_SIZE;

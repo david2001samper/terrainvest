@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 
 export default function OrdersPage() {
   const { format: formatCurrency } = useCurrencyFormat();
-  const { data: orders, isLoading, invalidate } = useOrders();
+  const { data: orders, isLoading, isError, invalidate } = useOrders();
   const [editing, setEditing] = useState<string | null>(null);
   const [editQty, setEditQty] = useState("");
   const [editLimit, setEditLimit] = useState("");
@@ -100,6 +100,10 @@ export default function OrdersPage() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
+          ) : isError ? (
+            <p className="text-sm text-red-400 text-center py-12">
+              Failed to load pending orders
+            </p>
           ) : !orders || orders.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-12">
               No pending orders

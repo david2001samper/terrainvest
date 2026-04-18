@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/use-profile";
 import { toast } from "sonner";
@@ -137,7 +137,7 @@ export function NotificationActivitySync() {
     pendingLiveRef.current = [];
   }, [userId]);
 
-  const flushPendingLive = async (uid: string) => {
+  const flushPendingLive = useCallback(async (uid: string) => {
     const batch = pendingLiveRef.current.splice(0);
     if (batch.length === 0) return;
     for (const n of batch) {
@@ -146,29 +146,9 @@ export function NotificationActivitySync() {
     }
     await queryClient.invalidateQueries({ queryKey: ["notifications", uid] });
     await queryClient.invalidateQueries({ queryKey: ["profile"] });
-  };
+  }, [queryClient]);
 
-  useEffect(() => {
-    if (!userId) return;
-
-    function onVisibility() {
-      if (!tabIsVisible()) return;
-      if (!initialHandledRef.current) {
-        const state = queryClient.getQueryState(["notifications", userId]);
-        if (!state || state.fetchStatus === "fetching" || state.status === "pending") return;
-        const latest =
-          queryClient.getQueryData<NotificationRow[]>(["notifications", userId]) ?? [];
-        void processInitialSession(latest, userId);
-      } else {
-        void flushPendingLive(userId);
-      }
-    }
-
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [userId, queryClient]);
-
-  async function processInitialSession(rows: NotificationRow[], uid: string) {
+  const processInitialSession = useCallback(async (rows: NotificationRow[], uid: string) => {
     if (initialHandledRef.current) return;
     initialHandledRef.current = true;
     const gen = sessionGenRef.current;
@@ -188,7 +168,28 @@ export function NotificationActivitySync() {
 
     await queryClient.invalidateQueries({ queryKey: ["notifications", uid] });
     await queryClient.invalidateQueries({ queryKey: ["profile"] });
-  }
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const uid = userId;
+
+    function onVisibility() {
+      if (!tabIsVisible()) return;
+      if (!initialHandledRef.current) {
+        const state = queryClient.getQueryState(["notifications", uid]);
+        if (!state || state.fetchStatus === "fetching" || state.status === "pending") return;
+        const latest =
+          queryClient.getQueryData<NotificationRow[]>(["notifications", uid]) ?? [];
+        void processInitialSession(latest, uid);
+      } else {
+        void flushPendingLive(uid);
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [userId, queryClient, processInitialSession, flushPendingLive]);
 
   useEffect(() => {
     if (!userId || !isFetched) return;
@@ -221,7 +222,7 @@ export function NotificationActivitySync() {
       await queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
     })();
-  }, [notifications, queryClient, userId, isFetched]);
+  }, [notifications, queryClient, userId, isFetched, processInitialSession]);
 
   return null;
 }

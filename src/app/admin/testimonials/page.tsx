@@ -263,7 +263,7 @@ export default function AdminTestimonialsPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {textTestimonials.map((t) => (
+                  {textTestimonials.map((t: ClientTestimonial) => (
                     <div
                       key={t.id}
                       className="flex items-center gap-4 p-4 rounded-lg bg-background/50 border border-border"
@@ -338,7 +338,7 @@ export default function AdminTestimonialsPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {videoTestimonials.map((t) => (
+                  {videoTestimonials.map((t: VideoTestimonial) => (
                     <div
                       key={t.id}
                       className="flex items-center gap-4 p-4 rounded-lg bg-background/50 border border-border"

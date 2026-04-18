@@ -99,24 +99,21 @@ export default function AdminDepositsPage() {
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Client</Label>
             <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  disabled={isLoading}
-                  className="w-full h-11 justify-between bg-background/50 font-normal"
-                >
-                  {selected ? (
-                    <span className="truncate text-left">
-                      {selected.display_name || "—"}{" "}
-                      <span className="text-muted-foreground">({selected.email})</span>
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">Search and select client…</span>
-                  )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
+              <PopoverTrigger
+                role="combobox"
+                aria-expanded={open}
+                disabled={isLoading}
+                className="flex w-full h-11 items-center justify-between rounded-lg border border-input bg-background/50 px-3 text-sm font-normal"
+              >
+                {selected ? (
+                  <span className="truncate text-left">
+                    {selected.display_name || "—"}{" "}
+                    <span className="text-muted-foreground">({selected.email})</span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Search and select client…</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[300]" align="start">
                 <Command>

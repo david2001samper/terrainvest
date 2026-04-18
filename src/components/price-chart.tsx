@@ -177,7 +177,7 @@ export function PriceChart({
               color: "#E2E8F0",
               fontSize: 13,
             }}
-            formatter={(value: number) => [formatVolume(value), "Volume"]}
+            formatter={(value) => [formatVolume(Number(value ?? 0)), "Volume"]}
           />
           <Bar dataKey="volume" radius={[2, 2, 0, 0]} maxBarSize={20}>
             {chartData.map((entry, idx) => (

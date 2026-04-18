@@ -23,13 +23,22 @@ export function useWatchlist() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol }),
       });
-      return res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Failed to update watchlist"
+        );
+      }
+      return data as { action?: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["watchlist"] });
       toast.success(
         data.action === "added" ? "Added to watchlist" : "Removed from watchlist"
       );
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update watchlist");
     },
   });
 

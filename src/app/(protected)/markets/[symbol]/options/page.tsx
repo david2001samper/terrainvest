@@ -224,7 +224,7 @@ export default function OptionsChainPage() {
         <Label className="text-sm text-muted-foreground">Expiration:</Label>
         <Select
           value={selectedExpiry}
-          onValueChange={(v) => setSelectedExpiry(v)}
+          onValueChange={(v) => setSelectedExpiry(v ?? "")}
         >
           <SelectTrigger className="w-[200px] bg-background/50 border-border h-10">
             <SelectValue placeholder="Nearest expiry" />

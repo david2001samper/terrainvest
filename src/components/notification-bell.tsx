@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/use-profile";
 import { Bell, Check, CheckCheck, MonitorSmartphone } from "lucide-react";
@@ -23,6 +23,7 @@ interface Notification {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const userId = profile?.id;
@@ -41,6 +42,11 @@ export function NotificationBell() {
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   async function requestDesktopPermission() {
     if (typeof Notification === "undefined") return;
@@ -79,7 +85,7 @@ export function NotificationBell() {
   }
 
   function timeAgo(dateStr: string): string {
-    const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    const seconds = Math.floor((now - new Date(dateStr).getTime()) / 1000);
     if (seconds < 60) return "just now";
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -98,19 +104,13 @@ export function NotificationBell() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative h-10 w-10 p-0"
-        >
-          <Bell className="w-6 h-6" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </Button>
+      <PopoverTrigger className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-accent/50">
+        <Bell className="w-6 h-6" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </PopoverTrigger>
       <PopoverContent
         align="end"

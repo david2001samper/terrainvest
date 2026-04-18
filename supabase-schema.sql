@@ -142,7 +142,13 @@ CREATE POLICY "Admin can manage assets" ON assets FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- Platform settings: admin only
+-- Platform settings: limited public reads, authenticated deposit reads, admin full access
+CREATE POLICY "Public can read safe platform settings" ON platform_settings FOR SELECT USING (
+  key IN ('announcement', 'currency_rates', 'fee_per_trade', 'default_balance')
+);
+CREATE POLICY "Authenticated users can read deposit settings" ON platform_settings FOR SELECT USING (
+  auth.uid() IS NOT NULL AND key IN ('wallet_btc', 'wallet_usdt', 'order_book_cache_minutes')
+);
 CREATE POLICY "Admin can manage settings" ON platform_settings FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );

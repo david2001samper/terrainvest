@@ -40,11 +40,12 @@ export async function POST(request: NextRequest) {
     const { symbol, side, quantity, price: userPrice } = parsed.data;
     const clientAssetType = (body.asset_type as string) || "";
     const lots = typeof body.lots === "number" ? body.lots : null;
+    const preliminaryAssetType = resolveAssetType(symbol, clientAssetType);
 
     let marketPrice: number | null = null;
     const [feeRow] = await Promise.all([
       supabase.from("platform_settings").select("value").eq("key", "fee_per_trade").single(),
-      fetchMarketPrice(symbol)
+      fetchMarketPrice(symbol, preliminaryAssetType)
         .then((p) => { marketPrice = p; })
         .catch(() => { marketPrice = null; }),
     ]);
@@ -124,52 +125,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (side === "sell" && assetType !== "forex") {
-      const { data: position } = await supabase
-        .from("positions")
-        .select("quantity")
-        .eq("user_id", user.id)
-        .eq("symbol", symbol)
-        .single();
-
-      if (!position || position.quantity < quantity) {
-        return NextResponse.json(
-          { error: "Insufficient position" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // For non-forex sells, we need to calculate P&L before inserting the trade
-    // so we can store it on the trade row for analytics.
-    // For buys and forex, profit_loss is 0 at insert time (forex handles P&L separately below).
     let tradePnl = 0;
-
     if (side === "sell" && assetType !== "forex") {
-      const { data: posForPnl } = await supabase
+      const { data: positionForSell, error: positionForSellError } = await supabase
         .from("positions")
-        .select("entry_price")
+        .select("quantity, entry_price")
         .eq("user_id", user.id)
         .eq("symbol", symbol)
-        .single();
-      if (posForPnl) {
-        tradePnl = (execPrice - posForPnl.entry_price) * quantity;
+        .maybeSingle();
+      if (positionForSellError) {
+        return NextResponse.json({ error: positionForSellError.message }, { status: 500 });
       }
-    }
-
-    const { error: tradeError } = await supabase.from("trades").insert({
-      user_id: user.id,
-      symbol,
-      side,
-      quantity,
-      price: execPrice,
-      total,
-      profit_loss: tradePnl,
-      status: "filled",
-    });
-
-    if (tradeError) {
-      return NextResponse.json({ error: tradeError.message }, { status: 500 });
+      if (!positionForSell || positionForSell.quantity < quantity) {
+        return NextResponse.json({ error: "Insufficient position" }, { status: 400 });
+      }
+      tradePnl = (execPrice - positionForSell.entry_price) * quantity;
     }
 
     // -----------------------------
@@ -196,12 +166,15 @@ export async function POST(request: NextRequest) {
       const fillPrice = side === "buy" ? bidAsk.ask : bidAsk.bid;
 
       // Fetch existing net position (if any)
-      const { data: existing } = await supabase
+      const { data: existing, error: existingErr } = await supabase
         .from("forex_positions")
         .select("*")
         .eq("user_id", user.id)
         .eq("symbol", symbol)
-        .single();
+        .maybeSingle();
+      if (existingErr) {
+        return NextResponse.json({ error: existingErr.message }, { status: 500 });
+      }
 
       const prevUnits = Number(existing?.units_signed ?? 0);
       const prevAvg = Number(existing?.avg_entry_price ?? 0);
@@ -240,18 +213,27 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Insufficient balance / margin" }, { status: 400 });
       }
 
-      await supabase
+      const { error: fxBalanceErr } = await supabase
         .from("profiles")
         .update({ balance: profile.balance + balanceDelta })
         .eq("id", user.id);
+      if (fxBalanceErr) {
+        return NextResponse.json({ error: fxBalanceErr.message }, { status: 500 });
+      }
 
       // Upsert position
       if (Math.abs(next.unitsSigned) < 0.00000001) {
         if (existing?.id) {
-          await supabase.from("forex_positions").delete().eq("id", existing.id);
+          const { error: deleteFxErr } = await supabase
+            .from("forex_positions")
+            .delete()
+            .eq("id", existing.id);
+          if (deleteFxErr) {
+            return NextResponse.json({ error: deleteFxErr.message }, { status: 500 });
+          }
         }
       } else if (existing?.id) {
-        await supabase
+        const { error: updateFxErr } = await supabase
           .from("forex_positions")
           .update({
             base: parsedFx.base,
@@ -270,8 +252,11 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
+        if (updateFxErr) {
+          return NextResponse.json({ error: updateFxErr.message }, { status: 500 });
+        }
       } else {
-        await supabase.from("forex_positions").insert({
+        const { error: insertFxErr } = await supabase.from("forex_positions").insert({
           user_id: user.id,
           symbol,
           base: parsedFx.base,
@@ -288,62 +273,73 @@ export async function POST(request: NextRequest) {
           swap_accrued_usd: nextSwapAccrued,
           last_swap_at: swap.newLastSwapAt,
         });
+        if (insertFxErr) {
+          return NextResponse.json({ error: insertFxErr.message }, { status: 500 });
+        }
       }
 
-      // Persist realized P&L on the trade row and update profile total
       if (Math.abs(next.realizedPnlUsd) > 0.001) {
-        const { data: latestTrade } = await supabase
-          .from("trades")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("symbol", symbol)
-          .eq("status", "filled")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (latestTrade) {
-          await supabase
-            .from("trades")
-            .update({ profit_loss: next.realizedPnlUsd })
-            .eq("id", latestTrade.id);
-        }
-
-        const { data: fxProf } = await supabase
+        const { data: fxProf, error: fxProfErr } = await supabase
           .from("profiles")
           .select("total_pnl")
           .eq("id", user.id)
           .single();
+        if (fxProfErr) {
+          return NextResponse.json({ error: fxProfErr.message }, { status: 500 });
+        }
         if (fxProf) {
-          await supabase
+          const { error: updateFxPnlErr } = await supabase
             .from("profiles")
             .update({ total_pnl: fxProf.total_pnl + next.realizedPnlUsd })
             .eq("id", user.id);
+          if (updateFxPnlErr) {
+            return NextResponse.json({ error: updateFxPnlErr.message }, { status: 500 });
+          }
         }
+      }
+
+      const { error: fxTradeErr } = await supabase.from("trades").insert({
+        user_id: user.id,
+        symbol,
+        side,
+        quantity,
+        price: fillPrice,
+        total: quantity * fillPrice,
+        profit_loss: next.realizedPnlUsd,
+        status: "filled",
+      });
+      if (fxTradeErr) {
+        return NextResponse.json({ error: fxTradeErr.message }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, message: `${side.toUpperCase()} order executed` });
     }
 
     if (side === "buy") {
-      await supabase
+      const { error: buyBalanceErr } = await supabase
         .from("profiles")
         .update({ balance: profile.balance - marginRequired - fee })
         .eq("id", user.id);
+      if (buyBalanceErr) {
+        return NextResponse.json({ error: buyBalanceErr.message }, { status: 500 });
+      }
 
-      const { data: existingPos } = await supabase
+      const { data: existingPos, error: existingPosErr } = await supabase
         .from("positions")
         .select("*")
         .eq("user_id", user.id)
         .eq("symbol", symbol)
-        .single();
+        .maybeSingle();
+      if (existingPosErr) {
+        return NextResponse.json({ error: existingPosErr.message }, { status: 500 });
+      }
 
       if (existingPos) {
         const newQty = existingPos.quantity + quantity;
         const newAvgPrice =
           (existingPos.entry_price * existingPos.quantity + execPrice * quantity) /
           newQty;
-        await supabase
+        const { error: updatePosErr } = await supabase
           .from("positions")
           .update({
             quantity: newQty,
@@ -354,8 +350,11 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingPos.id);
+        if (updatePosErr) {
+          return NextResponse.json({ error: updatePosErr.message }, { status: 500 });
+        }
       } else {
-        await supabase.from("positions").insert({
+        const { error: insertPosErr } = await supabase.from("positions").insert({
           user_id: user.id,
           symbol,
           quantity,
@@ -364,51 +363,106 @@ export async function POST(request: NextRequest) {
           leverage,
           asset_type: assetType,
         });
+        if (insertPosErr) {
+          return NextResponse.json({ error: insertPosErr.message }, { status: 500 });
+        }
+      }
+
+      const { error: buyTradeErr } = await supabase.from("trades").insert({
+        user_id: user.id,
+        symbol,
+        side,
+        quantity,
+        price: execPrice,
+        total,
+        profit_loss: 0,
+        status: "filled",
+      });
+      if (buyTradeErr) {
+        return NextResponse.json({ error: buyTradeErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, message: `${side.toUpperCase()} order executed` });
+    }
+
+    const { data: position, error: positionErr } = await supabase
+      .from("positions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("symbol", symbol)
+      .maybeSingle();
+    if (positionErr) {
+      return NextResponse.json({ error: positionErr.message }, { status: 500 });
+    }
+    if (!position) {
+      return NextResponse.json({ error: "Position not found" }, { status: 404 });
+    }
+
+    const posLeverage = position.leverage || 1;
+    const newQty = position.quantity - quantity;
+    const pnl = (execPrice - position.entry_price) * quantity;
+    const sellProceeds = (quantity * position.entry_price) / posLeverage + pnl;
+
+    const { error: sellBalanceErr } = await supabase
+      .from("profiles")
+      .update({ balance: profile.balance + sellProceeds - fee })
+      .eq("id", user.id);
+    if (sellBalanceErr) {
+      return NextResponse.json({ error: sellBalanceErr.message }, { status: 500 });
+    }
+
+    if (newQty <= 0.00000001) {
+      const { error: deletePosErr } = await supabase
+        .from("positions")
+        .delete()
+        .eq("id", position.id);
+      if (deletePosErr) {
+        return NextResponse.json({ error: deletePosErr.message }, { status: 500 });
       }
     } else {
-      const { data: position } = await supabase
+      const { error: reducePosErr } = await supabase
         .from("positions")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("symbol", symbol)
-        .single();
-
-      if (position) {
-        const posLeverage = position.leverage || 1;
-        const newQty = position.quantity - quantity;
-        const pnl = (execPrice - position.entry_price) * quantity;
-        const sellProceeds = (quantity * position.entry_price) / posLeverage + pnl;
-
-        await supabase
-          .from("profiles")
-          .update({ balance: profile.balance + sellProceeds - fee })
-          .eq("id", user.id);
-
-        if (newQty <= 0.00000001) {
-          await supabase.from("positions").delete().eq("id", position.id);
-        } else {
-          await supabase
-            .from("positions")
-            .update({
-              quantity: newQty,
-              current_value: newQty * execPrice,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", position.id);
-        }
-
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("total_pnl")
-          .eq("id", user.id)
-          .single();
-        if (prof) {
-          await supabase
-            .from("profiles")
-            .update({ total_pnl: prof.total_pnl + pnl })
-            .eq("id", user.id);
-        }
+        .update({
+          quantity: newQty,
+          current_value: newQty * execPrice,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", position.id);
+      if (reducePosErr) {
+        return NextResponse.json({ error: reducePosErr.message }, { status: 500 });
       }
+    }
+
+    const { data: prof, error: profErr } = await supabase
+      .from("profiles")
+      .select("total_pnl")
+      .eq("id", user.id)
+      .single();
+    if (profErr) {
+      return NextResponse.json({ error: profErr.message }, { status: 500 });
+    }
+    if (prof) {
+      const { error: updatePnlErr } = await supabase
+        .from("profiles")
+        .update({ total_pnl: prof.total_pnl + pnl })
+        .eq("id", user.id);
+      if (updatePnlErr) {
+        return NextResponse.json({ error: updatePnlErr.message }, { status: 500 });
+      }
+    }
+
+    const { error: sellTradeErr } = await supabase.from("trades").insert({
+      user_id: user.id,
+      symbol,
+      side,
+      quantity,
+      price: execPrice,
+      total,
+      profit_loss: tradePnl,
+      status: "filled",
+    });
+    if (sellTradeErr) {
+      return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: `${side.toUpperCase()} order executed` });

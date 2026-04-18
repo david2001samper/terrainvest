@@ -1,7 +1,7 @@
 "use client";
 
 import CountUp from "react-countup";
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface AnimatedNumberProps {
   value: number;
@@ -20,27 +20,27 @@ export function AnimatedNumber({
   duration = 1,
   className = "",
 }: AnimatedNumberProps) {
-  const prevRef = useRef(value);
+  const [startValue, setStartValue] = useState(value);
+  const [endValue, setEndValue] = useState(value);
   const [key, setKey] = useState(0);
 
   useEffect(() => {
-    if (prevRef.current !== value) {
-      setKey((k) => k + 1);
+    if (endValue !== value) {
+      const frame = window.requestAnimationFrame(() => {
+        setStartValue(endValue);
+        setEndValue(value);
+        setKey((k) => k + 1);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
-  }, [value]);
-
-  const prev = prevRef.current;
-
-  useEffect(() => {
-    prevRef.current = value;
-  }, [value]);
+  }, [endValue, value]);
 
   return (
     <span className={className}>
       <CountUp
         key={key}
-        start={prev}
-        end={value}
+        start={startValue}
+        end={endValue}
         duration={duration}
         decimals={decimals}
         prefix={prefix}

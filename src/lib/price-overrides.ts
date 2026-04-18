@@ -3,10 +3,16 @@ import { simulatePrice } from "@/lib/price-simulator";
 
 export async function getActiveOverrides(): Promise<Record<string, number>> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data, error } = await supabase
     .from("price_overrides")
     .select("symbol, override_price")
     .gt("expires_at", new Date().toISOString());
+  if (error) return {};
 
   const map: Record<string, number> = {};
   (data ?? []).forEach((r) => {
@@ -16,15 +22,14 @@ export async function getActiveOverrides(): Promise<Record<string, number>> {
 }
 
 export function applyOverrides<
-  T extends { symbol: string; price?: number; asset_type?: string },
+  T extends { symbol: string; price: number; asset_type: string },
 >(items: T[], overrides: Record<string, number>): T[] {
   if (Object.keys(overrides).length === 0) return items;
   return items.map((item) => {
     const override = overrides[item.symbol?.toUpperCase()];
     if (override != null) {
-      const assetType = (item as { asset_type?: string }).asset_type || "stock";
-      const simulated = simulatePrice(item.symbol, override, assetType);
-      return { ...item, price: simulated };
+      const simulated = simulatePrice(item.symbol, override, item.asset_type);
+      return { ...item, price: simulated } as T;
     }
     return item;
   });

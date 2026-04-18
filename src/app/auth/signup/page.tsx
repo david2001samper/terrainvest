@@ -75,14 +75,16 @@ export default function SignupPage() {
         toast.message(
           "Could not pre-check email and phone. Signup will still block duplicates when configured."
         );
-      } else if (checkRes.status === 409) {
-        const body = (await checkRes.json()) as { field?: string; message?: string };
-        toast.error(body.message ?? "Email or phone is already registered.");
-        return;
       } else if (!checkRes.ok) {
         const body = (await checkRes.json().catch(() => ({}))) as { error?: string };
         toast.error(body.error ?? "Could not verify email and phone.");
         return;
+      } else {
+        const body = (await checkRes.json()) as { available?: boolean };
+        if (body.available === false) {
+          toast.error("That email or phone number cannot be used.");
+          return;
+        }
       }
 
       const supabase = createClient();

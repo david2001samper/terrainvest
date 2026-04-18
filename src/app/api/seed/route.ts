@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isSeedRouteEnabled } from "@/lib/server-flags";
 
 export async function GET() {
   return seed();
@@ -10,6 +11,10 @@ export async function POST() {
 }
 
 async function seed() {
+  if (!isSeedRouteEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const supabase = await createServiceClient();
 

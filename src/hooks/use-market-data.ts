@@ -161,10 +161,14 @@ export function useLiveChartData(
 
     prevPriceRef.current = price;
 
-    setPoints((prev) => {
-      const updated = [...prev, { time: timeLabel, price, volume: tickVolume }];
-      return updated.slice(-150); // ~12 min rolling window
+    const frame = window.requestAnimationFrame(() => {
+      setPoints((prev) => {
+        const updated = [...prev, { time: timeLabel, price, volume: tickVolume }];
+        return updated.slice(-150); // ~12 min rolling window
+      });
     });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [price, baseVolume, dataUpdatedAt, enabled]);
 
   return points;

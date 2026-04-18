@@ -189,6 +189,7 @@ export function TradePanel({
           quantity: qty,
           limit_price: limitPriceVal,
           stop_price: stopPriceVal,
+          asset_type: assetType,
         }),
       });
       const data = await res.json();

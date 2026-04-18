@@ -54,11 +54,14 @@ interface PnlData {
 
 export function PnlAnalytics() {
   const { format: formatCurrency } = useCurrencyFormat();
+  const tzOffsetMinutes = new Date().getTimezoneOffset();
 
   const { data, isLoading, isError } = useQuery<PnlData>({
-    queryKey: ["analytics", "pnl"],
+    queryKey: ["analytics", "pnl", tzOffsetMinutes],
     queryFn: async () => {
-      const res = await fetch("/api/analytics/pnl");
+      const res = await fetch(
+        `/api/analytics/pnl?tzOffsetMinutes=${encodeURIComponent(String(tzOffsetMinutes))}`
+      );
       if (!res.ok) throw new Error("Failed to load P&L data");
       return res.json();
     },
@@ -159,7 +162,7 @@ export function PnlAnalytics() {
               {data.winRate.toFixed(1)}%
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {data.totalTrades} total trades
+              {data.totalTrades} realized trades
             </p>
           </CardContent>
         </Card>
@@ -217,12 +220,12 @@ export function PnlAnalytics() {
                     color: "#E2E8F0",
                     fontSize: 13,
                   }}
-                  formatter={(value: number) => [
-                    formatCurrency(value),
+                  formatter={(value) => [
+                    formatCurrency(Number(value ?? 0)),
                     "Cumulative P&L",
                   ]}
-                  labelFormatter={(v: string) =>
-                    new Date(v).toLocaleDateString("en-US", {
+                  labelFormatter={(label) =>
+                    new Date(String(label ?? "")).toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "short",
                       day: "numeric",

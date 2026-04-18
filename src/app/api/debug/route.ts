@@ -1,28 +1,24 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { isDebugRouteEnabled } from "@/lib/server-flags";
 
 export async function GET() {
+  if (!isDebugRouteEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Not logged in", fix: "Log in first at /auth/login" });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("id, email, role, created_at, updated_at")
       .eq("id", user.id)
-      .single();
-
-    // Also check with service client to see the real state
-    const serviceClient = await createServiceClient();
-    const { data: adminProfile } = await serviceClient
-      .from("profiles")
-      .select("id, email, role")
-      .eq("email", "admin@terrainvestvip.com")
       .single();
 
     return NextResponse.json({
@@ -30,10 +26,9 @@ export async function GET() {
       user_id: user.id,
       profile_from_rls: profile,
       profile_error: error?.message || null,
-      admin_profile_in_db: adminProfile,
       is_admin_account: user.email === "admin@terrainvestvip.com",
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
