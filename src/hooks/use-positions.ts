@@ -2,14 +2,12 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { useIsTabVisible } from "@/hooks/use-is-tab-visible";
 import type { Position, Trade } from "@/lib/types";
 import { useEffect } from "react";
 
 export function usePositions() {
   const supabase = createClient();
   const queryClient = useQueryClient();
-  const visible = useIsTabVisible();
 
   const query = useQuery<Position[]>({
     queryKey: ["positions"],
@@ -23,9 +21,8 @@ export function usePositions() {
         .order("updated_at", { ascending: false });
       return (data as Position[]) || [];
     },
-    refetchInterval: visible ? 10000 : false,
+    refetchInterval: 10000,
     staleTime: 5000,
-    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {

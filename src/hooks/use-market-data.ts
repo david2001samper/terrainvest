@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useIsTabVisible } from "@/hooks/use-is-tab-visible";
 import type { MarketAsset } from "@/lib/types";
 
 interface OverrideStatus {
@@ -42,14 +41,12 @@ async function fetchForex(): Promise<MarketAsset[]> {
 export function useMarketData() {
   const queryClient = useQueryClient();
   const wasActiveRef = useRef(false);
-  const visible = useIsTabVisible();
 
   const overrideStatus = useQuery<OverrideStatus>({
     queryKey: ["market", "override-status"],
     queryFn: fetchOverrideStatus,
-    refetchInterval: visible ? 3000 : false,
+    refetchInterval: 3000,
     staleTime: 2000,
-    refetchOnWindowFocus: true,
   });
 
   const fast = overrideStatus.data?.active === true;
@@ -64,34 +61,25 @@ export function useMarketData() {
     wasActiveRef.current = fast;
   }, [fast, queryClient]);
 
-  // Polling intervals: paused entirely when the tab is hidden, fast when an
-  // override/simulation is driving prices, slow during idle market viewing.
-  const cryptoMs = !visible ? false : fast ? fastMs : 8000;
-  const stocksMs = !visible ? false : fast ? fastMs : 10000;
-  const forexMs = !visible ? false : fast ? fastMs : 12000;
-
   const crypto = useQuery<MarketAsset[]>({
     queryKey: ["market", "crypto"],
     queryFn: fetchCrypto,
-    refetchInterval: cryptoMs,
+    refetchInterval: fast ? fastMs : 8000,
     staleTime: fast ? 1000 : 6000,
-    refetchOnWindowFocus: true,
   });
 
   const stocks = useQuery<MarketAsset[]>({
     queryKey: ["market", "stocks"],
     queryFn: fetchStocks,
-    refetchInterval: stocksMs,
+    refetchInterval: fast ? fastMs : 10000,
     staleTime: fast ? 1000 : 8000,
-    refetchOnWindowFocus: true,
   });
 
   const forex = useQuery<MarketAsset[]>({
     queryKey: ["market", "forex"],
     queryFn: fetchForex,
-    refetchInterval: forexMs,
+    refetchInterval: fast ? fastMs : 12000,
     staleTime: fast ? 1000 : 10000,
-    refetchOnWindowFocus: true,
   });
 
   // Stabilise reference identity: only rebuild when the underlying query
