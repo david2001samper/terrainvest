@@ -36,30 +36,57 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Merge last_sign_in_at from Supabase Auth — this is always accurate since
-    // Auth updates it on every signInWithPassword call, regardless of RLS.
-    // We use the service client so we can call auth.admin.listUsers().
+    const profiles = data ?? [];
+    const userIds = profiles.map((p) => p.id);
+
+    // Aggregate trade stats and fetch auth metadata for the CURRENT PAGE
+    // only — not the full user table. Replaces:
+    //   - 1× listUsers(perPage:1000)  →  N× getUserById (parallel, only for the page)
+    //   - N× HTTP /api/admin/user-activity calls from the browser
+    //   - N× full per-user trades scans  →  one IN(userIds) query, aggregated in JS
+    let tradeStats: Record<string, { count: number; volume: number }> = {};
     const authSignInMap: Record<string, string | null> = {};
-    try {
+
+    if (userIds.length > 0) {
       const service = await createServiceClient();
-      // Fetch up to 1000 auth users. For larger installs, paginate as needed.
-      const { data: authData } = await service.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-      });
-      for (const u of authData?.users ?? []) {
-        authSignInMap[u.id] = u.last_sign_in_at ?? null;
+
+      const [tradesRes, ...authResults] = await Promise.all([
+        // ONE query for trades across every user on this page
+        supabase
+          .from("trades")
+          .select("user_id, total")
+          .in("user_id", userIds),
+        // Parallel auth lookups, but only for visible users
+        ...userIds.map((id) => service.auth.admin.getUserById(id)),
+      ]);
+
+      // Aggregate trades by user
+      tradeStats = {};
+      for (const row of tradesRes.data ?? []) {
+        const uid = row.user_id as string;
+        if (!tradeStats[uid]) tradeStats[uid] = { count: 0, volume: 0 };
+        tradeStats[uid].count += 1;
+        tradeStats[uid].volume += Number(row.total) || 0;
       }
-    } catch {
-      // Non-fatal: fall back to profiles.last_login_at if auth fetch fails.
+
+      // Build auth sign-in map
+      authResults.forEach((res, idx) => {
+        const uid = userIds[idx];
+        const u = res.data?.user;
+        authSignInMap[uid] = u?.last_sign_in_at ?? null;
+      });
     }
 
-    // Attach auth_last_sign_in_at to each profile. The UI picks the most
-    // recent of this and profiles.last_login_at.
-    const clients = (data ?? []).map((p) => ({
-      ...p,
-      auth_last_sign_in_at: authSignInMap[p.id] ?? null,
-    }));
+    const clients = profiles.map((p) => {
+      const stats = tradeStats[p.id] ?? { count: 0, volume: 0 };
+      return {
+        ...p,
+        auth_last_sign_in_at: authSignInMap[p.id] ?? null,
+        trade_count: stats.count,
+        total_volume: stats.volume,
+        avg_trade_size: stats.count > 0 ? stats.volume / stats.count : 0,
+      };
+    });
 
     return NextResponse.json({
       clients,

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { NotificationBell } from "@/components/notification-bell";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
@@ -47,13 +47,23 @@ export function NavSidebar() {
   const { allAssets } = useMarketData();
   const { format: formatCurrency } = useCurrencyFormat();
 
-  const totalPositionValue =
-    positions?.reduce(
-      (sum, p) =>
-        sum +
-        p.quantity * (allAssets.find((a) => a.symbol === p.symbol)?.price ?? p.entry_price),
-      0
-    ) ?? 0;
+  // Build a single Map<symbol, price> rather than calling `allAssets.find()`
+  // inside the reducer (was O(positions × allAssets) per render).
+  const priceBySymbol = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of allAssets) map.set(a.symbol, a.price);
+    return map;
+  }, [allAssets]);
+
+  const totalPositionValue = useMemo(() => {
+    if (!positions?.length) return 0;
+    let sum = 0;
+    for (const p of positions) {
+      sum += p.quantity * (priceBySymbol.get(p.symbol) ?? p.entry_price);
+    }
+    return sum;
+  }, [positions, priceBySymbol]);
+
   const totalPortfolio = (profile?.balance ?? 0) + totalPositionValue;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

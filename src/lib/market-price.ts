@@ -26,23 +26,19 @@ function resolveAssetType(symbol: string, assetTypeHint?: string) {
   return "stock";
 }
 
-export async function fetchMarketPrice(
+/**
+ * Fetch the live underlying price from CoinGecko / Yahoo, **bypassing** any
+ * active admin override. This is what the simulation route calls every tick
+ * so the simulated price tracks the real market continuously instead of being
+ * anchored on a stale snapshot taken when the simulation was started.
+ */
+export async function fetchRealMarketPrice(
   symbol: string,
   assetTypeHint?: string
 ): Promise<number | null> {
   const sym = symbol.toUpperCase();
-
-  try {
-    const { getActiveOverrides } = await import("@/lib/price-overrides");
-    const { simulatePrice } = await import("@/lib/price-simulator");
-    const overrides = await getActiveOverrides();
-    if (overrides[sym] != null) {
-      const assetType = resolveAssetType(sym, assetTypeHint);
-      return simulatePrice(sym, overrides[sym], assetType);
-    }
-  } catch {
-    // override lookup failed — continue to real price
-  }
+  const _assetType = resolveAssetType(sym, assetTypeHint); // reserved for future per-asset routing
+  void _assetType;
 
   if (COINGECKO_IDS[sym]) {
     try {
@@ -66,4 +62,25 @@ export async function fetchMarketPrice(
   } catch {
     return null;
   }
+}
+
+export async function fetchMarketPrice(
+  symbol: string,
+  assetTypeHint?: string
+): Promise<number | null> {
+  const sym = symbol.toUpperCase();
+
+  try {
+    const { getActiveOverrides } = await import("@/lib/price-overrides");
+    const { simulatePrice } = await import("@/lib/price-simulator");
+    const overrides = await getActiveOverrides();
+    if (overrides[sym] != null) {
+      const assetType = resolveAssetType(sym, assetTypeHint);
+      return simulatePrice(sym, overrides[sym], assetType);
+    }
+  } catch {
+    // override lookup failed — continue to real price
+  }
+
+  return fetchRealMarketPrice(symbol, assetTypeHint);
 }

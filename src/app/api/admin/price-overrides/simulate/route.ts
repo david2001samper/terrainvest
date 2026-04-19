@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchRealMarketPrice } from "@/lib/market-price";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
@@ -15,7 +16,15 @@ async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return profile?.role === "admin" ? user : null;
 }
 
-const activeSimulations = new Map<string, NodeJS.Timeout[]>();
+/**
+ * Per-symbol handles for an active simulation.
+ * `interval` ticks the price; `cleanup` deletes the override at the end.
+ */
+type SimHandles = {
+  interval: NodeJS.Timeout;
+  cleanup: NodeJS.Timeout;
+};
+const activeSimulations = new Map<string, SimHandles>();
 
 async function upsertOverride(
   symbol: string,
@@ -36,125 +45,45 @@ async function upsertOverride(
 }
 
 /**
- * State-machine price path with realistic resistance patterns.
- *
- * Cycles through TREND → PULLBACK → HOLD phases. Pullback sizes are
- * proportional to the TOTAL price distance (not per-tick), making
- * resistance clearly visible. The price never crosses start or target.
- *
- * BTC 73,000 → 72,500 (60 ticks) example:
- *   73000 → 72920 → 72860 → 72900(↑pullback) → 72910(↑) →
- *   72840 → 72780 → 72780(hold) → 72720 → 72660 → 72700(↑) →
- *   72630 → 72580 → 72540 → 72500
+ * Cached "live" price per symbol so we don't hammer CoinGecko/Yahoo at 1Hz.
+ * The simulator refetches at most once every REAL_TTL_MS; between fetches
+ * it reuses the last value.
  */
-function generateNaturalPath(
-  startPrice: number,
-  targetPrice: number,
-  steps: number
-): number[] {
-  if (steps <= 0) return [];
-  if (steps === 1) return [targetPrice];
+const realPriceCache = new Map<string, { price: number; at: number }>();
+const REAL_TTL_MS = 5_000;
 
-  const totalDist = targetPrice - startPrice;
-  const absDist = Math.abs(totalDist);
-  const direction = totalDist > 0 ? 1 : -1;
+async function getCachedRealPrice(symbol: string): Promise<number | null> {
+  const cached = realPriceCache.get(symbol);
+  if (cached && Date.now() - cached.at < REAL_TTL_MS) return cached.price;
 
-  if (absDist < 0.0001) {
-    return Array.from({ length: steps }, () =>
-      startPrice + startPrice * 0.0001 * (Math.random() - 0.5)
-    );
+  try {
+    const live = await fetchRealMarketPrice(symbol);
+    if (live != null && live > 0) {
+      realPriceCache.set(symbol, { price: live, at: Date.now() });
+      return live;
+    }
+  } catch {
+    // network/yfinance failure — fall back to last cached value
   }
+  return cached?.price ?? null;
+}
 
-  const prices: number[] = [];
-  let current = startPrice;
+/**
+ * Smooth easing so the ramp doesn't feel mechanically linear.
+ * Cubic ease-in-out: slow start → fast middle → slow finish.
+ */
+function easeInOut(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
-  const pullbackMin = absDist * 0.06;
-  const pullbackMax = absDist * 0.16;
-
-  type Phase = "trend" | "pullback" | "hold";
-  let phase: Phase = "trend";
-  let phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
-  let currentPullbackSize = 0;
-
-  for (let i = 0; i < steps; i++) {
-    if (i === steps - 1) {
-      prices.push(targetPrice);
-      break;
-    }
-
-    const remaining = steps - i;
-    const distLeftAbs = Math.abs(targetPrice - current);
-    const avgStepMag = distLeftAbs / remaining;
-    const nearEnd = remaining <= Math.max(4, Math.ceil(steps * 0.12));
-
-    let move: number;
-
-    if (phase === "trend") {
-      const scale = nearEnd
-        ? 1.2 + Math.random() * 0.8
-        : 0.7 + Math.random() * 1.3;
-      move = direction * avgStepMag * scale;
-    } else if (phase === "pullback") {
-      const perTick = currentPullbackSize / Math.max(1, phaseTicksLeft + 1);
-      const jitter = perTick * (0.6 + Math.random() * 0.8);
-      move = -direction * jitter;
-    } else {
-      move = absDist * 0.001 * (Math.random() - 0.5);
-    }
-
-    current += move;
-
-    if (direction > 0) {
-      current = Math.min(current, targetPrice);
-      current = Math.max(current, startPrice - absDist * 0.01);
-    } else {
-      current = Math.max(current, targetPrice);
-      current = Math.min(current, startPrice + absDist * 0.01);
-    }
-
-    prices.push(current);
-
-    phaseTicksLeft--;
-    if (phaseTicksLeft <= 0) {
-      if (nearEnd) {
-        phase = "trend";
-        phaseTicksLeft = remaining;
-      } else {
-        const roll = Math.random();
-        switch (phase) {
-          case "trend":
-            if (roll < 0.28) {
-              phase = "pullback";
-              phaseTicksLeft = 1 + (Math.random() < 0.4 ? 1 : 0);
-              currentPullbackSize =
-                pullbackMin + Math.random() * (pullbackMax - pullbackMin);
-            } else if (roll < 0.40) {
-              phase = "hold";
-              phaseTicksLeft = 1;
-            } else {
-              phase = "trend";
-              phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
-            }
-            break;
-          case "pullback":
-            if (roll < 0.75) {
-              phase = "trend";
-              phaseTicksLeft = 2 + Math.floor(Math.random() * 3);
-            } else {
-              phase = "hold";
-              phaseTicksLeft = 1;
-            }
-            break;
-          case "hold":
-            phase = "trend";
-            phaseTicksLeft = 2 + Math.floor(Math.random() * 2);
-            break;
-        }
-      }
-    }
-  }
-
-  return prices;
+/**
+ * Tiny resistance/pullback wave so the trajectory reads as "natural" rather
+ * than as a perfect interpolation. Amplitude is proportional to remaining
+ * distance and fades as we approach the destination.
+ */
+function resistanceNoise(distance: number, progress: number): number {
+  const amp = Math.abs(distance) * 0.04 * (1 - progress);
+  return amp * Math.sin(progress * Math.PI * 4);
 }
 
 export async function POST(request: NextRequest) {
@@ -194,142 +123,119 @@ export async function POST(request: NextRequest) {
 
     const sym = symbol.toUpperCase();
 
-    // Get current price: use admin-provided start_price, or try fetching it
-    let currentPrice = start_price && start_price > 0 ? start_price : null;
+    // Anchor the simulation on the LATEST real market price. This is just
+    // the initial t=0 anchor for the response & UI; subsequent ticks always
+    // re-read the live price so the simulation tracks the market in real
+    // time (this is the whole point of the rewrite).
+    let initialReal: number | null =
+      start_price && start_price > 0 ? start_price : null;
+    if (!initialReal) initialReal = await getCachedRealPrice(sym);
 
-    if (!currentPrice) {
-      try {
-        const { fetchMarketPrice } = await import("@/lib/market-price");
-        currentPrice = await fetchMarketPrice(sym);
-      } catch { /* continue */ }
-    }
-
-    // Fallback: try CoinGecko directly
-    if (!currentPrice) {
-      try {
-        const cgIds: Record<string, string> = {
-          BTC: "bitcoin", ETH: "ethereum", SOL: "solana", XRP: "ripple",
-          ADA: "cardano", DOGE: "dogecoin", DOT: "polkadot", AVAX: "avalanche-2",
-          MATIC: "matic-network", LINK: "chainlink",
-        };
-        if (cgIds[sym]) {
-          const res = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds[sym]}&vs_currencies=usd`,
-            { cache: "no-store" }
-          );
-          if (res.ok) {
-            const d = await res.json();
-            currentPrice = d[cgIds[sym]]?.usd ?? null;
-          }
-        }
-      } catch { /* continue */ }
-    }
-
-    // Fallback: try Yahoo Finance directly
-    if (!currentPrice) {
-      try {
-        const { getYahooFinance } = await import("@/lib/yahoo");
-        const yf = await getYahooFinance();
-        const quote = await yf.quote(sym);
-        currentPrice = quote.regularMarketPrice ?? null;
-      } catch { /* continue */ }
-    }
-
-    if (!currentPrice || currentPrice <= 0) {
+    if (!initialReal || initialReal <= 0) {
       return NextResponse.json(
-        { error: "Cannot fetch current price for " + sym + ". Enter a start price manually." },
+        {
+          error:
+            "Cannot fetch current price for " +
+            sym +
+            ". Enter a start price manually.",
+        },
         { status: 400 }
       );
     }
 
-    // Cancel any existing simulation for this symbol
+    // Cancel any previous simulation for this symbol
     const existing = activeSimulations.get(sym);
     if (existing) {
-      existing.forEach(clearTimeout);
+      clearInterval(existing.interval);
+      clearTimeout(existing.cleanup);
       activeSimulations.delete(sym);
     }
 
     const TICK_INTERVAL_MS = 1000;
-    const rampTicks = Math.max(1, Math.round((rampSec * 1000) / TICK_INTERVAL_MS));
-    const holdTicks = Math.max(0, Math.round((holdSec * 1000) / TICK_INTERVAL_MS));
-    const recoveryTicks = Math.max(1, Math.round((recoverySec * 1000) / TICK_INTERVAL_MS));
+    const rampMs = rampSec * 1000;
+    const holdMs = holdSec * 1000;
+    const recoveryMs = recoverySec * 1000;
+    const totalDurationMs = rampMs + holdMs + recoveryMs;
+    const startedAt = Date.now();
+    const endTime = new Date(startedAt + totalDurationMs + 2_000);
 
-    const totalTicks = rampTicks + holdTicks + recoveryTicks;
-    const totalDurationMs = totalTicks * TICK_INTERVAL_MS;
-    const endTime = new Date(Date.now() + totalDurationMs + 2000);
+    // Track the most recent real price observed during the simulation.
+    // Re-fetched (cached) every tick so movements in the underlying market
+    // shift the ramp baseline AND the recovery destination.
+    let lastReal = initialReal;
 
-    // Phase 1: ramp from current price to target with resistance waves
-    const rampPrices = generateNaturalPath(currentPrice, target_price, rampTicks);
+    // Phase 1 frame at t=0: anchor the override at the live price so users
+    // don't see an immediate jump from real → start of ramp.
+    await upsertOverride(sym, lastReal, endTime, admin.id);
 
-    // Phase 2: hold near target with natural-looking oscillation
-    const holdPrices: number[] = [];
-    const holdRange = Math.abs(target_price - currentPrice) * 0.04;
-    let holdCurrent = rampPrices.length > 0
-      ? rampPrices[rampPrices.length - 1]
-      : target_price;
-    for (let i = 0; i < holdTicks; i++) {
-      const drift = (target_price - holdCurrent) * 0.15;
-      const noise = holdRange * (Math.random() - 0.5) * 0.6;
-      holdCurrent += drift + noise;
-      const minH = Math.min(target_price, currentPrice);
-      const maxH = Math.max(target_price, currentPrice);
-      const buffer = holdRange * 2;
-      holdCurrent = Math.max(minH - buffer, Math.min(maxH + buffer, holdCurrent));
-      holdPrices.push(holdCurrent);
-    }
+    const interval = setInterval(async () => {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= totalDurationMs) {
+        clearInterval(interval);
+        return;
+      }
 
-    // Phase 3: recover from target back to real price with resistance waves
-    const recoveryPrices = generateNaturalPath(
-      target_price,
-      currentPrice,
-      recoveryTicks
-    );
+      // Refresh the live anchor (cheap — TTL-cached).
+      const real = await getCachedRealPrice(sym);
+      if (real != null && real > 0) lastReal = real;
 
-    const allPrices = [...rampPrices, ...holdPrices, ...recoveryPrices];
+      let next: number;
 
-    const timers: NodeJS.Timeout[] = [];
+      if (elapsed < rampMs) {
+        // RAMP: anchored on the LATEST real price, not the original snapshot.
+        // If real BTC moves from 60k → 62k mid-ramp, the ramp baseline shifts
+        // to 62k and we interpolate 62k → target from there.
+        const progress = easeInOut(elapsed / rampMs);
+        const linear = lastReal + (target_price - lastReal) * progress;
+        next = linear + resistanceNoise(target_price - lastReal, progress);
+      } else if (elapsed < rampMs + holdMs) {
+        // HOLD: pin to target with tiny oscillation (admin asked for this
+        // price specifically; we don't track real here on purpose).
+        const oscillation =
+          target_price * 0.0008 * Math.sin(elapsed / 350);
+        next = target_price + oscillation;
+      } else {
+        // RECOVERY: blend back to the LATEST real price (not the original
+        // snapshot). When recovery completes the override == real, so when
+        // it expires there's no visible jump.
+        const recoveryElapsed = elapsed - rampMs - holdMs;
+        const progress = easeInOut(recoveryElapsed / recoveryMs);
+        const linear = target_price + (lastReal - target_price) * progress;
+        next = linear + resistanceNoise(lastReal - target_price, progress);
+      }
 
-    // Set the first price immediately
-    await upsertOverride(sym, allPrices[0], endTime, admin.id);
+      try {
+        await upsertOverride(sym, next, endTime, admin.id);
+      } catch (err) {
+        console.error(`Simulation tick failed for ${sym}:`, err);
+      }
+    }, TICK_INTERVAL_MS);
 
-    // Schedule each subsequent tick
-    for (let i = 1; i < allPrices.length; i++) {
-      const delayMs = i * TICK_INTERVAL_MS;
-      const p = allPrices[i];
-
-      const timer = setTimeout(async () => {
-        try {
-          await upsertOverride(sym, p, endTime, admin.id);
-        } catch (err) {
-          console.error(`Simulation tick ${i} failed for ${sym}:`, err);
-        }
-      }, delayMs);
-
-      timers.push(timer);
-    }
-
-    // Cleanup: remove override after everything finishes (let it expire naturally)
-    const cleanupTimer = setTimeout(async () => {
+    // Tear down: drop the override row a few seconds after completion so
+    // clients smoothly resume real prices.
+    const cleanup = setTimeout(async () => {
       activeSimulations.delete(sym);
+      clearInterval(interval);
       try {
         const svc = await createServiceClient();
         await svc.from("price_overrides").delete().eq("symbol", sym);
-      } catch { /* expire naturally */ }
-    }, totalDurationMs + 3000);
-    timers.push(cleanupTimer);
+      } catch {
+        // expire naturally via expires_at
+      }
+    }, totalDurationMs + 3_000);
 
-    activeSimulations.set(sym, timers);
+    activeSimulations.set(sym, { interval, cleanup });
 
     return NextResponse.json({
       success: true,
       symbol: sym,
-      start_price: Math.round(currentPrice * 100) / 100,
+      start_price: Math.round(initialReal * 100) / 100,
       target_price: Math.round(target_price * 100) / 100,
       ramp_seconds: rampSec,
       hold_seconds: holdSec,
       recovery_seconds: recoverySec,
-      total_ticks: allPrices.length,
       total_duration_seconds: Math.round(totalDurationMs / 1000),
+      tracks_real_price: true,
     });
   } catch (error) {
     console.error("Simulation error:", error);
@@ -351,15 +257,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "symbol required" }, { status: 400 });
     }
 
-    const timers = activeSimulations.get(symbol);
-    if (timers) {
-      timers.forEach(clearTimeout);
+    const handles = activeSimulations.get(symbol);
+    if (handles) {
+      clearInterval(handles.interval);
+      clearTimeout(handles.cleanup);
       activeSimulations.delete(symbol);
     }
 
     await supabase.from("price_overrides").delete().eq("symbol", symbol);
 
-    return NextResponse.json({ success: true, stopped: !!timers });
+    return NextResponse.json({ success: true, stopped: !!handles });
   } catch (error) {
     console.error("Stop simulation error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

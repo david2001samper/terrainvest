@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,15 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
-import {
   TrendingUp,
   TrendingDown,
   Activity,
@@ -29,6 +21,16 @@ import {
   CalendarDays,
   BarChart2,
 } from "lucide-react";
+
+// Recharts is ~90 KB gzipped — load it only when the user actually views
+// the cumulative-P&L chart, not on every page mount.
+const PnlCumulativeChart = dynamic(
+  () => import("@/components/pnl-cumulative-chart"),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+  }
+);
 
 interface DayPnl {
   date: string;
@@ -207,70 +209,11 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={data.dailyPnl}>
-                <defs>
-                  <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.38} />
-                    <stop offset="95%" stopColor={chartColor} stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(160,174,192,0.12)"
-                />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#94A3B8", fontSize: 11 }}
-                  tickFormatter={(v: string) => {
-                    const d = new Date(v);
-                    return d.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    });
-                  }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#94A3B8", fontSize: 11 }}
-                  tickFormatter={(v: number) =>
-                    `$${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`
-                  }
-                  width={60}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#151822",
-                    border: "1px solid rgba(160,174,192,0.25)",
-                    borderRadius: "8px",
-                    color: "#E2E8F0",
-                    fontSize: 13,
-                  }}
-                  formatter={(value) => [
-                    formatCurrency(Number(value ?? 0)),
-                    "Cumulative P&L",
-                  ]}
-                  labelFormatter={(label) =>
-                    new Date(String(label ?? "")).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="cumulative"
-                  stroke={chartColor}
-                  fill="url(#pnlGrad)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <PnlCumulativeChart
+              data={data.dailyPnl}
+              chartColor={chartColor}
+              formatCurrency={formatCurrency}
+            />
           </CardContent>
         </Card>
       )}

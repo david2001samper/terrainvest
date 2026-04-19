@@ -14,6 +14,11 @@ export function useWatchlist() {
       if (!res.ok) return [];
       return res.json();
     },
+    // Watchlist only changes when the user explicitly toggles an item
+    // (mutation invalidates the cache), so a long staleTime prevents an
+    // unnecessary refetch every time the user navigates back to a page
+    // that uses isWatched().
+    staleTime: 60_000,
   });
 
   const toggle = useMutation({

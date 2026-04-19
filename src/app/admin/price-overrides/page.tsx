@@ -59,7 +59,11 @@ export default function AdminPriceOverridesPage() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    refetchInterval: 3000,
+    // Fast polling only while a chain/sim is actively driving prices.
+    // Otherwise the list barely changes — refetch on focus + every 30 s is enough.
+    refetchInterval: chainRunning || simRunning ? 3000 : 30000,
+    refetchOnWindowFocus: true,
+    staleTime: 2000,
   });
 
   useEffect(() => {

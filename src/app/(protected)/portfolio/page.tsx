@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePositions } from "@/hooks/use-positions";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useProfile } from "@/hooks/use-profile";
@@ -84,44 +84,58 @@ export default function PortfolioPage() {
   });
   const queryClient = useQueryClient();
 
-  const enrichedPositions = positions?.map((pos) => {
-    const marketData = allAssets.find((a) => a.symbol === pos.symbol);
-    const currentPrice = marketData?.price || pos.entry_price;
-    const currentValue = pos.quantity * currentPrice;
-    const unrealizedPnl = (currentPrice - pos.entry_price) * pos.quantity;
-    const unrealizedPnlPercent =
-      pos.entry_price > 0 ? ((currentPrice - pos.entry_price) / pos.entry_price) * 100 : 0;
-    const assetType =
-      marketData?.asset_type ||
-      (pos as { asset_type?: string }).asset_type ||
-      "stock";
+  // Build a Map<symbol, asset> once instead of doing allAssets.find() per position.
+  const assetBySymbol = useMemo(() => {
+    const map = new Map<string, (typeof allAssets)[number]>();
+    for (const a of allAssets) map.set(a.symbol, a);
+    return map;
+  }, [allAssets]);
 
-    return {
-      ...pos,
-      currentPrice,
-      currentValue,
-      unrealizedPnl,
-      unrealizedPnlPercent,
-      assetType,
-      marketState: marketData?.marketState,
-      displayName: positionRowLabel(pos.symbol, assetType, marketData?.name),
-      coingeckoId: marketData?.coingecko_id,
-    };
-  }) || [];
+  const enrichedPositions = useMemo(() => {
+    if (!positions?.length) return [];
+    return positions.map((pos) => {
+      const marketData = assetBySymbol.get(pos.symbol);
+      const currentPrice = marketData?.price || pos.entry_price;
+      const currentValue = pos.quantity * currentPrice;
+      const unrealizedPnl = (currentPrice - pos.entry_price) * pos.quantity;
+      const unrealizedPnlPercent =
+        pos.entry_price > 0 ? ((currentPrice - pos.entry_price) / pos.entry_price) * 100 : 0;
+      const assetType =
+        marketData?.asset_type ||
+        (pos as { asset_type?: string }).asset_type ||
+        "stock";
 
-  const totalValue = enrichedPositions.reduce((sum, p) => sum + p.currentValue, 0);
-  const totalPnl = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
-  const totalInvested = enrichedPositions.reduce(
-    (sum, p) => sum + p.entry_price * p.quantity,
-    0
-  );
+      return {
+        ...pos,
+        currentPrice,
+        currentValue,
+        unrealizedPnl,
+        unrealizedPnlPercent,
+        assetType,
+        marketState: marketData?.marketState,
+        displayName: positionRowLabel(pos.symbol, assetType, marketData?.name),
+        coingeckoId: marketData?.coingecko_id,
+      };
+    });
+  }, [positions, assetBySymbol]);
+
+  // Single pass over enriched positions instead of three reduces.
+  const { totalValue, totalPnl, totalInvested } = useMemo(() => {
+    let value = 0, pnl = 0, invested = 0;
+    for (const p of enrichedPositions) {
+      value += p.currentValue;
+      pnl += p.unrealizedPnl;
+      invested += p.entry_price * p.quantity;
+    }
+    return { totalValue: value, totalPnl: pnl, totalInvested: invested };
+  }, [enrichedPositions]);
 
   // Live unrealized P&L across ALL asset classes (stocks/crypto + forex).
   // Passed to PnlAnalytics so the "Live Unrealized P&L" card reflects
   // current mark-to-market values using the same prices shown in Holdings.
-  const forexUnrealizedPnl = forexPositions.reduce(
-    (sum, fp) => sum + (fp.unrealized_pnl_usd ?? 0),
-    0
+  const forexUnrealizedPnl = useMemo(
+    () => forexPositions.reduce((sum, fp) => sum + (fp.unrealized_pnl_usd ?? 0), 0),
+    [forexPositions]
   );
   const liveUnrealizedPnl = totalPnl + forexUnrealizedPnl;
 

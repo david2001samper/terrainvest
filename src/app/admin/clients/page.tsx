@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,15 +70,15 @@ export default function AdminClientsPage() {
   const [editLocked, setEditLocked] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [infoClient, setInfoClient] = useState<Profile | null>(null);
-  type LoginEntry = { at: string; ip: string | null; ua: string | null };
-  type ActivityEntry = {
-    trade_count: number;
-    avg_trade_size: number;
-    last_login_at: string | null;
-    auth_last_sign_in_at: string | null;
-    recent_logins: LoginEntry[];
+  // Stats are now embedded in the /api/admin/clients response itself,
+  // so we no longer fan out N requests per page render. recent_logins is
+  // fetched lazily only when the user opens the detail dialog.
+  type ClientWithStats = Profile & {
+    auth_last_sign_in_at?: string | null;
+    trade_count?: number;
+    avg_trade_size?: number;
+    total_volume?: number;
   };
-  const [activityMap, setActivityMap] = useState<Record<string, ActivityEntry>>({});
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -91,36 +91,28 @@ export default function AdminClientsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!data?.clients?.length) return;
-    data.clients.forEach((c: Profile & { auth_last_sign_in_at?: string | null }) => {
-      fetch(`/api/admin/user-activity?userId=${c.id}`)
-        .then((r) => r.json())
-        .then((act) => {
-          // Pick the most recent login timestamp across all sources.
-          const candidates = [
-            act.last_login_at,
-            act.auth_last_sign_in_at,
-            c.auth_last_sign_in_at,
-          ].filter(Boolean) as string[];
-          const bestLogin = candidates.length
-            ? candidates.reduce((a, b) => (a > b ? a : b))
-            : null;
+  // Compute the best "last login" timestamp from data already on the client row.
+  // Auth's last_sign_in_at is always the most recent / canonical, but profiles.last_login_at
+  // is kept for backwards compatibility.
+  function bestLastLogin(c: ClientWithStats): string | null {
+    const candidates = [c.auth_last_sign_in_at, c.last_login_at].filter(Boolean) as string[];
+    return candidates.length ? candidates.reduce((a, b) => (a > b ? a : b)) : null;
+  }
 
-          setActivityMap((prev) => ({
-            ...prev,
-            [c.id]: {
-              trade_count: act.trade_count ?? 0,
-              avg_trade_size: act.avg_trade_size ?? 0,
-              last_login_at: bestLogin,
-              auth_last_sign_in_at: act.auth_last_sign_in_at ?? null,
-              recent_logins: act.recent_logins ?? [],
-            },
-          }));
-        })
-        .catch(() => {});
-    });
-  }, [data?.clients]);
+  // Recent login detail (with IP / UA) is only needed in the detail dialog,
+  // so we fetch it lazily when the dialog opens — not for every visible row.
+  type LoginEntry = { at: string; ip: string | null; ua: string | null };
+  const { data: infoActivity } = useQuery<{ recent_logins: LoginEntry[] } | null>({
+    queryKey: ["admin", "user-activity", infoClient?.id],
+    enabled: !!infoClient?.id,
+    queryFn: async () => {
+      if (!infoClient?.id) return null;
+      const res = await fetch(`/api/admin/user-activity?userId=${infoClient.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
 
   function openEdit(client: Profile) {
     setEditClient(client);
@@ -282,7 +274,7 @@ export default function AdminClientsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.clients?.map((client: Profile) => (
+                  {data?.clients?.map((client: ClientWithStats) => (
                     <TableRow key={client.id} className="border-border hover:bg-accent/30">
                       <TableCell>
                         <div>
@@ -325,36 +317,17 @@ export default function AdminClientsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {activityMap[client.id] ? (
-                          <div className="text-xs space-y-0.5">
-                            <p>{activityMap[client.id].trade_count} trades</p>
-                            <p>Avg: {formatCurrency(activityMap[client.id].avg_trade_size)}</p>
-                            <p className="font-medium text-foreground">
-                              Last login:{" "}
-                              {activityMap[client.id].last_login_at
-                                ? formatDate(activityMap[client.id].last_login_at as string)
-                                : "Never"}
-                            </p>
-                            {activityMap[client.id].recent_logins?.length > 0 && (
-                              <div className="mt-1 space-y-0.5">
-                                {activityMap[client.id].recent_logins
-                                  .slice(0, 3)
-                                  .map((entry, i) => (
-                                    <p key={i} className="text-[10px] text-muted-foreground">
-                                      {formatDate(entry.at)}
-                                      {entry.ip && (
-                                        <span className="ml-1 font-mono text-[#00D4FF]/70">
-                                          {entry.ip}
-                                        </span>
-                                      )}
-                                    </p>
-                                  ))}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Loading…</span>
-                        )}
+                        <div className="text-xs space-y-0.5">
+                          <p>{client.trade_count ?? 0} trades</p>
+                          <p>Avg: {formatCurrency(client.avg_trade_size ?? 0)}</p>
+                          <p className="font-medium text-foreground">
+                            Last login:{" "}
+                            {(() => {
+                              const ts = bestLastLogin(client);
+                              return ts ? formatDate(ts) : "Never";
+                            })()}
+                          </p>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(client.created_at)}
@@ -479,6 +452,23 @@ export default function AdminClientsPage() {
                   value={infoClient.avatar_url?.trim() ? infoClient.avatar_url : "—"}
                 />
               </div>
+              {infoActivity?.recent_logins && infoActivity.recent_logins.length > 0 && (
+                <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Recent logins
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    {infoActivity.recent_logins.slice(0, 10).map((entry, i) => (
+                      <div key={i} className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">{formatDate(entry.at)}</span>
+                        {entry.ip && (
+                          <span className="font-mono text-[#00D4FF]/70">{entry.ip}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Notifications

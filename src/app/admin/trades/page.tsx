@@ -44,14 +44,16 @@ export default function AdminTradesPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Profile | null>(null);
 
-  // Load all clients for the picker (same pattern as deposits)
+  // Load all clients for the picker. Same query key as the deposits page so
+  // both share one cached fetch instead of duplicating the request.
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
-    queryKey: ["admin", "clients", "trades-picker"],
+    queryKey: ["admin", "clients", "picker", 500],
     queryFn: async () => {
       const res = await fetch("/api/admin/clients?page=1&limit=500");
       if (!res.ok) throw new Error("Failed");
       return res.json() as Promise<{ clients: Profile[] }>;
     },
+    staleTime: 60_000,
   });
   const clients = clientsData?.clients ?? [];
 

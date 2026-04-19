@@ -33,12 +33,15 @@ export default function AdminDepositsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "clients", "deposits-picker"],
+    // Shared key with the trades page picker — both fetch the same list,
+    // so React Query dedupes and reuses the cached result.
+    queryKey: ["admin", "clients", "picker", 500],
     queryFn: async () => {
       const res = await fetch("/api/admin/clients?page=1&limit=500");
       if (!res.ok) throw new Error("Failed");
       return res.json() as Promise<{ clients: Profile[] }>;
     },
+    staleTime: 60_000,
   });
 
   const clients = data?.clients ?? [];
