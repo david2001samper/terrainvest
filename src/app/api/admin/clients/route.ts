@@ -36,8 +36,33 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Merge last_sign_in_at from Supabase Auth — this is always accurate since
+    // Auth updates it on every signInWithPassword call, regardless of RLS.
+    // We use the service client so we can call auth.admin.listUsers().
+    const authSignInMap: Record<string, string | null> = {};
+    try {
+      const service = await createServiceClient();
+      // Fetch up to 1000 auth users. For larger installs, paginate as needed.
+      const { data: authData } = await service.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+      for (const u of authData?.users ?? []) {
+        authSignInMap[u.id] = u.last_sign_in_at ?? null;
+      }
+    } catch {
+      // Non-fatal: fall back to profiles.last_login_at if auth fetch fails.
+    }
+
+    // Attach auth_last_sign_in_at to each profile. The UI picks the most
+    // recent of this and profiles.last_login_at.
+    const clients = (data ?? []).map((p) => ({
+      ...p,
+      auth_last_sign_in_at: authSignInMap[p.id] ?? null,
+    }));
+
     return NextResponse.json({
-      clients: data,
+      clients,
       total: count || 0,
       page,
       totalPages: Math.ceil((count || 0) / limit),

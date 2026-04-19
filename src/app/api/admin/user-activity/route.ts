@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,27 +24,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
 
-    const [profileRes, tradesRes, logsRes] = await Promise.all([
+    const service = await createServiceClient();
+
+    const [profileRes, tradesRes, logsRes, authUserRes] = await Promise.all([
       supabase.from("profiles").select("last_login_at").eq("id", userId).single(),
       supabase.from("trades").select("total, quantity, price").eq("user_id", userId),
       supabase
         .from("login_logs")
-        .select("created_at")
+        .select("created_at, ip, user_agent")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(10),
+      // Auth's last_sign_in_at is the definitive login timestamp — Supabase
+      // updates it on every signInWithPassword regardless of RLS.
+      service.auth.admin.getUserById(userId),
     ]);
 
-    const profile = profileRes.data;
-    const trades = tradesRes.data ?? [];
-    const logs = logsRes.data ?? [];
-    const tradeCount = trades.length;
-    const totalVolume = trades.reduce((s, t) => s + (t.total || 0), 0);
-    const avgTradeSize = tradeCount > 0 ? totalVolume / tradeCount : 0;
+    const profile  = profileRes.data;
+    const trades   = tradesRes.data ?? [];
+    const logs     = logsRes.data ?? [];
+    const authUser = authUserRes.data?.user ?? null;
+
+    const tradeCount    = trades.length;
+    const totalVolume   = trades.reduce((s, t) => s + (t.total || 0), 0);
+    const avgTradeSize  = tradeCount > 0 ? totalVolume / tradeCount : 0;
+
+    // Pick the most recent timestamp across all sources.
+    const candidates = [
+      authUser?.last_sign_in_at ?? null,
+      profile?.last_login_at ?? null,
+      logs[0]?.created_at ?? null,
+    ].filter(Boolean) as string[];
+    const bestLastLogin = candidates.length
+      ? candidates.reduce((a, b) => (a > b ? a : b))
+      : null;
 
     return NextResponse.json({
-      last_login_at: profile?.last_login_at ?? null,
-      recent_logins: logs.map((l: { created_at: string }) => l.created_at),
+      last_login_at: bestLastLogin,
+      auth_last_sign_in_at: authUser?.last_sign_in_at ?? null,
+      recent_logins: logs.map((l: { created_at: string; ip?: string | null; user_agent?: string | null }) => ({
+        at: l.created_at,
+        ip: l.ip ?? null,
+        ua: l.user_agent ?? null,
+      })),
       trade_count: tradeCount,
       total_volume: totalVolume,
       avg_trade_size: avgTradeSize,

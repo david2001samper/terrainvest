@@ -40,18 +40,8 @@ export default function LoginPage() {
         toast.error(error.message);
         return;
       }
-      const userId = authData.user?.id ?? "";
-      const now = new Date().toISOString();
-      await supabase.from("profiles").update({ last_login_at: now }).eq("id", userId);
-      try {
-        await supabase.from("login_logs").insert({
-          user_id: userId,
-          ip: null,
-          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-        });
-      } catch {
-        // non-fatal
-      }
+      // Record login server-side (real IP, service role — non-fatal if it fails).
+      fetch("/api/auth/record-login", { method: "POST" }).catch(() => {});
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")

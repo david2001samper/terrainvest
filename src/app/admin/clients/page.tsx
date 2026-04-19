@@ -70,7 +70,15 @@ export default function AdminClientsPage() {
   const [editLocked, setEditLocked] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [infoClient, setInfoClient] = useState<Profile | null>(null);
-  const [activityMap, setActivityMap] = useState<Record<string, { trade_count: number; avg_trade_size: number; last_login_at: string | null; recent_logins: string[] }>>({});
+  type LoginEntry = { at: string; ip: string | null; ua: string | null };
+  type ActivityEntry = {
+    trade_count: number;
+    avg_trade_size: number;
+    last_login_at: string | null;
+    auth_last_sign_in_at: string | null;
+    recent_logins: LoginEntry[];
+  };
+  const [activityMap, setActivityMap] = useState<Record<string, ActivityEntry>>({});
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -85,16 +93,27 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     if (!data?.clients?.length) return;
-    data.clients.forEach((c: Profile) => {
+    data.clients.forEach((c: Profile & { auth_last_sign_in_at?: string | null }) => {
       fetch(`/api/admin/user-activity?userId=${c.id}`)
         .then((r) => r.json())
         .then((act) => {
+          // Pick the most recent login timestamp across all sources.
+          const candidates = [
+            act.last_login_at,
+            act.auth_last_sign_in_at,
+            c.auth_last_sign_in_at,
+          ].filter(Boolean) as string[];
+          const bestLogin = candidates.length
+            ? candidates.reduce((a, b) => (a > b ? a : b))
+            : null;
+
           setActivityMap((prev) => ({
             ...prev,
             [c.id]: {
               trade_count: act.trade_count ?? 0,
               avg_trade_size: act.avg_trade_size ?? 0,
-              last_login_at: act.last_login_at ?? null,
+              last_login_at: bestLogin,
+              auth_last_sign_in_at: act.auth_last_sign_in_at ?? null,
               recent_logins: act.recent_logins ?? [],
             },
           }));
@@ -307,27 +326,34 @@ export default function AdminClientsPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {activityMap[client.id] ? (
-                          <div className="text-xs">
+                          <div className="text-xs space-y-0.5">
                             <p>{activityMap[client.id].trade_count} trades</p>
                             <p>Avg: {formatCurrency(activityMap[client.id].avg_trade_size)}</p>
-                            <p>
+                            <p className="font-medium text-foreground">
                               Last login:{" "}
                               {activityMap[client.id].last_login_at
                                 ? formatDate(activityMap[client.id].last_login_at as string)
-                                : "—"}
+                                : "Never"}
                             </p>
-                            {activityMap[client.id].recent_logins?.length > 1 && (
-                              <p className="mt-1 text-[11px] text-muted-foreground">
-                                Recent logins:{" "}
+                            {activityMap[client.id].recent_logins?.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
                                 {activityMap[client.id].recent_logins
                                   .slice(0, 3)
-                                  .map((d) => formatDate(d))
-                                  .join(", ")}
-                              </p>
+                                  .map((entry, i) => (
+                                    <p key={i} className="text-[10px] text-muted-foreground">
+                                      {formatDate(entry.at)}
+                                      {entry.ip && (
+                                        <span className="ml-1 font-mono text-[#00D4FF]/70">
+                                          {entry.ip}
+                                        </span>
+                                      )}
+                                    </p>
+                                  ))}
+                              </div>
                             )}
                           </div>
                         ) : (
-                          "—"
+                          <span className="text-xs text-muted-foreground">Loading…</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">

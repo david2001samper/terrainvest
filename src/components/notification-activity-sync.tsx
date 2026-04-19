@@ -98,6 +98,27 @@ function tabIsVisible(): boolean {
  * At session start (e.g. after login): unread backlog is shown once, then marked read — they stay in history, no repeat toasts later.
  * If the tab is hidden, delivery is deferred until the tab is visible.
  */
+/** Milliseconds between consecutive login recordings per browser tab. */
+const LOGIN_RECORD_THROTTLE_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Record the current session server-side, throttled per tab via sessionStorage.
+ * This fires whenever a user with a saved session loads the app (not just when
+ * they go through the login page), so last_login_at is always up-to-date.
+ */
+function maybeRecordLogin(userId: string) {
+  try {
+    const key = `login_recorded_${userId}`;
+    const last = Number(sessionStorage.getItem(key) ?? "0");
+    if (Date.now() - last < LOGIN_RECORD_THROTTLE_MS) return;
+    sessionStorage.setItem(key, String(Date.now()));
+    fetch("/api/auth/record-login", { method: "POST" }).catch(() => {});
+  } catch {
+    // sessionStorage may not be available (e.g. private browsing edge cases).
+    fetch("/api/auth/record-login", { method: "POST" }).catch(() => {});
+  }
+}
+
 export function NotificationActivitySync() {
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
@@ -135,6 +156,9 @@ export function NotificationActivitySync() {
     initialHandledRef.current = false;
     knownIdsRef.current = new Set();
     pendingLiveRef.current = [];
+    // Record login for users who bypass the login page (saved session).
+    // Throttled per tab so it doesn't fire on every page navigation.
+    maybeRecordLogin(userId);
   }, [userId]);
 
   const flushPendingLive = useCallback(async (uid: string) => {
