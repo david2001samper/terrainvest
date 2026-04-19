@@ -41,7 +41,10 @@ const COINGECKO_NAMES: Record<string, string> = {
 };
 
 let cachedRaw: { data: CoinGeckoMarketRow[]; timestamp: number } | null = null;
-const CACHE_TTL = 8000;
+// Must be shorter than the client poll interval (8 s in use-market-data.ts)
+// or every other request returns the same cached data and prices appear to
+// update half as often as expected.
+const CACHE_TTL = 4000;
 
 export async function GET() {
   try {

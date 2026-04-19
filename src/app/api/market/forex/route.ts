@@ -39,7 +39,10 @@ interface RawForex {
 }
 
 let cachedRaw: { data: RawForex[]; timestamp: number } | null = null;
-const CACHE_TTL = 10000;
+// Must be shorter than the client poll interval (12 s in use-market-data.ts)
+// or every other request returns the same cached data and prices appear to
+// update half as often as expected.
+const CACHE_TTL = 6000;
 
 export async function GET() {
   try {

@@ -45,7 +45,10 @@ interface RawQuote {
 }
 
 let cachedRaw: { data: RawQuote[]; timestamp: number } | null = null;
-const CACHE_TTL = 10000;
+// Must be shorter than the client poll interval (10 s in use-market-data.ts)
+// or every other request returns the same cached data and prices appear to
+// update half as often as expected.
+const CACHE_TTL = 5000;
 
 export async function GET() {
   try {
