@@ -84,10 +84,31 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
 
+      const BINANCE_PAIRS: Record<string, string> = {
+        BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT", XRP: "XRPUSDT",
+        ADA: "ADAUSDT", DOGE: "DOGEUSDT", DOT: "DOTUSDT", AVAX: "AVAXUSDT",
+        MATIC: "MATICUSDT", LINK: "LINKUSDT", BNB: "BNBUSDT", SHIB: "SHIBUSDT",
+      };
+      const symUp = (coin.symbol || symbol).toUpperCase();
+      let livePrice: number | null = null;
+      const bPair = BINANCE_PAIRS[symUp];
+      if (bPair) {
+        try {
+          const bRes = await fetch(
+            `https://api.binance.com/api/v3/ticker/price?symbol=${bPair}`,
+            { cache: "no-store" }
+          );
+          if (bRes.ok) {
+            const bData = await bRes.json();
+            livePrice = parseFloat(bData.price);
+          }
+        } catch { /* use CoinGecko price */ }
+      }
+
       asset = {
-        symbol: (coin.symbol || symbol).toUpperCase(),
+        symbol: symUp,
         name: coin.name || symbol,
-        price: coin.current_price ?? 0,
+        price: livePrice ?? coin.current_price ?? 0,
         change24h: coin.price_change_24h ?? 0,
         changePercent24h: coin.price_change_percentage_24h ?? 0,
         volume: coin.total_volume ?? 0,
