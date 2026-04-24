@@ -40,79 +40,29 @@ const COINGECKO_NAMES: Record<string, string> = {
   LINK: "Chainlink",
 };
 
-const BINANCE_PAIRS: Record<string, string> = {
-  BTC: "BTCUSDT",
-  ETH: "ETHUSDT",
-  SOL: "SOLUSDT",
-  XRP: "XRPUSDT",
-  ADA: "ADAUSDT",
-  DOGE: "DOGEUSDT",
-  DOT: "DOTUSDT",
-  AVAX: "AVAXUSDT",
-  MATIC: "MATICUSDT",
-  LINK: "LINKUSDT",
-};
-
-// CoinGecko base data (24h stats, market cap, etc.) — refreshes every 60s
-let cgCache: { data: CoinGeckoMarketRow[]; ts: number } | null = null;
-const CG_TTL = 60_000;
-
-// Binance live prices — refreshes every 4s
-let binanceCache: { prices: Record<string, number>; ts: number } | null = null;
-const BINANCE_TTL = 4_000;
-
-async function fetchCoinGeckoBase(): Promise<CoinGeckoMarketRow[]> {
-  if (cgCache && Date.now() - cgCache.ts < CG_TTL) return cgCache.data;
-
-  const ids = Object.values(COINGECKO_IDS).join(",");
-  const res = await fetch(
-    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
-    { headers: { Accept: "application/json" }, cache: "no-store" }
-  );
-
-  if (!res.ok) throw new Error(`CoinGecko API error: ${res.status}`);
-  const data = (await res.json()) as CoinGeckoMarketRow[];
-  cgCache = { data, ts: Date.now() };
-  return data;
-}
-
-async function fetchBinancePrices(): Promise<Record<string, number>> {
-  if (binanceCache && Date.now() - binanceCache.ts < BINANCE_TTL) {
-    return binanceCache.prices;
-  }
-
-  try {
-    const symbols = JSON.stringify(Object.values(BINANCE_PAIRS));
-    const res = await fetch(
-      `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(symbols)}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return binanceCache?.prices ?? {};
-
-    const tickers = (await res.json()) as { symbol: string; price: string }[];
-    const pairToSym = Object.entries(BINANCE_PAIRS).reduce(
-      (acc, [sym, pair]) => ({ ...acc, [pair]: sym }),
-      {} as Record<string, string>
-    );
-
-    const prices: Record<string, number> = {};
-    for (const t of tickers) {
-      const sym = pairToSym[t.symbol];
-      if (sym) prices[sym] = parseFloat(t.price);
-    }
-    binanceCache = { prices, ts: Date.now() };
-    return prices;
-  } catch {
-    return binanceCache?.prices ?? {};
-  }
-}
+let cachedRaw: { data: CoinGeckoMarketRow[]; timestamp: number } | null = null;
+const CACHE_TTL = 4000;
 
 export async function GET() {
   try {
-    const [rawData, livePrices] = await Promise.all([
-      fetchCoinGeckoBase(),
-      fetchBinancePrices(),
-    ]);
+    let rawData: CoinGeckoMarketRow[];
+
+    if (cachedRaw && Date.now() - cachedRaw.timestamp < CACHE_TTL) {
+      rawData = cachedRaw.data;
+    } else {
+      const ids = Object.values(COINGECKO_IDS).join(",");
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
+        {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        }
+      );
+
+      if (!res.ok) throw new Error(`CoinGecko API error: ${res.status}`);
+      rawData = (await res.json()) as CoinGeckoMarketRow[];
+      cachedRaw = { data: rawData, timestamp: Date.now() };
+    }
 
     const symbolMap = Object.entries(COINGECKO_IDS).reduce(
       (acc, [sym, id]) => ({ ...acc, [id]: sym }),
@@ -120,16 +70,11 @@ export async function GET() {
     );
 
     let data = rawData.map((coin) => {
-      const symbol =
-        symbolMap[coin.id as string] ||
-        (coin.symbol as string).toUpperCase();
-      const livePrice = livePrices[symbol];
-      const price = livePrice ?? coin.current_price;
-
+      const symbol = symbolMap[coin.id as string] || (coin.symbol as string).toUpperCase();
       return {
         symbol,
         name: COINGECKO_NAMES[symbol] || coin.name,
-        price,
+        price: coin.current_price,
         change24h: coin.price_change_24h,
         changePercent24h: coin.price_change_percentage_24h,
         volume: coin.total_volume,
@@ -148,20 +93,18 @@ export async function GET() {
       headers: {
         "Cache-Control": hasOverrides
           ? "no-store, no-cache, must-revalidate"
-          : "public, max-age=4",
+          : "public, max-age=6",
       },
     });
   } catch (error) {
     console.error("Crypto API error:", error);
-    if (cgCache) {
+    if (cachedRaw) {
       const symbolMap = Object.entries(COINGECKO_IDS).reduce(
         (acc, [sym, id]) => ({ ...acc, [id]: sym }),
         {} as Record<string, string>
       );
-      let data = cgCache.data.map((coin) => {
-        const symbol =
-          symbolMap[coin.id as string] ||
-          (coin.symbol as string).toUpperCase();
+      let data = cachedRaw.data.map((coin) => {
+        const symbol = symbolMap[coin.id as string] || (coin.symbol as string).toUpperCase();
         return {
           symbol,
           name: COINGECKO_NAMES[symbol] || coin.name,
