@@ -1,30 +1,43 @@
 /**
- * Price simulator for override-priced assets.
+ * Price simulator — Ornstein-Uhlenbeck process with momentum and
+ * volatility clustering.
  *
- * Directly tracks the override target price with tiny organic jitter
- * and smoothing. This ensures:
- *  - During simulation (fast-moving target): price follows the path tightly
- *  - During flat override: price oscillates gently around the target
+ * Creates realistic micro-trends (mini rallies/pullbacks) around the
+ * target price instead of pure random noise. Works correctly at any
+ * polling interval (1s, 8s, 30s) because all dynamics are dt-scaled.
  *
- * The displayed price = 70% (target + jitter) + 30% previous
- * This gives continuity between frames while tracking the target within
- * a few dollars even when it moves $10+/tick.
+ * When a simulation is running the target price already moves along
+ * the macro ramp/hold/recovery curve; this module adds the organic
+ * tick-level texture on top.
  */
 
 interface SymbolState {
   current: number;
   target: number;
+  velocity: number;
+  volState: number;
   lastTick: number;
 }
 
 const states = new Map<string, SymbolState>();
 
-const JITTER_SCALE: Record<string, number> = {
-  crypto: 0.00025,
-  stock: 0.00015,
-  commodity: 0.00018,
-  index: 0.00010,
-  forex: 0.00006,
+interface AssetDynamics {
+  /** Base volatility per √second as a fraction of price */
+  vol: number;
+  /** Mean-reversion strength (higher = snaps to target faster) */
+  reversion: number;
+  /** Velocity carry per second (0–1, higher = longer trends) */
+  momentum: number;
+  /** Max allowed drift from target as a fraction of price */
+  maxDrift: number;
+}
+
+const DYNAMICS: Record<string, AssetDynamics> = {
+  crypto:    { vol: 0.0010,  reversion: 0.06, momentum: 0.88, maxDrift: 0.018 },
+  stock:     { vol: 0.00050, reversion: 0.08, momentum: 0.85, maxDrift: 0.012 },
+  commodity: { vol: 0.00065, reversion: 0.07, momentum: 0.86, maxDrift: 0.014 },
+  index:     { vol: 0.00035, reversion: 0.10, momentum: 0.82, maxDrift: 0.008 },
+  forex:     { vol: 0.00020, reversion: 0.12, momentum: 0.80, maxDrift: 0.005 },
 };
 
 function boxMuller(): number {
@@ -41,29 +54,63 @@ export function simulatePrice(
   assetType: string
 ): number {
   const key = symbol.toUpperCase();
-  let state = states.get(key);
+  let s = states.get(key);
 
-  if (!state) {
-    state = { current: targetPrice, target: targetPrice, lastTick: Date.now() };
-    states.set(key, state);
+  if (!s) {
+    s = {
+      current: targetPrice,
+      target: targetPrice,
+      velocity: 0,
+      volState: 1,
+      lastTick: Date.now(),
+    };
+    states.set(key, s);
     return targetPrice;
   }
 
-  state.target = targetPrice;
-  state.lastTick = Date.now();
+  const cfg = DYNAMICS[assetType] || DYNAMICS.stock;
 
-  const scale = JITTER_SCALE[assetType] || JITTER_SCALE.stock;
-  const jitter = targetPrice * scale * boxMuller();
+  const elapsedSec = Math.min((Date.now() - s.lastTick) / 1000, 10);
+  s.lastTick = Date.now();
+  s.target = targetPrice;
 
-  const raw = targetPrice + jitter;
-  const newPrice = raw * 0.7 + state.current * 0.3;
+  // --- Volatility clustering (GARCH-like) ---
+  // volState drifts slowly between ~0.4 and ~1.6, creating calm/chaotic periods
+  const volImpulse = 0.4 + Math.abs(boxMuller()) * 0.6;
+  s.volState = s.volState * 0.93 + volImpulse * 0.07;
+  const vol = cfg.vol * s.volState;
 
-  state.current = Math.max(newPrice, 0.0001);
-  return state.current;
+  // --- Random shock (scaled by √dt for time consistency) ---
+  const shock = boxMuller() * vol * targetPrice * Math.sqrt(elapsedSec);
+
+  // --- Mean reversion (OU process) ---
+  const displacement = targetPrice - s.current;
+  const reversion = displacement * cfg.reversion * elapsedSec;
+
+  // --- Momentum with exponential decay ---
+  // Velocity carries forward, creating multi-tick trends
+  const decay = Math.pow(cfg.momentum, elapsedSec);
+  s.velocity = s.velocity * decay + shock;
+
+  // --- Price update ---
+  let newPrice = s.current + s.velocity + reversion;
+
+  // Soft clamp: don't drift beyond maxDrift from target
+  const maxOffset = targetPrice * cfg.maxDrift;
+  if (newPrice > targetPrice + maxOffset) {
+    newPrice = targetPrice + maxOffset - Math.random() * maxOffset * 0.1;
+    s.velocity *= -0.3;
+  } else if (newPrice < targetPrice - maxOffset) {
+    newPrice = targetPrice - maxOffset + Math.random() * maxOffset * 0.1;
+    s.velocity *= -0.3;
+  }
+
+  s.current = Math.max(newPrice, 0.0001);
+  return s.current;
 }
 
 /**
- * Generate synthetic OHLC candle by sampling simulatePrice 4 times.
+ * Generate synthetic OHLC candle by sampling simulatePrice multiple times.
  */
 export function simulateCandle(
   symbol: string,

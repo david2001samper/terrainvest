@@ -77,13 +77,29 @@ function easeInOut(t: number): number {
 }
 
 /**
- * Tiny resistance/pullback wave so the trajectory reads as "natural" rather
- * than as a perfect interpolation. Amplitude is proportional to remaining
- * distance and fades as we approach the destination.
+ * Stateful random-walk noise per symbol/phase that creates organic
+ * mini-trends and pullbacks on the ramp/recovery trajectory.
+ * The walk accumulates small steps (creating temporary trends) but
+ * mean-reverts so it doesn't drift too far from the eased curve.
  */
-function resistanceNoise(distance: number, progress: number): number {
-  const amp = Math.abs(distance) * 0.04 * (1 - progress);
-  return amp * Math.sin(progress * Math.PI * 4);
+const walkState = new Map<string, number>();
+
+function resistanceNoise(
+  symbol: string,
+  distance: number,
+  progress: number
+): number {
+  const key = `walk_${symbol}`;
+  let walk = walkState.get(key) ?? 0;
+
+  const step = (Math.random() - 0.5) * Math.abs(distance) * 0.025;
+  walk = walk * 0.90 + step;
+
+  const fade = 1 - progress * 0.85;
+  walk *= fade;
+
+  walkState.set(key, walk);
+  return walk;
 }
 
 export async function POST(request: NextRequest) {
@@ -187,7 +203,7 @@ export async function POST(request: NextRequest) {
         // to 62k and we interpolate 62k → target from there.
         const progress = easeInOut(elapsed / rampMs);
         const linear = lastReal + (target_price - lastReal) * progress;
-        next = linear + resistanceNoise(target_price - lastReal, progress);
+        next = linear + resistanceNoise(sym, target_price - lastReal, progress);
       } else if (elapsed < rampMs + holdMs) {
         // HOLD: pin to target with tiny oscillation (admin asked for this
         // price specifically; we don't track real here on purpose).
@@ -201,7 +217,7 @@ export async function POST(request: NextRequest) {
         const recoveryElapsed = elapsed - rampMs - holdMs;
         const progress = easeInOut(recoveryElapsed / recoveryMs);
         const linear = target_price + (lastReal - target_price) * progress;
-        next = linear + resistanceNoise(lastReal - target_price, progress);
+        next = linear + resistanceNoise(sym, lastReal - target_price, progress);
       }
 
       try {
@@ -215,6 +231,7 @@ export async function POST(request: NextRequest) {
     // clients smoothly resume real prices.
     const cleanup = setTimeout(async () => {
       activeSimulations.delete(sym);
+      walkState.delete(`walk_${sym}`);
       clearInterval(interval);
       try {
         const svc = await createServiceClient();
@@ -262,6 +279,7 @@ export async function DELETE(request: NextRequest) {
       clearInterval(handles.interval);
       clearTimeout(handles.cleanup);
       activeSimulations.delete(symbol);
+      walkState.delete(`walk_${symbol}`);
     }
 
     await supabase.from("price_overrides").delete().eq("symbol", symbol);

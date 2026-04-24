@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { getActiveOverrides } from "@/lib/price-overrides";
 import { simulatePrice } from "@/lib/price-simulator";
 
@@ -18,27 +17,7 @@ interface OrderBookData {
 
 const cache = new Map<string, { data: OrderBookData; ts: number }>();
 
-let cacheTtlMs = 6 * 1000;
-let lastSettingsFetch = 0;
-
-async function refreshCacheTtl() {
-  if (Date.now() - lastSettingsFetch < 60_000) return;
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "order_book_cache_minutes")
-      .single();
-    if (data?.value) {
-      const minutes = parseInt(data.value, 10);
-      if (minutes > 0) cacheTtlMs = minutes * 60 * 1000;
-    }
-  } catch {
-    /* keep default */
-  }
-  lastSettingsFetch = Date.now();
-}
+const CACHE_TTL_MS = 6_000;
 
 const BINANCE_SYMBOL_MAP: Record<string, string> = {
   BTC: "BTCUSDT",
@@ -192,30 +171,50 @@ function buildBookFromPrice(
   };
 }
 
-function jitterSize(size: number): number {
-  const factor = 0.85 + Math.random() * 0.3;
-  return Math.max(1, Math.round(size * factor));
-}
-
-function rebaseOrderBook(
-  book: OrderBookData,
-  simulatedMid: number
+function buildSimulatedBook(
+  midPrice: number,
+  assetType: string
 ): OrderBookData {
-  if (!book.midPrice || book.midPrice <= 0) return book;
-  const ratio = simulatedMid / book.midPrice;
+  const spreadPct =
+    assetType === "forex"
+      ? 0.00015 + Math.random() * 0.0001
+      : assetType === "crypto"
+      ? 0.0008 + Math.random() * 0.0004
+      : 0.0004 + Math.random() * 0.0002;
+
+  const halfSpread = midPrice * spreadPct * 0.5;
+  const bestBid = midPrice - halfSpread;
+  const bestAsk = midPrice + halfSpread;
+
+  const bids: OrderBookLevel[] = [];
+  const asks: OrderBookLevel[] = [];
+
+  let bidCursor = bestBid;
+  let askCursor = bestAsk;
+  const baseStep = halfSpread * (0.4 + Math.random() * 0.3);
+
+  for (let i = 0; i < 10; i++) {
+    const depth = 1 + i * 0.3;
+    const bidBase = (300 + Math.random() * 700) * depth;
+    const askBase = (300 + Math.random() * 700) * depth;
+
+    const bidWall = Math.random() < 0.1 ? 2.5 + Math.random() * 4 : 1;
+    const askWall = Math.random() < 0.1 ? 2.5 + Math.random() * 4 : 1;
+
+    bids.push({ price: bidCursor, size: Math.round(bidBase * bidWall) });
+    asks.push({ price: askCursor, size: Math.round(askBase * askWall) });
+
+    const stepJitter = 0.7 + Math.random() * 0.6;
+    bidCursor -= baseStep * stepJitter;
+    askCursor += baseStep * stepJitter;
+  }
 
   return {
-    bids: book.bids.map((l) => ({
-      price: l.price * ratio,
-      size: jitterSize(l.size),
-    })),
-    asks: book.asks.map((l) => ({
-      price: l.price * ratio,
-      size: jitterSize(l.size),
-    })),
-    midPrice: simulatedMid,
-    spread: book.spread * ratio,
-    source: book.source,
+    bids,
+    asks,
+    midPrice,
+    spread: bestAsk - bestBid,
+    source: "simulated",
   };
 }
 
@@ -228,17 +227,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Symbol required" }, { status: 400 });
   }
 
-  await refreshCacheTtl();
+  const overrides = await getActiveOverrides();
+  const overridePrice = overrides[symbol.toUpperCase()];
+
+  if (overridePrice != null) {
+    const simPrice = simulatePrice(symbol, overridePrice, assetType);
+    return NextResponse.json(buildSimulatedBook(simPrice, assetType));
+  }
 
   const cacheKey = `${symbol}:${assetType}`;
   const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < cacheTtlMs) {
-    const overrides = await getActiveOverrides();
-    const overridePrice = overrides[symbol.toUpperCase()];
-    if (overridePrice != null) {
-      const simPrice = simulatePrice(symbol, overridePrice, assetType);
-      return NextResponse.json(rebaseOrderBook(cached.data, simPrice));
-    }
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
     return NextResponse.json(cached.data);
   }
 
@@ -270,13 +269,5 @@ export async function GET(request: NextRequest) {
   }
 
   cache.set(cacheKey, { data: book, ts: Date.now() });
-
-  const overrides = await getActiveOverrides();
-  const overridePrice = overrides[symbol.toUpperCase()];
-  if (overridePrice != null) {
-    const simPrice = simulatePrice(symbol, overridePrice, assetType);
-    return NextResponse.json(rebaseOrderBook(book, simPrice));
-  }
-
   return NextResponse.json(book);
 }
