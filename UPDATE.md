@@ -56,6 +56,7 @@ If you set up the deploy script:
 
 ```bash
 ~/terrainvest/deploy.sh
+~/terrainvest/deploy.sh
 ```
 
 This runs: `git pull` → `npm install` → `npm run build` → `pm2 restart terrainvest`

@@ -18,7 +18,7 @@ interface OrderBookData {
 
 const cache = new Map<string, { data: OrderBookData; ts: number }>();
 
-let cacheTtlMs = 5 * 60 * 1000;
+let cacheTtlMs = 6 * 1000;
 let lastSettingsFetch = 0;
 
 async function refreshCacheTtl() {
@@ -192,6 +192,11 @@ function buildBookFromPrice(
   };
 }
 
+function jitterSize(size: number): number {
+  const factor = 0.85 + Math.random() * 0.3;
+  return Math.max(1, Math.round(size * factor));
+}
+
 function rebaseOrderBook(
   book: OrderBookData,
   simulatedMid: number
@@ -200,8 +205,14 @@ function rebaseOrderBook(
   const ratio = simulatedMid / book.midPrice;
 
   return {
-    bids: book.bids.map((l) => ({ price: l.price * ratio, size: l.size })),
-    asks: book.asks.map((l) => ({ price: l.price * ratio, size: l.size })),
+    bids: book.bids.map((l) => ({
+      price: l.price * ratio,
+      size: jitterSize(l.size),
+    })),
+    asks: book.asks.map((l) => ({
+      price: l.price * ratio,
+      size: jitterSize(l.size),
+    })),
     midPrice: simulatedMid,
     spread: book.spread * ratio,
     source: book.source,

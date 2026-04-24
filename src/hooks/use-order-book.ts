@@ -19,7 +19,7 @@ export function useOrderBook(
   symbol: string,
   assetType: string,
   enabled = true,
-  refetchIntervalMs = 5 * 60 * 1000
+  refetchIntervalMs = 8 * 1000
 ) {
   return useQuery<OrderBookData>({
     queryKey: ["orderbook", symbol, assetType],
@@ -31,6 +31,6 @@ export function useOrderBook(
     },
     enabled: !!symbol && enabled,
     refetchInterval: refetchIntervalMs,
-    staleTime: Math.max(0, refetchIntervalMs - 10_000),
+    staleTime: Math.max(0, refetchIntervalMs - 2_000),
   });
 }
