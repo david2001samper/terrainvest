@@ -8,8 +8,12 @@ import { midToBidAsk } from "@/lib/forex/pricing";
 import { convertToUSD } from "@/lib/forex/convert";
 import { computeSwapDeltaUsd } from "@/lib/forex/swap";
 
-const UNREALISTIC_THRESHOLD = 0.15;
-const SLIPPAGE_MAX = 0.003;
+// Maximum allowed gap between the price the user submitted (what was on
+// screen when they clicked) and the server's view of the market price.
+// Above this we assume the quote is stale or has been tampered with and
+// reject the order. 1% is generous enough for fast-moving sim ramps yet
+// still blocks anyone trying to push a $1 BTC trade through the API.
+const UNREALISTIC_THRESHOLD = 0.01;
 const DELAY_MIN_MS = 300;
 const DELAY_MAX_MS = 2000;
 
@@ -67,8 +71,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const slippage = 1 + (Math.random() * 2 - 1) * SLIPPAGE_MAX;
-    const execPrice = price * slippage;
+    // Execute at the price the user actually saw on screen when they clicked,
+    // not a fresh server-side re-poll. We've already validated above that
+    // userPrice is within UNREALISTIC_THRESHOLD of the current market price,
+    // so this can't be abused — but it eliminates the "I clicked $60,000 and
+    // got filled at $59,950" surprise. No synthetic slippage is applied:
+    // this is a simulated trading environment, not a live order book.
+    const execPrice = userPrice;
     const total = quantity * execPrice;
 
     await randomDelay();

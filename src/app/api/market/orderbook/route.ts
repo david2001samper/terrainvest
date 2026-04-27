@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getActiveOverrides } from "@/lib/price-overrides";
-import { simulatePrice } from "@/lib/price-simulator";
 
 interface OrderBookLevel {
   price: number;
@@ -231,8 +230,7 @@ export async function GET(request: NextRequest) {
   const overridePrice = overrides[symbol.toUpperCase()];
 
   if (overridePrice != null) {
-    const simPrice = simulatePrice(symbol, overridePrice, assetType);
-    return NextResponse.json(buildSimulatedBook(simPrice, assetType));
+    return NextResponse.json(buildSimulatedBook(overridePrice, assetType));
   }
 
   const cacheKey = `${symbol}:${assetType}`;

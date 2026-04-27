@@ -1,5 +1,4 @@
 import { fetchMarketPrice } from "@/lib/market-price";
-import { simulatePrice } from "@/lib/price-simulator";
 import { isMarketOpen, resolveAssetTypeFromSymbol } from "@/lib/market-hours";
 import {
   parseForexSymbol,
@@ -504,22 +503,23 @@ export async function processOpenOrders(
       continue;
     }
 
-    // When an admin price override is active we use the raw override value for
-    // the trigger comparison (no jitter). This is critical: simulatePrice adds
-    // Gaussian noise, so a limit buy set exactly at the override target can
-    // randomly come back $20 above it and fail the "marketPrice <= limit" check.
-    // We still apply simulatePrice for the fill so the fill price looks organic.
+    // When an admin price override is active we use the raw override value
+    // for both the trigger comparison AND the fill. Layering Gaussian noise
+    // on top (the previous behaviour) caused two bugs: a limit buy set
+    // exactly at the override target would randomly come back $20 above it
+    // and fail "marketPrice <= limit", and a triggered stop order would fill
+    // at a noticeably different price than its trigger. The simulation
+    // route's own ramp/hold/recovery curve is already the simulated price.
     const overrideRaw = overrides[order.symbol.toUpperCase()];
     const hasOverride =
       overrideRaw != null && Number.isFinite(overrideRaw) && overrideRaw > 0;
 
-    let triggerPrice: number; // deterministic — used in shouldTrigger
-    let fillBase: number;     // may carry jitter — used for the actual fill
+    let triggerPrice: number;
+    let fillBase: number;
 
     if (hasOverride) {
-      // No external API call needed when override is active.
       triggerPrice = overrideRaw;
-      fillBase     = simulatePrice(order.symbol, overrideRaw, assetType);
+      fillBase     = overrideRaw;
     } else {
       const rawPrice = await fetchMarketPrice(order.symbol, assetType);
       if (!rawPrice || rawPrice <= 0) {

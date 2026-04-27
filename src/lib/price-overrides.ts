@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { simulatePrice } from "@/lib/price-simulator";
 
 export async function getActiveOverrides(): Promise<Record<string, number>> {
   const supabase = await createClient();
@@ -28,8 +27,10 @@ export function applyOverrides<
   return items.map((item) => {
     const override = overrides[item.symbol?.toUpperCase()];
     if (override != null) {
-      const simulated = simulatePrice(item.symbol, override, item.asset_type);
-      return { ...item, price: simulated } as T;
+      // Use the override price directly. The admin simulation route is the
+      // single source of truth for the simulated curve; layering simulator
+      // noise here would re-introduce the random drift bug.
+      return { ...item, price: override } as T;
     }
     return item;
   });

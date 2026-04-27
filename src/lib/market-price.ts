@@ -70,13 +70,20 @@ export async function fetchMarketPrice(
 ): Promise<number | null> {
   const sym = symbol.toUpperCase();
 
+  // When an admin price override (price simulation) is active, the override
+  // value already IS the simulated price for this tick — the simulation route
+  // writes a fresh value every second along its ramp/hold/recovery curve.
+  // We deliberately do NOT layer additional Gaussian noise on top of it here:
+  // doing so was previously producing 1–2% phantom drift that made limit
+  // orders fail against their own target, made HOLD phase visibly wander,
+  // and caused trade executions to print prices noticeably different from
+  // what the user just saw on screen.
   try {
     const { getActiveOverrides } = await import("@/lib/price-overrides");
-    const { simulatePrice } = await import("@/lib/price-simulator");
     const overrides = await getActiveOverrides();
     if (overrides[sym] != null) {
-      const assetType = resolveAssetType(sym, assetTypeHint);
-      return simulatePrice(sym, overrides[sym], assetType);
+      void resolveAssetType(sym, assetTypeHint); // kept for future asset routing
+      return overrides[sym];
     }
   } catch {
     // override lookup failed — continue to real price
