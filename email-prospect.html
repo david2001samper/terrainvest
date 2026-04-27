@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Terra Invest VIP — Platform Overview for Lars Ake Andersson</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: #070810;
+      color: #e2e8f0;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    .email-wrapper {
+      max-width: 660px;
+      margin: 0 auto;
+      background-color: #070810;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(160deg, #0c0e1a 0%, #0a0c16 60%, #070810 100%);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+      padding: 36px 44px 30px;
+      text-align: center;
+    }
+
+    .logo-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 13px;
+      margin-bottom: 10px;
+    }
+
+    .logo-icon {
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(135deg, #00D4FF, #0EA5E9);
+      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+      color: #070810;
+      box-shadow: 0 0 22px rgba(0, 212, 255, 0.3);
+    }
+
+    .logo-text {
+      font-size: 19px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00D4FF 0%, #7DD3FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-eyebrow {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    /* ── Personal intro ── */
+    .intro {
+      background: linear-gradient(180deg, #0a0c16 0%, #070810 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding: 40px 44px 36px;
+    }
+
+    .intro-greeting {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .intro-greeting strong {
+      color: #00D4FF;
+      font-weight: 600;
+    }
+
+    .intro h1 {
+      font-size: 30px;
+      font-weight: 800;
+      color: #f1f5f9;
+      line-height: 1.25;
+      letter-spacing: -0.4px;
+      margin-bottom: 18px;
+    }
+
+    .intro h1 span {
+      background: linear-gradient(135deg, #00D4FF 0%, #7DD3FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .intro p {
+      font-size: 15px;
+      color: #94a3b8;
+      line-height: 1.75;
+    }
+
+    .intro p + p { margin-top: 12px; }
+
+    .am-card {
+      margin-top: 28px;
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.18);
+      border-radius: 12px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .am-avatar {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      background: linear-gradient(135deg, #00D4FF, #0EA5E9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: #070810;
+    }
+
+    .am-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 2px;
+    }
+
+    .am-title {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .am-badge {
+      margin-left: auto;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: #00D4FF;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.12), transparent);
+    }
+
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #00D4FF;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f1f5f9;
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .section-sub {
+      font-size: 14px;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+
+    /* ── How the service works ── */
+    .how-section {
+      padding: 44px 44px 36px;
+      background: #070810;
+    }
+
+    .step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .step-num {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      background: linear-gradient(135deg, #00D4FF 0%, #0EA5E9 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #070810;
+      box-shadow: 0 2px 10px rgba(0, 212, 255, 0.28);
+    }
+
+    .step-body {}
+
+    .step-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      font-size: 13.5px;
+      color: #64748b;
+      line-height: 1.65;
+    }
+
+    .step-desc strong {
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    /* ── Tier table ── */
+    .tiers-section {
+      padding: 44px 44px 36px;
+      background: linear-gradient(180deg, #0a0c16 0%, #070810 100%);
+    }
+
+    .tier-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .tier-table thead th {
+      background: rgba(0, 212, 255, 0.08);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+      color: #00D4FF;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .tier-table tbody td {
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: #94a3b8;
+      vertical-align: middle;
+    }
+
+    .tier-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tier-table tbody tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .tier-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      letter-spacing: 1px;
+    }
+
+    .tier-range {
+      font-size: 13px;
+      color: #e2e8f0;
+      font-weight: 500;
+    }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tier-badge-basic {
+      background: rgba(148, 163, 184, 0.1);
+      border: 1px solid rgba(148,163,184,0.2);
+      color: #94a3b8;
+    }
+
+    .tier-badge-standard {
+      background: rgba(0, 212, 255, 0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: #00D4FF;
+    }
+
+    .tier-badge-premium {
+      background: rgba(196,168,77,0.1);
+      border: 1px solid rgba(196,168,77,0.25);
+      color: #c4a84d;
+    }
+
+    .tier-badge-elite {
+      background: linear-gradient(135deg, rgba(196,168,77,0.15), rgba(255,215,0,0.1));
+      border: 1px solid rgba(196,168,77,0.35);
+      color: #f0c040;
+    }
+
+    .tier-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tier-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    /* ── Returns highlight ── */
+    .returns-section {
+      padding: 44px 44px 36px;
+      background: #070810;
+    }
+
+    .returns-card {
+      background: linear-gradient(135deg, rgba(0,212,255,0.06) 0%, rgba(14,165,233,0.04) 100%);
+      border: 1px solid rgba(0, 212, 255, 0.18);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .returns-range {
+      font-size: 52px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #00D4FF 0%, #7DD3FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 6px;
+      letter-spacing: -2px;
+    }
+
+    .returns-label {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+      margin-bottom: 18px;
+      letter-spacing: 0.5px;
+    }
+
+    .returns-desc {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.7;
+      max-width: 460px;
+      margin: 0 auto 20px;
+    }
+
+    .returns-disclaimer {
+      font-size: 11px;
+      color: #334155;
+      line-height: 1.6;
+    }
+
+    /* ── Signal anatomy ── */
+    .signal-section {
+      padding: 44px 44px 36px;
+      background: linear-gradient(180deg, #0a0c16 0%, #070810 100%);
+    }
+
+    .signal-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 24px 26px;
+    }
+
+    .signal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .signal-title-wrap {}
+
+    .signal-asset {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f1f5f9;
+    }
+
+    .signal-type {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .signal-buy {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: #4ade80;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .signal-params {
+      display: table;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .signal-param {
+      display: table-cell;
+      width: 25%;
+      padding: 0 4px;
+      text-align: center;
+    }
+
+    .param-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+
+    .param-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .param-value.entry { color: #00D4FF; }
+    .param-value.tp { color: #4ade80; }
+    .param-value.sl { color: #f87171; }
+    .param-value.size { color: #94a3b8; }
+
+    .signal-note {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #475569;
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* ── Platform features ── */
+    .features-section {
+      padding: 44px 44px 36px;
+      background: #070810;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 18px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .feature-dot {
+      width: 8px;
+      height: 8px;
+      min-width: 8px;
+      background: #00D4FF;
+      border-radius: 50%;
+      margin-top: 6px;
+      box-shadow: 0 0 8px rgba(0,212,255,0.5);
+    }
+
+    .feature-body {}
+
+    .feature-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 3px;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    /* ── Elite box ── */
+    .elite-section {
+      padding: 0 44px 44px;
+      background: #070810;
+    }
+
+    .elite-card {
+      background: linear-gradient(135deg, rgba(196,168,77,0.06) 0%, rgba(240,192,64,0.03) 100%);
+      border: 1px solid rgba(196,168,77,0.25);
+      border-radius: 14px;
+      padding: 28px 30px;
+    }
+
+    .elite-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .elite-icon {
+      font-size: 20px;
+    }
+
+    .elite-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f0c040;
+    }
+
+    .elite-sub {
+      font-size: 11px;
+      color: #8b7332;
+      font-weight: 500;
+    }
+
+    .elite-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .elite-list li {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(196,168,77,0.08);
+      padding-left: 18px;
+      position: relative;
+    }
+
+    .elite-list li:last-child { border-bottom: none; }
+
+    .elite-list li::before {
+      content: '◆';
+      position: absolute;
+      left: 0;
+      top: 7px;
+      font-size: 7px;
+      color: #c4a84d;
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      background: linear-gradient(135deg, #0c0e1a 0%, #0a0b14 100%);
+      border-top: 1px solid rgba(0, 212, 255, 0.1);
+      padding: 52px 44px;
+      text-align: center;
+    }
+
+    .cta-section h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .cta-section p {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #00D4FF 0%, #0EA5E9 100%);
+      color: #070810 !important;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 36px;
+      border-radius: 10px;
+      text-decoration: none;
+      letter-spacing: 0.2px;
+      box-shadow: 0 4px 22px rgba(0, 212, 255, 0.32);
+    }
+
+    .cta-secondary {
+      display: block;
+      color: #00D4FF !important;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 18px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: #040509;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      padding: 30px 44px;
+      text-align: center;
+    }
+
+    .footer p {
+      font-size: 11px;
+      color: #1e293b;
+      line-height: 1.9;
+    }
+
+    .footer a {
+      color: #334155;
+      text-decoration: none;
+    }
+
+    /* ── Responsive ── */
+    @media only screen and (max-width: 600px) {
+      .intro, .how-section, .tiers-section, .returns-section,
+      .signal-section, .features-section, .elite-section,
+      .cta-section, .footer, .header { padding-left: 22px !important; padding-right: 22px !important; }
+
+      .intro h1 { font-size: 24px !important; }
+      .returns-range { font-size: 40px !important; }
+      .am-card { flex-wrap: wrap; }
+      .am-badge { margin-left: 0; margin-top: 8px; }
+
+      .signal-params { display: block !important; }
+      .signal-param { display: block !important; width: 100% !important; padding: 8px 0 !important; border-bottom: 1px solid rgba(255,255,255,0.04); }
+
+      .tier-table { font-size: 11px; }
+      .tier-table thead th, .tier-table tbody td { padding: 8px 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="email-wrapper">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo-icon">TI</div>
+      <span class="logo-text">Terra Invest VIP</span>
+    </div>
+    <div class="header-eyebrow">Global Trading Services &amp; Advisory Platform · terrainvest.vip</div>
+  </div>
+
+  <!-- ═══ PERSONAL INTRO ═══ -->
+  <div class="intro">
+    <div class="intro-greeting">
+      Dear <strong>Valued Client</strong> &nbsp;—&nbsp; Thank you for your continued interest.
+    </div>
+    <h1>Your Private Trading<br /><span>Overview &amp; Service Guide</span></h1>
+    <p>
+      As requested, we've put together a full overview of the Terra Invest VIP platform and
+      the managed trading service you'll be accessing. This covers exactly how the service works,
+      what you can expect from our team, the account tiers, and what your onboarding looks like.
+    </p>
+    <p>
+      Your dedicated account manager will be your primary point of contact throughout —
+      please don't hesitate to reach out to us directly at any stage.
+    </p>
+
+    <div class="am-card">
+      <div class="am-avatar">TI</div>
+      <div>
+        <div class="am-name">Terra Invest VIP — Management Team</div>
+        <div class="am-title">Global Trading Services &amp; Advisory Platform</div>
+      </div>
+      <div class="am-badge">Your Team</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ HOW THE SERVICE WORKS ═══ -->
+  <div class="how-section">
+    <p class="section-label">The Service</p>
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">A fully managed trading experience — you stay in control.</p>
+
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Your Account is Funded &amp; Activated</div>
+        <div class="step-desc">
+          Once your account on the Terra Invest VIP platform is funded to the required
+          minimum threshold (<strong>USD $100,000 or equivalent</strong>), your account
+          is verified and the service commences immediately. You'll have full access
+          to the platform dashboard, live markets, and your portfolio.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">I Send You Daily Trade Signals</div>
+        <div class="step-desc">
+          Every Trading Day, your dedicated account manager will deliver your full set of trade signals directly
+          through the platform and our designated communication channel.
+          Each signal includes: <strong>asset, direction (Buy/Sell), entry price,
+          stop-loss level, take-profit target, and position size</strong> — everything
+          needed to execute confidently.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">You Execute on the Platform</div>
+        <div class="step-desc">
+          You retain full and unrestricted control over your account at all times.
+          You execute each trade directly on the Terra Invest VIP platform with a few
+          clicks. The platform shows your live positions, real-time P&amp;L, and closes
+          positions automatically at your targets.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Performance is Tracked &amp; Reported</div>
+        <div class="step-desc">
+          Your results are visible in real time on the platform — cumulative P&amp;L charts,
+          daily breakdowns, per-asset win rate, and full trade history.           Your account manager will also send
+          regular performance summaries and remain available throughout each
+          Trading Day for any questions.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ TRADE SIGNAL EXAMPLE ═══ -->
+  <div class="signal-section">
+    <p class="section-label">Trade Signals</p>
+    <h2 class="section-title">What a Signal Looks Like</h2>
+    <p class="section-sub">Every signal comes with all parameters — no guesswork required.</p>
+
+    <div class="signal-card">
+      <div class="signal-header">
+        <div class="signal-title-wrap">
+          <div class="signal-asset">EUR / USD</div>
+          <div class="signal-type">Forex · Signal #2 of 5 — Today</div>
+        </div>
+        <div class="signal-buy">BUY</div>
+      </div>
+
+      <div class="signal-params">
+        <div class="signal-param">
+          <div class="param-label">Entry</div>
+          <div class="param-value entry">1.0842</div>
+        </div>
+        <div class="signal-param">
+          <div class="param-label">Take Profit</div>
+          <div class="param-value tp">1.0920</div>
+        </div>
+        <div class="signal-param">
+          <div class="param-label">Stop Loss</div>
+          <div class="param-value sl">1.0800</div>
+        </div>
+        <div class="signal-param">
+          <div class="param-label">Size</div>
+          <div class="param-value size">2.5%</div>
+        </div>
+      </div>
+
+      <div class="signal-note">
+        Illustrative example — actual signals delivered daily via platform &amp; account manager
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ ACCOUNT TIERS ═══ -->
+  <div class="tiers-section">
+    <p class="section-label">Account Tiers</p>
+    <h2 class="section-title">Trades Per Day by Account Size</h2>
+    <p class="section-sub">Your daily trade allocation scales with your account. More capital, more opportunities.</p>
+
+    <table class="tier-table">
+      <thead>
+        <tr>
+          <th>Tier</th>
+          <th>Account Size (USD Equiv.)</th>
+          <th>Trades / Day</th>
+          <th>Classification</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tier-num">I</span></td>
+          <td><span class="tier-range">$100,000 — $249,999</span></td>
+          <td><span class="tier-badge tier-badge-basic">3 Trades</span></td>
+          <td><span class="tier-label">Basic</span></td>
+        </tr>
+        <tr>
+          <td><span class="tier-num">II</span></td>
+          <td><span class="tier-range">$250,000 — $749,999</span></td>
+          <td><span class="tier-badge tier-badge-standard">5 Trades</span></td>
+          <td><span class="tier-label">Standard</span></td>
+        </tr>
+        <tr>
+          <td><span class="tier-num">III</span></td>
+          <td><span class="tier-range">$750,000 — $1,999,999</span></td>
+          <td><span class="tier-badge tier-badge-premium">7 Trades</span></td>
+          <td><span class="tier-label">Premium</span></td>
+        </tr>
+        <tr>
+          <td><span class="tier-num">IV</span></td>
+          <td><span class="tier-range">$2,000,000 +</span></td>
+          <td><span class="tier-badge tier-badge-elite">Custom</span></td>
+          <td><span class="tier-label">Elite</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tier-note">
+      Unused trade signals do not carry over to the following day. Each Trading Day begins fresh.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ RETURNS ═══ -->
+  <div class="returns-section">
+    <p class="section-label">Performance</p>
+    <h2 class="section-title">Historical Daily Returns</h2>
+    <p class="section-sub">Based on the Company's audited trading performance.</p>
+
+    <div class="returns-card">
+      <div class="returns-range">1% — 3%</div>
+      <div class="returns-label">Average Return Per Trading Day</div>
+      <div class="returns-desc">
+        Based on aggregate performance across all managed accounts on the platform,
+        our strategies have historically generated between 1% and 3% per trading day —
+        calculated across varying market conditions, asset classes, and account tiers.
+        Realised returns are reflected in your account balance upon trade closure.
+      </div>
+      <div class="returns-disclaimer">
+        Past performance is not a guarantee of future results. Trading involves risk.
+        Returns are not guaranteed and may vary based on market conditions.
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ PLATFORM FEATURES ═══ -->
+  <div class="features-section">
+    <p class="section-label">The Platform</p>
+    <h2 class="section-title">Built for Serious Investors</h2>
+    <p class="section-sub">Everything you need, in one private dashboard.</p>
+
+    <div class="feature-item">
+      <div class="feature-dot"></div>
+      <div class="feature-body">
+        <div class="feature-title">Live Portfolio &amp; Real-Time P&amp;L</div>
+        <div class="feature-desc">Your open positions, unrealized gains, and realized profit track live. No delays — your account reflects every move as it happens, with a full cumulative P&amp;L curve and daily performance breakdown.</div>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-dot"></div>
+      <div class="feature-body">
+        <div class="feature-title">All Asset Classes — One Platform</div>
+        <div class="feature-desc">Trade Forex, cryptocurrencies, equities, commodities, and major global indexes from a single account. Market data refreshes every 8 seconds, powered by live institutional feeds.</div>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-dot"></div>
+      <div class="feature-body">
+        <div class="feature-title">Professional Candlestick &amp; Depth Charts</div>
+        <div class="feature-desc">TradingView-powered OHLC charts, Level 2 order book depth (bid/ask staircase), and a market heatmap showing 24h % moves across all assets — giving you full market context alongside each signal.</div>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-dot"></div>
+      <div class="feature-body">
+        <div class="feature-title">Deposits, Withdrawals &amp; Full Transparency</div>
+        <div class="feature-desc">Manage your capital directly through the platform. Deposit and withdrawal requests are processed through the platform's secure interface, with complete transaction history always available.</div>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-dot"></div>
+      <div class="feature-body">
+        <div class="feature-title">Bank-Grade Security</div>
+        <div class="feature-desc">Row-level security, enterprise encryption, login history, and full authentication controls. Only you can access your account, and every action is logged.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ ELITE TIER ═══ -->
+  <div class="elite-section" style="padding-top: 44px;">
+    <p class="section-label">Elite Tier</p>
+    <h2 class="section-title">Accounts Above $2,000,000 USD</h2>
+    <p class="section-sub">Clients at this level receive a significantly elevated service.</p>
+
+    <div class="elite-card">
+      <div class="elite-header">
+        <div class="elite-icon">★</div>
+        <div>
+          <div class="elite-title">Elite Tier Privileges</div>
+          <div class="elite-sub">Accounts exceeding $2,000,000 USD equivalent</div>
+        </div>
+      </div>
+      <ul class="elite-list">
+        <li>Custom trade allocation exceeding 7 per day — determined with the senior portfolio management team</li>
+        <li>Priority access to proprietary research, intelligence reports, and pre-market analysis briefings</li>
+        <li>Direct access to the Chief Investment Strategist</li>
+        <li>Expedited signal delivery through secure priority communication channels</li>
+        <li>Quarterly portfolio review sessions with the Chief Investment Strategist or senior representative</li>
+        <li>Negotiable fee structures and performance-based arrangements, subject to separate agreement</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══ FINAL CTA ═══ -->
+  <div class="cta-section">
+    <h2>Ready to Get Started?</h2>
+    <p>
+      Your account can be activated as soon as funding is confirmed. Our team is available
+      to walk you through the platform personally and answer any remaining questions
+      before you begin.
+    </p>
+    <a href="https://terrainvest.vip/auth/signup" class="cta-btn">Access the Platform →</a>
+    <a href="mailto:management@terrainvest.vip" class="cta-secondary">Get in touch → management@terrainvest.vip</a>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <div class="footer">
+    <p style="margin-bottom: 8px; color: #334155;">
+      <strong>Terra Invest VIP</strong>
+      &nbsp;·&nbsp; terrainvest.vip
+      &nbsp;·&nbsp; management@terrainvest.vip
+    </p>
+    <p>
+      This communication contains confidential information intended for the named recipient only.
+      If received in error, please disregard and notify us immediately.<br />
+      © 2026 Terra Invest VIP. All rights reserved.
+    </p>
+    <p style="margin-top: 10px;">
+      <a href="#">Unsubscribe</a>
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -11,6 +11,14 @@ const COINGECKO_IDS: Record<string, string> = {
   LINK: "chainlink",
 };
 
+const cryptoPriceCache: Record<string, { price: number; ts: number }> = {};
+const CRYPTO_CACHE_TTL = 8_000;
+const CRYPTO_STALE_TTL = 60_000;
+
+export function updateCryptoPriceCache(symbol: string, price: number) {
+  cryptoPriceCache[symbol.toUpperCase()] = { price, ts: Date.now() };
+}
+
 function resolveAssetType(symbol: string, assetTypeHint?: string) {
   if (
     assetTypeHint &&
@@ -37,20 +45,36 @@ export async function fetchRealMarketPrice(
   assetTypeHint?: string
 ): Promise<number | null> {
   const sym = symbol.toUpperCase();
-  const _assetType = resolveAssetType(sym, assetTypeHint); // reserved for future per-asset routing
+  const _assetType = resolveAssetType(sym, assetTypeHint);
   void _assetType;
 
   if (COINGECKO_IDS[sym]) {
+    const cached = cryptoPriceCache[sym];
+    if (cached && Date.now() - cached.ts < CRYPTO_CACHE_TTL) {
+      return cached.price;
+    }
+
+    const stalePrice = cached && Date.now() - cached.ts < CRYPTO_STALE_TTL
+      ? cached.price
+      : null;
+
     try {
       const res = await fetch(
         `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS[sym]}&vs_currencies=usd`,
         { cache: "no-store" }
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        return stalePrice;
+      }
       const data = await res.json();
-      return data[COINGECKO_IDS[sym]]?.usd ?? null;
+      const price: number | undefined = data[COINGECKO_IDS[sym]]?.usd;
+      if (price != null) {
+        cryptoPriceCache[sym] = { price, ts: Date.now() };
+        return price;
+      }
+      return stalePrice;
     } catch {
-      return null;
+      return stalePrice;
     }
   }
 

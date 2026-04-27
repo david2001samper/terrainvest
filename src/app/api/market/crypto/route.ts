@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActiveOverrides, applyOverrides } from "@/lib/price-overrides";
+import { updateCryptoPriceCache } from "@/lib/market-price";
 
 type CoinGeckoMarketRow = {
   id: string;
@@ -71,6 +72,9 @@ export async function GET() {
 
     let data = rawData.map((coin) => {
       const symbol = symbolMap[coin.id as string] || (coin.symbol as string).toUpperCase();
+      if (coin.current_price != null) {
+        updateCryptoPriceCache(symbol, coin.current_price);
+      }
       return {
         symbol,
         name: COINGECKO_NAMES[symbol] || coin.name,
