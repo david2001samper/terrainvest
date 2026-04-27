@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useInView } from "@/hooks/use-in-view";
@@ -130,15 +131,14 @@ export function AssetLogo({
   const showRemote = logoUrl && !imgError;
 
   const inner = showRemote ? (
-    <img
+    <Image
       src={logoUrl}
       alt={symbol}
       width={size}
       height={size}
       className={`rounded-full object-cover ${className}`}
       onError={() => setImgError(true)}
-      loading="lazy"
-      decoding="async"
+      unoptimized
     />
   ) : (
     <div

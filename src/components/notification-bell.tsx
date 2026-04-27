@@ -32,7 +32,7 @@ export function NotificationBell() {
     queryKey: ["notifications", userId],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Failed to load notifications");
       return res.json();
     },
     enabled: Boolean(userId),
@@ -104,7 +104,14 @@ export function NotificationBell() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-accent/50">
+      <PopoverTrigger
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-accent/50"
+        aria-label={
+          unreadCount > 0
+            ? `Open notifications, ${unreadCount} unread`
+            : "Open notifications"
+        }
+      >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
@@ -173,6 +180,7 @@ export function NotificationBell() {
                     size="sm"
                     className="h-9 w-9 p-0 shrink-0 text-muted-foreground hover:text-foreground"
                     onClick={() => markRead(n.id)}
+                    aria-label={`Mark "${n.title}" as read`}
                   >
                     <Check className="w-4 h-4" />
                   </Button>

@@ -125,8 +125,8 @@ export default function OptionsChainPage() {
     [chainData]
   );
 
-  const calls = chainData?.calls ?? [];
-  const puts = chainData?.puts ?? [];
+  const calls = useMemo(() => chainData?.calls ?? [], [chainData]);
+  const puts = useMemo(() => chainData?.puts ?? [], [chainData]);
   const underlyingPrice = chainData?.underlyingPrice ?? 0;
 
   const allStrikes = useMemo(() => {

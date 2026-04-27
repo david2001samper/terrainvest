@@ -332,7 +332,7 @@ export default function SettingsPage() {
                 type="button"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 onClick={() => setShowPwd((v) => !v)}
-                tabIndex={-1}
+                aria-label={showPwd ? "Hide password" : "Show password"}
               >
                 {showPwd ? (
                   <EyeOff className="w-4 h-4" />

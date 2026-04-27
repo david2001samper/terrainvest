@@ -45,6 +45,16 @@ export async function POST(request: NextRequest) {
     const newBalance = prev + amount;
     const serviceClient = await createServiceClient();
 
+    const { error: updateErr } = await serviceClient
+      .from("profiles")
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+
+    if (updateErr) {
+      console.error("Deposit balance update:", updateErr);
+      return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
+    }
+
     if (profile.notify_deposit !== false) {
       const { error: notifErr } = await serviceClient.from("notifications").insert({
         user_id: userId,
@@ -55,16 +65,6 @@ export async function POST(request: NextRequest) {
       if (notifErr) {
         console.error("Deposit notification insert:", notifErr);
       }
-    }
-
-    const { error: updateErr } = await serviceClient
-      .from("profiles")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("id", userId);
-
-    if (updateErr) {
-      console.error("Deposit balance update:", updateErr);
-      return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
     }
 
     return NextResponse.json({

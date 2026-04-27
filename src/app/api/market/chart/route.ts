@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
       interval: interval,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = (chart.quotes || [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((q: any) => ({

@@ -167,6 +167,14 @@ export function TradePanel({
       toast.error("Enter a valid quantity");
       return;
     }
+    if (showLimitInput && limitPriceVal == null) {
+      toast.error("Enter a limit price greater than 0");
+      return;
+    }
+    if (showStopInput && stopPriceVal == null) {
+      toast.error("Enter a stop price greater than 0");
+      return;
+    }
     if (!checkPermission()) return;
     if (!checkMarketHours()) return;
     if (orderType === "market") {
@@ -250,8 +258,16 @@ export function TradePanel({
   const showLimitInput = orderType === "limit" || orderType === "stop-limit";
   const showStopInput = orderType === "stop" || orderType === "stop-limit";
 
-  const limitPriceVal = showLimitInput ? (parseFloat(limitPrice) || execPrice) : null;
-  const stopPriceVal = showStopInput ? (parseFloat(stopPrice) || execPrice) : null;
+  const parsedLimitPrice = parseFloat(limitPrice);
+  const parsedStopPrice = parseFloat(stopPrice);
+  const limitPriceVal =
+    showLimitInput && Number.isFinite(parsedLimitPrice) && parsedLimitPrice > 0
+      ? parsedLimitPrice
+      : null;
+  const stopPriceVal =
+    showStopInput && Number.isFinite(parsedStopPrice) && parsedStopPrice > 0
+      ? parsedStopPrice
+      : null;
 
   return (
     <>

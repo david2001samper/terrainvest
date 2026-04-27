@@ -133,6 +133,7 @@ export default function MarketsPage() {
         <div className="flex p-0.5 rounded-md bg-background/60 border border-border">
           <button
             onClick={() => setViewMode("list")}
+            aria-pressed={viewMode === "list"}
             className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all ${
               viewMode === "list"
                 ? "bg-[#00D4FF]/15 text-[#00D4FF]"
@@ -143,6 +144,7 @@ export default function MarketsPage() {
           </button>
           <button
             onClick={() => setViewMode("heatmap")}
+            aria-pressed={viewMode === "heatmap"}
             className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all flex items-center gap-1 ${
               viewMode === "heatmap"
                 ? "bg-[#00D4FF]/15 text-[#00D4FF]"
@@ -289,6 +291,7 @@ function AssetCard({
               }`
         }
         className="absolute inset-0 z-10"
+        aria-label={`Open ${cardTitle}`}
       />
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -314,6 +317,8 @@ function AssetCard({
             onToggleWatch();
           }}
           className="relative z-20 p-1 hover:scale-110 transition-transform"
+          aria-label={`${isWatched ? "Remove" : "Add"} ${cardTitle} ${isWatched ? "from" : "to"} watchlist`}
+          aria-pressed={isWatched}
         >
           <Heart
             className={`w-4 h-4 transition-colors ${

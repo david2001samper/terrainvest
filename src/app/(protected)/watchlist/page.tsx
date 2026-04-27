@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/price-chart";
 import { AssetLogo } from "@/components/asset-logo";
 import { PriceFlash } from "@/components/price-flash";
-import { LastUpdated } from "@/components/last-updated";
 import {
   Heart,
   ArrowUpRight,

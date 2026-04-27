@@ -17,16 +17,18 @@ export async function GET() {
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("id, email, role, created_at, updated_at")
+      .select("role")
       .eq("id", user.id)
       .single();
 
+    if (profile?.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json({
-      logged_in_as: user.email,
-      user_id: user.id,
-      profile_from_rls: profile,
+      authenticated: true,
+      role: profile.role,
       profile_error: error?.message || null,
-      is_admin_account: user.email === "admin@terrainvestvip.com",
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

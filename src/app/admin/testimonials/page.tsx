@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,8 +23,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Video,
-  Image,
 } from "lucide-react";
 
 interface ClientTestimonial {
@@ -268,10 +267,13 @@ export default function AdminTestimonialsPage() {
                       key={t.id}
                       className="flex items-center gap-4 p-4 rounded-lg bg-background/50 border border-border"
                     >
-                      <img
+                      <Image
                         src={t.headshot_url}
-                        alt=""
+                        alt={t.attribution}
+                        width={48}
+                        height={48}
                         className="w-12 h-12 rounded-full object-cover"
+                        unoptimized
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">&ldquo;{t.quote}&rdquo;</p>

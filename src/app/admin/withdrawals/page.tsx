@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowUpCircle, Check, X, Loader2 } from "lucide-react";
+import { ArrowUpCircle, Check, X } from "lucide-react";
 
 export default function AdminWithdrawalsPage() {
   const queryClient = useQueryClient();

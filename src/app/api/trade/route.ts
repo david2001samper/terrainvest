@@ -55,7 +55,14 @@ export async function POST(request: NextRequest) {
     ]);
 
     const fee = parseFloat(feeRow?.data?.value ?? "0.10");
-    const price = marketPrice ?? userPrice;
+    if (marketPrice == null || marketPrice <= 0) {
+      return NextResponse.json(
+        { error: "Live market price is unavailable. Please try again." },
+        { status: 503 }
+      );
+    }
+
+    const price = marketPrice;
 
     if (marketPrice != null) {
       const priceDiff = Math.abs(userPrice - price) / (price || 1);
@@ -132,6 +139,19 @@ export async function POST(request: NextRequest) {
         { error: "Insufficient balance" },
         { status: 400 }
       );
+    }
+
+    const profileBalanceBeforeTrade = profile.balance;
+    const userId = user.id;
+
+    async function restoreProfileBalance(context: string) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ balance: profileBalanceBeforeTrade })
+        .eq("id", userId);
+      if (error) {
+        console.error(`Balance rollback failed after ${context}:`, error);
+      }
     }
 
     let tradePnl = 0;
@@ -238,6 +258,7 @@ export async function POST(request: NextRequest) {
             .delete()
             .eq("id", existing.id);
           if (deleteFxErr) {
+            await restoreProfileBalance("forex position delete");
             return NextResponse.json({ error: deleteFxErr.message }, { status: 500 });
           }
         }
@@ -262,6 +283,7 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", existing.id);
         if (updateFxErr) {
+          await restoreProfileBalance("forex position update");
           return NextResponse.json({ error: updateFxErr.message }, { status: 500 });
         }
       } else {
@@ -283,6 +305,7 @@ export async function POST(request: NextRequest) {
           last_swap_at: swap.newLastSwapAt,
         });
         if (insertFxErr) {
+          await restoreProfileBalance("forex position insert");
           return NextResponse.json({ error: insertFxErr.message }, { status: 500 });
         }
       }
@@ -294,6 +317,7 @@ export async function POST(request: NextRequest) {
           .eq("id", user.id)
           .single();
         if (fxProfErr) {
+          await restoreProfileBalance("forex P&L lookup");
           return NextResponse.json({ error: fxProfErr.message }, { status: 500 });
         }
         if (fxProf) {
@@ -302,6 +326,7 @@ export async function POST(request: NextRequest) {
             .update({ total_pnl: fxProf.total_pnl + next.realizedPnlUsd })
             .eq("id", user.id);
           if (updateFxPnlErr) {
+            await restoreProfileBalance("forex P&L update");
             return NextResponse.json({ error: updateFxPnlErr.message }, { status: 500 });
           }
         }
@@ -318,6 +343,7 @@ export async function POST(request: NextRequest) {
         status: "filled",
       });
       if (fxTradeErr) {
+        await restoreProfileBalance("forex trade insert");
         return NextResponse.json({ error: fxTradeErr.message }, { status: 500 });
       }
 
@@ -340,6 +366,7 @@ export async function POST(request: NextRequest) {
         .eq("symbol", symbol)
         .maybeSingle();
       if (existingPosErr) {
+        await restoreProfileBalance("buy position lookup");
         return NextResponse.json({ error: existingPosErr.message }, { status: 500 });
       }
 
@@ -360,6 +387,7 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", existingPos.id);
         if (updatePosErr) {
+          await restoreProfileBalance("buy position update");
           return NextResponse.json({ error: updatePosErr.message }, { status: 500 });
         }
       } else {
@@ -373,6 +401,7 @@ export async function POST(request: NextRequest) {
           asset_type: assetType,
         });
         if (insertPosErr) {
+          await restoreProfileBalance("buy position insert");
           return NextResponse.json({ error: insertPosErr.message }, { status: 500 });
         }
       }
@@ -388,6 +417,7 @@ export async function POST(request: NextRequest) {
         status: "filled",
       });
       if (buyTradeErr) {
+        await restoreProfileBalance("buy trade insert");
         return NextResponse.json({ error: buyTradeErr.message }, { status: 500 });
       }
 
@@ -426,6 +456,7 @@ export async function POST(request: NextRequest) {
         .delete()
         .eq("id", position.id);
       if (deletePosErr) {
+        await restoreProfileBalance("sell position delete");
         return NextResponse.json({ error: deletePosErr.message }, { status: 500 });
       }
     } else {
@@ -438,6 +469,7 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", position.id);
       if (reducePosErr) {
+        await restoreProfileBalance("sell position update");
         return NextResponse.json({ error: reducePosErr.message }, { status: 500 });
       }
     }
@@ -448,6 +480,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
     if (profErr) {
+      await restoreProfileBalance("sell P&L lookup");
       return NextResponse.json({ error: profErr.message }, { status: 500 });
     }
     if (prof) {
@@ -456,6 +489,7 @@ export async function POST(request: NextRequest) {
         .update({ total_pnl: prof.total_pnl + pnl })
         .eq("id", user.id);
       if (updatePnlErr) {
+        await restoreProfileBalance("sell P&L update");
         return NextResponse.json({ error: updatePnlErr.message }, { status: 500 });
       }
     }
@@ -471,6 +505,7 @@ export async function POST(request: NextRequest) {
       status: "filled",
     });
     if (sellTradeErr) {
+      await restoreProfileBalance("sell trade insert");
       return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });
     }
 

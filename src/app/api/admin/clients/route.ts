@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { userId, balance, total_pnl, vip_level, role, is_locked, display_name, preferred_currency, email } = body;
+    const { userId, balance, total_pnl, vip_level, role, display_name, preferred_currency, email } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });

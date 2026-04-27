@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { NavSidebar } from "@/components/nav-sidebar";
 import { TickerTape } from "@/components/ticker-tape";
 import { AnnouncementBanner } from "@/components/announcement-banner";

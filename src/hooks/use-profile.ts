@@ -19,7 +19,7 @@ export function useProfile() {
         .select("*")
         .eq("id", user.id)
         .single();
-      if (error) return null;
+      if (error) throw error;
       return data as Profile;
     },
     staleTime: 30000,

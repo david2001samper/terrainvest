@@ -54,7 +54,6 @@ export async function GET() {
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const contractMap = new Map<string, any>();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const c of allContracts) {
               contractMap.set(c.contractSymbol, c);
             }

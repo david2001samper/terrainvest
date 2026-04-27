@@ -71,7 +71,7 @@ export default function PortfolioPage() {
   const { data: positions, isLoading } = usePositions();
   const { allAssets, crypto, stocks } = useMarketData();
   const { data: profile } = useProfile();
-  const { data: optionsPositions, isLoading: optionsLoading } = useOptionsPositions();
+  const { data: optionsPositions } = useOptionsPositions();
   const { data: forexPositions = [] } = useQuery<ForexPositionRow[]>({
     queryKey: ["forex-positions"],
     queryFn: async () => {
@@ -166,6 +166,7 @@ export default function PortfolioPage() {
       <div className="flex p-0.5 rounded-md bg-background/60 border border-border w-fit">
         <button
           onClick={() => setActiveTab("holdings")}
+          aria-pressed={activeTab === "holdings"}
           className={`px-4 py-1.5 text-sm rounded font-medium transition-all ${
             activeTab === "holdings"
               ? "bg-[#00D4FF]/15 text-[#00D4FF]"
@@ -176,6 +177,7 @@ export default function PortfolioPage() {
         </button>
         <button
           onClick={() => setActiveTab("pnl")}
+          aria-pressed={activeTab === "pnl"}
           className={`px-4 py-1.5 text-sm rounded font-medium transition-all ${
             activeTab === "pnl"
               ? "bg-[#00D4FF]/15 text-[#00D4FF]"
@@ -292,6 +294,7 @@ export default function PortfolioPage() {
                 variant={allocationView === "asset_class" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setAllocationView("asset_class")}
+                aria-pressed={allocationView === "asset_class"}
                 className={
                   allocationView === "asset_class"
                     ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"
@@ -304,6 +307,7 @@ export default function PortfolioPage() {
                 variant={allocationView === "holdings" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setAllocationView("holdings")}
+                aria-pressed={allocationView === "holdings"}
                 className={
                   allocationView === "holdings"
                     ? "bg-[#00D4FF]/20 text-[#00D4FF] border-[#00D4FF]/40"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/use-profile";
 import { toast } from "sonner";
@@ -134,7 +134,7 @@ export function NotificationActivitySync() {
     queryKey: ["notifications", userId],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Failed to load notifications");
       return res.json();
     },
     enabled: Boolean(userId),
@@ -143,7 +143,7 @@ export function NotificationActivitySync() {
     refetchOnWindowFocus: true,
   });
 
-  const notifications = notificationsData ?? [];
+  const notifications = useMemo(() => notificationsData ?? [], [notificationsData]);
 
   useEffect(() => {
     if (!userId) {

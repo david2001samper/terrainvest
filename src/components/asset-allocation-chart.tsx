@@ -87,7 +87,7 @@ export function AssetAllocationChart({
           dataKey="value"
           nameKey="name"
         >
-          {data.map((entry, i) => (
+          {data.map((entry) => (
             <Cell
               key={entry.name}
               fill={entry.type === "cash" ? "#64748B" : ASSET_COLORS[entry.type] ?? "#00D4FF"}

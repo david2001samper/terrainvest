@@ -26,6 +26,7 @@ export function TimeframeSelector({ value, onChange }: TimeframeSelectorProps) {
         <button
           key={tf.value}
           onClick={() => onChange(tf.value)}
+          aria-pressed={value === tf.value}
           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
             value === tf.value
               ? "bg-[#00D4FF]/15 text-[#00D4FF] border border-[#00D4FF]/25"

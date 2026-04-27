@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("balance, is_locked, can_trade_options")
+      .select("balance, total_pnl, is_locked, can_trade_options")
       .eq("id", user.id)
       .single();
 
@@ -110,14 +110,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { error: balErr } = await supabase
-        .from("profiles")
-        .update({ balance: profile.balance - totalCost })
-        .eq("id", user.id);
-      if (balErr) {
-        return NextResponse.json({ error: balErr.message }, { status: 500 });
-      }
-
       const { data: existing } = await supabase
         .from("options_positions")
         .select("*")
@@ -125,6 +117,8 @@ export async function POST(request: NextRequest) {
         .eq("contract_symbol", contract_symbol)
         .eq("status", "open")
         .single();
+
+      let insertedPositionId: string | null = null;
 
       if (existing) {
         const newQty = existing.quantity + requestedQuantity;
@@ -142,29 +136,29 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", existing.id);
         if (upErr) {
-          // try to refund on failure
-          await supabase.from("profiles").update({ balance: profile.balance }).eq("id", user.id);
           return NextResponse.json(
             { error: "Failed to update options position. Please try again." },
             { status: 500 }
           );
         }
       } else {
-        const { error: insErr } = await supabase.from("options_positions").insert({
-          user_id: user.id,
-          contract_symbol,
-          underlying_symbol,
-          option_type,
-          strike,
-          expiry: normalizedExpiry,
-          quantity: requestedQuantity,
-          entry_premium: marketPremium,
-          current_premium: marketPremium,
-          status: "open",
-        });
+        const { data: insertedPosition, error: insErr } = await supabase
+          .from("options_positions")
+          .insert({
+            user_id: user.id,
+            contract_symbol,
+            underlying_symbol,
+            option_type,
+            strike,
+            expiry: normalizedExpiry,
+            quantity: requestedQuantity,
+            entry_premium: marketPremium,
+            current_premium: marketPremium,
+            status: "open",
+          })
+          .select("id")
+          .single();
         if (insErr) {
-          // try to refund on failure
-          await supabase.from("profiles").update({ balance: profile.balance }).eq("id", user.id);
           console.error("Options insert error:", insErr);
           return NextResponse.json(
             {
@@ -175,26 +169,71 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
+        insertedPositionId = insertedPosition?.id ?? null;
       }
 
-      const { error: tradeErr } = await supabase.from("trades").insert({
-        user_id: user.id,
-        symbol: contract_symbol,
-        side: "buy",
-        quantity: requestedQuantity,
-        price: marketPremium,
-        total: totalCost,
-        profit_loss: 0,
-        status: "filled",
-      });
+      const { data: buyTrade, error: tradeErr } = await supabase
+        .from("trades")
+        .insert({
+          user_id: user.id,
+          symbol: contract_symbol,
+          side: "buy",
+          quantity: requestedQuantity,
+          price: marketPremium,
+          total: totalCost,
+          profit_loss: 0,
+          status: "filled",
+        })
+        .select("id")
+        .single();
       if (tradeErr) {
+        await rollbackOptionsBuyPosition();
         return NextResponse.json({ error: tradeErr.message }, { status: 500 });
+      }
+
+      const { error: balErr } = await supabase
+        .from("profiles")
+        .update({ balance: profile.balance - totalCost })
+        .eq("id", user.id)
+        .eq("balance", profile.balance)
+        .select("id")
+        .single();
+      if (balErr) {
+        if (buyTrade?.id) {
+          const { error } = await supabase.from("trades").delete().eq("id", buyTrade.id);
+          if (error) console.error("Options buy trade rollback failed:", error);
+        }
+        await rollbackOptionsBuyPosition();
+        return NextResponse.json({ error: balErr.message }, { status: 500 });
       }
 
       return NextResponse.json({
         success: true,
         message: `Bought ${requestedQuantity} ${contract_symbol} contract(s)`,
       });
+
+      async function rollbackOptionsBuyPosition() {
+        if (existing) {
+          const { error } = await supabase
+            .from("options_positions")
+            .update({
+              quantity: existing.quantity,
+              entry_premium: existing.entry_premium,
+              current_premium: existing.current_premium,
+              updated_at: existing.updated_at,
+            })
+            .eq("id", existing.id);
+          if (error) console.error("Options buy rollback failed:", error);
+          return;
+        }
+        if (insertedPositionId) {
+          const { error } = await supabase
+            .from("options_positions")
+            .delete()
+            .eq("id", insertedPositionId);
+          if (error) console.error("Options buy rollback failed:", error);
+        }
+      }
     }
 
     // SELL (close position)
@@ -227,14 +266,6 @@ export async function POST(request: NextRequest) {
     const realizedPnl = (closePremium - position.entry_premium) * qtyToSell * CONTRACT_SIZE;
     const remainingQty = position.quantity - qtyToSell;
 
-    const { error: creditErr } = await supabase
-      .from("profiles")
-      .update({ balance: profile.balance + proceeds })
-      .eq("id", user.id);
-    if (creditErr) {
-      return NextResponse.json({ error: creditErr.message }, { status: 500 });
-    }
-
     if (remainingQty <= 0) {
       const { error: closeErr } = await supabase
         .from("options_positions")
@@ -257,28 +288,42 @@ export async function POST(request: NextRequest) {
       if (remErr) return NextResponse.json({ error: remErr.message }, { status: 500 });
     }
 
-    const { error: sellTradeErr } = await supabase.from("trades").insert({
-      user_id: user.id,
-      symbol: position.contract_symbol,
-      side: "sell",
-      quantity: qtyToSell,
-      price: closePremium,
-      total: proceeds,
-      profit_loss: realizedPnl,
-      status: "filled",
-    });
-    if (sellTradeErr) return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });
-
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("total_pnl")
-      .eq("id", user.id)
+    const { data: sellTrade, error: sellTradeErr } = await supabase
+      .from("trades")
+      .insert({
+        user_id: user.id,
+        symbol: position.contract_symbol,
+        side: "sell",
+        quantity: qtyToSell,
+        price: closePremium,
+        total: proceeds,
+        profit_loss: realizedPnl,
+        status: "filled",
+      })
+      .select("id")
       .single();
-    if (prof) {
-      await supabase
-        .from("profiles")
-        .update({ total_pnl: prof.total_pnl + realizedPnl })
-        .eq("id", user.id);
+    if (sellTradeErr) {
+      await rollbackOptionsSellPosition();
+      return NextResponse.json({ error: sellTradeErr.message }, { status: 500 });
+    }
+
+    const { error: creditErr } = await supabase
+      .from("profiles")
+      .update({
+        balance: profile.balance + proceeds,
+        total_pnl: (profile.total_pnl ?? 0) + realizedPnl,
+      })
+      .eq("id", user.id)
+      .eq("balance", profile.balance)
+      .select("id")
+      .single();
+    if (creditErr) {
+      if (sellTrade?.id) {
+        const { error } = await supabase.from("trades").delete().eq("id", sellTrade.id);
+        if (error) console.error("Options sell trade rollback failed:", error);
+      }
+      await rollbackOptionsSellPosition();
+      return NextResponse.json({ error: creditErr.message }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -286,6 +331,20 @@ export async function POST(request: NextRequest) {
       message: `Sold ${qtyToSell} ${position.contract_symbol} contract(s)`,
       realized_pnl: realizedPnl,
     });
+
+    async function rollbackOptionsSellPosition() {
+      const { error } = await supabase
+        .from("options_positions")
+        .update({
+          status: position.status,
+          quantity: position.quantity,
+          closed_premium: position.closed_premium ?? null,
+          realized_pnl: position.realized_pnl ?? null,
+          updated_at: position.updated_at,
+        })
+        .eq("id", position.id);
+      if (error) console.error("Options sell rollback failed:", error);
+    }
   } catch (error) {
     console.error("Options trade error:", error);
     return NextResponse.json(

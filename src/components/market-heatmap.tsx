@@ -48,7 +48,6 @@ export function MarketHeatmap({ assets }: MarketHeatmapProps) {
       {sortedAssets.map((asset) => {
         const pct = asset.changePercent24h ?? 0;
         const bgColor = getHeatColor(pct);
-        const isUp = pct >= 0;
 
         return (
           <Link

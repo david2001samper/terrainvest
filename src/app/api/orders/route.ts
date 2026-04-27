@@ -40,7 +40,8 @@ export async function GET() {
     try {
       const service = await createServiceClient();
       await processOpenOrders(service, { userId: user.id, maxOrders: 100 });
-    } catch {
+    } catch (error) {
+      console.error("Open order processing failed during orders list:", error);
       // Do not fail orders list when processing pass errors.
     }
 

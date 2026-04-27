@@ -33,7 +33,7 @@ export default function AdminAssetsPage() {
   const [adding, setAdding] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: assets, isLoading } = useQuery<Asset[]>({
+  const { data: assets } = useQuery<Asset[]>({
     queryKey: ["admin", "assets"],
     queryFn: async () => {
       const res = await fetch("/api/admin/assets");

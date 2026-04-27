@@ -4,7 +4,7 @@ import { useMarketData } from "@/hooks/use-market-data";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import { formatPercent } from "@/lib/format";
 import { AssetLogo } from "@/components/asset-logo";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { marketCardPrimaryLabel } from "@/lib/market-display";
 
@@ -14,9 +14,14 @@ export function TickerTape() {
   const [prevPrices, setPrevPrices] = useState<Record<string, number>>({});
   const [flashMap, setFlashMap] = useState<Record<string, "up" | "down" | null>>({});
 
-  const topMovers = [...allAssets]
-    .sort((a, b) => Math.abs(b.changePercent24h ?? 0) - Math.abs(a.changePercent24h ?? 0))
-    .slice(0, 12);
+  const topMovers = useMemo(
+    () =>
+      [...allAssets]
+        .sort((a, b) => Math.abs(b.changePercent24h ?? 0) - Math.abs(a.changePercent24h ?? 0))
+        .slice(0, 12),
+    [allAssets]
+  );
+  const priceSignature = topMovers.map((a) => `${a.symbol}:${a.price}`).join(",");
 
   useEffect(() => {
     if (topMovers.length === 0) return;
@@ -35,6 +40,7 @@ export function TickerTape() {
     if (Object.keys(newFlashes).length > 0) {
       const frame = window.requestAnimationFrame(() => {
         setFlashMap((old) => ({ ...old, ...newFlashes }));
+        setPrevPrices(currentPrices);
       });
       const timer = setTimeout(() => {
         setFlashMap((old) => {
@@ -53,7 +59,7 @@ export function TickerTape() {
       setPrevPrices(currentPrices);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [topMovers.map((a) => `${a.symbol}:${a.price}`).join(",")]);
+  }, [priceSignature, prevPrices, topMovers]);
 
   if (topMovers.length === 0) return null;
 

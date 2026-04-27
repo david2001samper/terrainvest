@@ -152,6 +152,9 @@ export function NavSidebar() {
           size="icon"
           onClick={() => setMobileOpen(!mobileOpen)}
           className="glass-card accent-border"
+          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-sidebar"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
@@ -160,14 +163,17 @@ export function NavSidebar() {
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div
+        <button
+          type="button"
           className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           onClick={() => setMobileOpen(false)}
+          aria-label="Close navigation menu"
         />
       )}
 
       {/* Mobile sidebar */}
       <aside
+        id="mobile-sidebar"
         className={`lg:hidden fixed top-0 left-0 h-full w-72 glass-card z-50 transform transition-transform duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { VideoTestimonial } from "@/lib/testimonials";
 import { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -57,10 +58,13 @@ export function VideoTestimonialsCarousel({ testimonials }: VideoTestimonialsCar
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
                   <div className="flex items-center gap-3">
                     {t.avatar_url ? (
-                      <img
+                      <Image
                         src={t.avatar_url}
-                        alt=""
+                        alt={t.client_name}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-full object-cover border border-white/20"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-[#00D4FF]/30 flex items-center justify-center text-[#00D4FF] font-bold">
