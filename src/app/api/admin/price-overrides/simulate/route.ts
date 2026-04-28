@@ -98,11 +98,10 @@ function getNoiseState(key: string): NoiseState {
 }
 
 /**
- * Ramp/recovery noise with momentum and periodic counter-trend bursts.
- * Creates visible pullbacks (10–20% of total distance) that look like
- * real resistance, then price resumes its course.
+ * Ramp noise: frequent small pullbacks that create visible zigzags
+ * without unrealistic dollar jumps on high-value assets.
  */
-function resistanceNoise(
+function rampNoise(
   key: string,
   totalDistance: number,
   progress: number
@@ -110,34 +109,78 @@ function resistanceNoise(
   const s = getNoiseState(key);
   const absD = Math.abs(totalDistance);
 
-  const randomForce = (Math.random() - 0.5) * absD * 0.02;
+  const randomForce = (Math.random() - 0.5) * absD * 0.012;
 
   let burstForce = 0;
   s.nextBurst--;
   if (s.nextBurst <= 0) {
-    s.nextBurst = 3 + Math.floor(Math.random() * 7);
+    s.nextBurst = 2 + Math.floor(Math.random() * 3);
     const dir =
       Math.random() < 0.7
         ? -Math.sign(totalDistance)
         : Math.sign(totalDistance);
-    burstForce = dir * absD * (0.03 + Math.random() * 0.05);
+    burstForce = dir * absD * (0.015 + Math.random() * 0.02);
   }
 
-  s.vel = s.vel * 0.65 + randomForce + burstForce;
-  s.pos = s.pos * 0.94 + s.vel;
+  s.vel = s.vel * 0.50 + randomForce + burstForce;
+  s.pos = s.pos * 0.90 + s.vel;
 
-  const cap = absD * 0.22;
+  const cap = absD * 0.14;
   if (s.pos > cap) {
     s.pos = cap;
-    s.vel *= -0.4;
+    s.vel *= -0.35;
   }
   if (s.pos < -cap) {
     s.pos = -cap;
-    s.vel *= -0.4;
+    s.vel *= -0.35;
   }
 
   const fade =
     Math.min(progress * 5, 1) * Math.min((1 - progress) * 5, 1);
+
+  return s.pos * fade;
+}
+
+/**
+ * Recovery noise: stronger and more frequent counter-trend bursts so
+ * the price visibly fights back (bounces up) as it drops to real price.
+ */
+function recoveryNoise(
+  key: string,
+  totalDistance: number,
+  progress: number
+): number {
+  const s = getNoiseState(key);
+  const absD = Math.abs(totalDistance);
+
+  const randomForce = (Math.random() - 0.5) * absD * 0.014;
+
+  let burstForce = 0;
+  s.nextBurst--;
+  if (s.nextBurst <= 0) {
+    s.nextBurst = 2 + Math.floor(Math.random() * 2);
+    const dir =
+      Math.random() < 0.80
+        ? -Math.sign(totalDistance)
+        : Math.sign(totalDistance);
+    burstForce = dir * absD * (0.02 + Math.random() * 0.025);
+  }
+
+  s.vel = s.vel * 0.45 + randomForce + burstForce;
+  s.pos = s.pos * 0.88 + s.vel;
+
+  const cap = absD * 0.16;
+  if (s.pos > cap) {
+    s.pos = cap;
+    s.vel *= -0.35;
+  }
+  if (s.pos < -cap) {
+    s.pos = -cap;
+    s.vel *= -0.35;
+  }
+
+  const fade =
+    Math.min(progress * 5, 1) * Math.min((1 - progress) * 3, 1);
 
   return s.pos * fade;
 }
@@ -266,7 +309,7 @@ export async function POST(request: NextRequest) {
         const linear = lastReal + (target_price - lastReal) * progress;
         next =
           linear +
-          resistanceNoise(`ramp_${sym}`, target_price - lastReal, progress);
+          rampNoise(`ramp_${sym}`, target_price - lastReal, progress);
       } else if (elapsed < rampMs + holdMs) {
         next = target_price + holdNoise(`hold_${sym}`, target_price);
       } else {
@@ -275,7 +318,7 @@ export async function POST(request: NextRequest) {
         const linear = target_price + (lastReal - target_price) * progress;
         next =
           linear +
-          resistanceNoise(
+          recoveryNoise(
             `recovery_${sym}`,
             lastReal - target_price,
             progress
