@@ -77,29 +77,93 @@ function easeInOut(t: number): number {
 }
 
 /**
- * Stateful random-walk noise per symbol/phase that creates organic
- * mini-trends and pullbacks on the ramp/recovery trajectory.
- * The walk accumulates small steps (creating temporary trends) but
- * mean-reverts so it doesn't drift too far from the eased curve.
+ * Per-phase noise state: position + velocity + burst timer.
+ * Creates visible pullbacks and pauses instead of invisible jitter.
  */
-const walkState = new Map<string, number>();
+interface NoiseState {
+  pos: number;
+  vel: number;
+  nextBurst: number;
+}
 
+const noiseStates = new Map<string, NoiseState>();
+
+function getNoiseState(key: string): NoiseState {
+  let s = noiseStates.get(key);
+  if (!s) {
+    s = { pos: 0, vel: 0, nextBurst: 2 + Math.floor(Math.random() * 4) };
+    noiseStates.set(key, s);
+  }
+  return s;
+}
+
+/**
+ * Ramp/recovery noise with momentum and periodic counter-trend bursts.
+ * Creates visible pullbacks (10–20% of total distance) that look like
+ * real resistance, then price resumes its course.
+ */
 function resistanceNoise(
-  symbol: string,
-  distance: number,
+  key: string,
+  totalDistance: number,
   progress: number
 ): number {
-  const key = `walk_${symbol}`;
-  let walk = walkState.get(key) ?? 0;
+  const s = getNoiseState(key);
+  const absD = Math.abs(totalDistance);
 
-  const step = (Math.random() - 0.5) * Math.abs(distance) * 0.025;
-  walk = walk * 0.90 + step;
+  const randomForce = (Math.random() - 0.5) * absD * 0.02;
 
-  const fade = 1 - progress * 0.85;
-  walk *= fade;
+  let burstForce = 0;
+  s.nextBurst--;
+  if (s.nextBurst <= 0) {
+    s.nextBurst = 3 + Math.floor(Math.random() * 7);
+    const dir =
+      Math.random() < 0.7
+        ? -Math.sign(totalDistance)
+        : Math.sign(totalDistance);
+    burstForce = dir * absD * (0.03 + Math.random() * 0.05);
+  }
 
-  walkState.set(key, walk);
-  return walk;
+  s.vel = s.vel * 0.65 + randomForce + burstForce;
+  s.pos = s.pos * 0.94 + s.vel;
+
+  const cap = absD * 0.22;
+  if (s.pos > cap) {
+    s.pos = cap;
+    s.vel *= -0.4;
+  }
+  if (s.pos < -cap) {
+    s.pos = -cap;
+    s.vel *= -0.4;
+  }
+
+  const fade =
+    Math.min(progress * 5, 1) * Math.min((1 - progress) * 5, 1);
+
+  return s.pos * fade;
+}
+
+/**
+ * Hold-phase noise: tiny random walk with strong mean reversion.
+ * Price "struggles" at the level with barely-visible oscillations.
+ */
+function holdNoise(key: string, basePrice: number): number {
+  const s = getNoiseState(key);
+
+  const step = (Math.random() - 0.5) * basePrice * 0.0005;
+  s.vel = s.vel * 0.3 + step;
+  s.pos = s.pos * 0.88 + s.vel;
+
+  const cap = basePrice * 0.0008;
+  if (s.pos > cap) {
+    s.pos = cap;
+    s.vel *= -0.5;
+  }
+  if (s.pos < -cap) {
+    s.pos = -cap;
+    s.vel *= -0.5;
+  }
+
+  return s.pos;
 }
 
 export async function POST(request: NextRequest) {
@@ -198,26 +262,24 @@ export async function POST(request: NextRequest) {
       let next: number;
 
       if (elapsed < rampMs) {
-        // RAMP: anchored on the LATEST real price, not the original snapshot.
-        // If real BTC moves from 60k → 62k mid-ramp, the ramp baseline shifts
-        // to 62k and we interpolate 62k → target from there.
         const progress = easeInOut(elapsed / rampMs);
         const linear = lastReal + (target_price - lastReal) * progress;
-        next = linear + resistanceNoise(sym, target_price - lastReal, progress);
+        next =
+          linear +
+          resistanceNoise(`ramp_${sym}`, target_price - lastReal, progress);
       } else if (elapsed < rampMs + holdMs) {
-        // HOLD: pin to target with tiny oscillation (admin asked for this
-        // price specifically; we don't track real here on purpose).
-        const oscillation =
-          target_price * 0.0008 * Math.sin(elapsed / 350);
-        next = target_price + oscillation;
+        next = target_price + holdNoise(`hold_${sym}`, target_price);
       } else {
-        // RECOVERY: blend back to the LATEST real price (not the original
-        // snapshot). When recovery completes the override == real, so when
-        // it expires there's no visible jump.
         const recoveryElapsed = elapsed - rampMs - holdMs;
         const progress = easeInOut(recoveryElapsed / recoveryMs);
         const linear = target_price + (lastReal - target_price) * progress;
-        next = linear + resistanceNoise(sym, lastReal - target_price, progress);
+        next =
+          linear +
+          resistanceNoise(
+            `recovery_${sym}`,
+            lastReal - target_price,
+            progress
+          );
       }
 
       try {
@@ -231,7 +293,9 @@ export async function POST(request: NextRequest) {
     // clients smoothly resume real prices.
     const cleanup = setTimeout(async () => {
       activeSimulations.delete(sym);
-      walkState.delete(`walk_${sym}`);
+      noiseStates.delete(`ramp_${sym}`);
+      noiseStates.delete(`hold_${sym}`);
+      noiseStates.delete(`recovery_${sym}`);
       clearInterval(interval);
       try {
         const svc = await createServiceClient();
@@ -279,7 +343,9 @@ export async function DELETE(request: NextRequest) {
       clearInterval(handles.interval);
       clearTimeout(handles.cleanup);
       activeSimulations.delete(symbol);
-      walkState.delete(`walk_${symbol}`);
+      noiseStates.delete(`ramp_${symbol}`);
+      noiseStates.delete(`hold_${symbol}`);
+      noiseStates.delete(`recovery_${symbol}`);
     }
 
     await supabase.from("price_overrides").delete().eq("symbol", symbol);
