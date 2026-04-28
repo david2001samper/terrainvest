@@ -49,6 +49,7 @@ interface SymbolBreakdown {
 interface PnlData {
   dailyPnl: DayPnl[];
   todayPnl: number;
+  todayTrades: number;
   totalPnl: number;
   winRate: number;
   totalTrades: number;
@@ -160,7 +161,9 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
               {isPositiveToday ? "+" : ""}
               {formatCurrency(data.todayPnl)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Closed trades today</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data.todayTrades} closed trade{data.todayTrades !== 1 ? "s" : ""} today
+            </p>
           </CardContent>
         </Card>
 

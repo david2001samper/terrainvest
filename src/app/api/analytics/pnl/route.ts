@@ -55,14 +55,8 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: true });
 
     if (error) throw error;
-    const { data: profileRow } = await supabase
-      .from("profiles")
-      .select("total_pnl")
-      .eq("id", user.id)
-      .single();
 
     const rows = trades || [];
-    const profileTotalPnl = Number(profileRow?.total_pnl);
     const realizedRows = rows.filter((t) => {
       const pnl = Number(t.profit_loss) || 0;
       return Math.abs(pnl) > EPSILON;
@@ -88,15 +82,13 @@ export async function GET(request: Request) {
       symbolMap.set(sym, existing);
     }
 
-    const dailyPnl: DayPnl[] = [];
     const totalPnlFromTrades = Array.from(dailyMap.values()).reduce(
-      (sum, pnl) => sum + pnl,
+      (sum, v) => sum + v,
       0
     );
-    const carryAdjustment = Number.isFinite(profileTotalPnl)
-      ? profileTotalPnl - totalPnlFromTrades
-      : 0;
-    let cumulative = carryAdjustment;
+
+    const dailyPnl: DayPnl[] = [];
+    let cumulative = 0;
     const sortedDays = Array.from(dailyMap.entries()).sort(
       ([a], [b]) => a.localeCompare(b)
     );
@@ -107,9 +99,11 @@ export async function GET(request: Request) {
 
     const todayStr = dayKeyForInstant(new Date(), tzOffsetMinutes);
     const todayPnl = dailyMap.get(todayStr) || 0;
-    const totalPnl = Number.isFinite(profileTotalPnl)
-      ? profileTotalPnl
-      : totalPnlFromTrades;
+    const todayTrades = realizedRows.filter(
+      (t) =>
+        dayKeyForInstant(new Date(t.created_at), tzOffsetMinutes) === todayStr
+    ).length;
+    const totalPnl = totalPnlFromTrades;
     const totalTrades = realizedRows.length;
     const totalWins = realizedRows.filter(
       (t) => (Number(t.profit_loss) || 0) > EPSILON
@@ -129,6 +123,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       dailyPnl,
       todayPnl,
+      todayTrades,
       totalPnl,
       winRate,
       totalTrades,
