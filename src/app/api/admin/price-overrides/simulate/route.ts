@@ -68,54 +68,92 @@ async function getCachedRealPrice(symbol: string): Promise<number | null> {
   return cached?.price ?? null;
 }
 
-/**
- * Smooth easing so the ramp doesn't feel mechanically linear.
- * Cubic ease-in-out: slow start → fast middle → slow finish.
- */
-function easeInOut(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
 const phaseScratch = new Map<string, number>();
 
-const RAMP_PATTERNS_UP: number[][] = [
-  [0.0, 0.08, 0.13, 0.12, 0.20, 0.30, 0.28, 0.39, 0.48, 0.46, 0.58, 0.68, 0.66, 0.79, 0.9, 0.88, 1.0],
-  [0.0, 0.07, 0.11, 0.1, 0.18, 0.25, 0.23, 0.34, 0.43, 0.41, 0.53, 0.61, 0.59, 0.72, 0.82, 0.8, 1.0],
-  [0.0, 0.09, 0.15, 0.14, 0.24, 0.35, 0.33, 0.44, 0.55, 0.53, 0.63, 0.73, 0.71, 0.83, 0.93, 0.91, 1.0],
-  [0.0, 0.06, 0.1, 0.09, 0.16, 0.22, 0.2, 0.3, 0.38, 0.36, 0.49, 0.58, 0.56, 0.69, 0.81, 0.79, 1.0],
-  [0.0, 0.08, 0.14, 0.13, 0.22, 0.29, 0.27, 0.37, 0.46, 0.44, 0.56, 0.64, 0.62, 0.75, 0.87, 0.85, 1.0],
+// ---------------------------------------------------------------------------
+// Trend patterns
+//
+// Each array is a sequence of completion checkpoints (0 = start, 1 = end of
+// phase) with explicit pullbacks (counter-trend dips) between them. Patterns
+// are sampled with smoothstep interpolation per segment so each step and
+// pullback is visible on the chart instead of getting averaged into a smooth
+// curve.
+//
+// Pullback magnitude per tick is later capped at min(4% of total distance,
+// $30) by applyPullbackCap, so BTC ramps never have a >$30 dip regardless
+// of pattern.
+// ---------------------------------------------------------------------------
+
+// 5 visually distinct ramp shapes for upward moves (target > start).
+const RAMP_UP_PATTERNS: number[][] = [
+  // 1. GRADUAL — smooth climb, mild ~2% pullbacks
+  [0, 0.05, 0.11, 0.09, 0.16, 0.23, 0.21, 0.30, 0.38, 0.36, 0.47, 0.56, 0.54, 0.67, 0.80, 0.78, 1.00],
+  // 2. CHOPPY — many medium pullbacks (~3-4%)
+  [0, 0.06, 0.04, 0.12, 0.18, 0.14, 0.22, 0.30, 0.25, 0.38, 0.47, 0.43, 0.58, 0.70, 0.66, 0.85, 1.00],
+  // 3. STAIRS — plateaus then jumps, no real pullbacks
+  [0, 0.08, 0.08, 0.14, 0.24, 0.24, 0.30, 0.42, 0.42, 0.50, 0.62, 0.62, 0.70, 0.84, 0.84, 0.92, 1.00],
+  // 4. DEEP DIPS — fewer but more prominent pullbacks (capped at $30)
+  [0, 0.12, 0.16, 0.11, 0.24, 0.33, 0.27, 0.40, 0.52, 0.46, 0.60, 0.72, 0.65, 0.80, 0.92, 0.86, 1.00],
+  // 5. BACK-LOADED — slow start, fast finish
+  [0, 0.02, 0.05, 0.04, 0.09, 0.13, 0.11, 0.18, 0.27, 0.24, 0.38, 0.50, 0.46, 0.65, 0.82, 0.78, 1.00],
 ];
 
-const RAMP_PATTERNS_DOWN: number[][] = [
-  [0.0, 0.1, 0.16, 0.15, 0.25, 0.34, 0.32, 0.43, 0.52, 0.5, 0.62, 0.71, 0.69, 0.81, 0.91, 0.89, 1.0],
-  [0.0, 0.09, 0.14, 0.13, 0.22, 0.31, 0.29, 0.4, 0.49, 0.47, 0.6, 0.68, 0.66, 0.78, 0.88, 0.86, 1.0],
-  [0.0, 0.11, 0.18, 0.17, 0.27, 0.36, 0.34, 0.46, 0.57, 0.55, 0.66, 0.75, 0.73, 0.84, 0.94, 0.92, 1.0],
-  [0.0, 0.08, 0.13, 0.12, 0.2, 0.28, 0.26, 0.37, 0.45, 0.43, 0.56, 0.65, 0.63, 0.76, 0.87, 0.85, 1.0],
-  [0.0, 0.1, 0.15, 0.14, 0.24, 0.32, 0.3, 0.42, 0.51, 0.49, 0.61, 0.7, 0.68, 0.8, 0.9, 0.88, 1.0],
+// 5 visually distinct ramp shapes for downward moves (target < start).
+const RAMP_DOWN_PATTERNS: number[][] = [
+  // 1. STEADY DRIP — gentle decline with small upward bounces
+  [0, 0.04, 0.10, 0.08, 0.15, 0.22, 0.20, 0.28, 0.36, 0.34, 0.45, 0.54, 0.52, 0.65, 0.78, 0.76, 1.00],
+  // 2. WHIPSAW — many bounces against the down trend
+  [0, 0.07, 0.05, 0.13, 0.20, 0.16, 0.25, 0.33, 0.28, 0.41, 0.50, 0.46, 0.61, 0.72, 0.68, 0.86, 1.00],
+  // 3. STEPPED DOWN — drops then plateaus
+  [0, 0.07, 0.07, 0.13, 0.22, 0.22, 0.30, 0.42, 0.42, 0.51, 0.63, 0.63, 0.71, 0.83, 0.83, 0.91, 1.00],
+  // 4. SHARP LEGS — bigger drops with prominent bounces
+  [0, 0.13, 0.18, 0.13, 0.26, 0.35, 0.29, 0.42, 0.54, 0.48, 0.62, 0.74, 0.67, 0.82, 0.93, 0.87, 1.00],
+  // 5. HESITANT THEN ACCELERATING
+  [0, 0.03, 0.06, 0.04, 0.10, 0.14, 0.12, 0.19, 0.28, 0.25, 0.39, 0.51, 0.47, 0.66, 0.83, 0.79, 1.00],
 ];
 
-const RECOVERY_PATTERNS_UP: number[][] = [
-  [0.0, 0.08, 0.14, 0.11, 0.24, 0.31, 0.27, 0.4, 0.48, 0.44, 0.58, 0.66, 0.63, 0.77, 0.88, 0.85, 1.0],
-  [0.0, 0.07, 0.13, 0.1, 0.22, 0.29, 0.25, 0.38, 0.46, 0.42, 0.55, 0.64, 0.61, 0.75, 0.87, 0.84, 1.0],
-  [0.0, 0.09, 0.15, 0.12, 0.26, 0.34, 0.3, 0.43, 0.52, 0.48, 0.61, 0.69, 0.66, 0.8, 0.91, 0.88, 1.0],
-  [0.0, 0.08, 0.12, 0.1, 0.2, 0.27, 0.23, 0.35, 0.43, 0.39, 0.53, 0.62, 0.59, 0.73, 0.85, 0.82, 1.0],
-  [0.0, 0.09, 0.14, 0.12, 0.23, 0.3, 0.26, 0.39, 0.47, 0.43, 0.57, 0.65, 0.62, 0.76, 0.88, 0.85, 1.0],
+// Recovery patterns: similar shape to ramps but with stronger counter-trend
+// "fight back" feel, since price is leaving the override target.
+const RECOVERY_UP_PATTERNS: number[][] = [
+  // 1. SLOW RECOVERY with resistance
+  [0, 0.05, 0.10, 0.07, 0.16, 0.22, 0.18, 0.28, 0.36, 0.32, 0.44, 0.54, 0.50, 0.65, 0.78, 0.74, 1.00],
+  // 2. STAGGERED — multiple stalls
+  [0, 0.07, 0.05, 0.12, 0.19, 0.15, 0.24, 0.32, 0.27, 0.40, 0.50, 0.45, 0.60, 0.72, 0.67, 0.86, 1.00],
+  // 3. STEPPED — plateaus then breakouts
+  [0, 0.08, 0.08, 0.16, 0.24, 0.24, 0.32, 0.44, 0.44, 0.52, 0.64, 0.64, 0.72, 0.84, 0.84, 0.92, 1.00],
+  // 4. RESISTANCE BOUNCES — frequent rejections
+  [0, 0.12, 0.17, 0.10, 0.24, 0.34, 0.27, 0.42, 0.54, 0.46, 0.62, 0.74, 0.66, 0.82, 0.93, 0.85, 1.00],
+  // 5. STEADY THEN STRONG
+  [0, 0.04, 0.08, 0.06, 0.13, 0.18, 0.15, 0.23, 0.32, 0.28, 0.42, 0.55, 0.50, 0.68, 0.84, 0.79, 1.00],
 ];
 
-const RECOVERY_PATTERNS_DOWN: number[][] = [
-  [0.0, 0.09, 0.16, 0.12, 0.27, 0.35, 0.3, 0.45, 0.54, 0.49, 0.64, 0.73, 0.69, 0.83, 0.93, 0.89, 1.0],
-  [0.0, 0.08, 0.15, 0.11, 0.25, 0.33, 0.28, 0.42, 0.51, 0.46, 0.62, 0.71, 0.67, 0.81, 0.92, 0.88, 1.0],
-  [0.0, 0.1, 0.17, 0.13, 0.29, 0.37, 0.32, 0.47, 0.56, 0.51, 0.66, 0.75, 0.71, 0.85, 0.95, 0.91, 1.0],
-  [0.0, 0.08, 0.14, 0.1, 0.23, 0.31, 0.26, 0.4, 0.49, 0.44, 0.59, 0.68, 0.64, 0.79, 0.9, 0.86, 1.0],
-  [0.0, 0.09, 0.16, 0.12, 0.26, 0.34, 0.29, 0.44, 0.53, 0.48, 0.63, 0.72, 0.68, 0.82, 0.93, 0.89, 1.0],
+const RECOVERY_DOWN_PATTERNS: number[][] = [
+  // 1. CONTROLLED FADE with bounces
+  [0, 0.06, 0.11, 0.08, 0.17, 0.24, 0.20, 0.30, 0.38, 0.34, 0.46, 0.56, 0.52, 0.66, 0.79, 0.75, 1.00],
+  // 2. STAGGERED DROP — multiple bounces
+  [0, 0.08, 0.06, 0.14, 0.21, 0.17, 0.26, 0.34, 0.29, 0.42, 0.52, 0.47, 0.62, 0.74, 0.69, 0.87, 1.00],
+  // 3. STEPPED DOWN — bounces then drops
+  [0, 0.07, 0.07, 0.15, 0.23, 0.23, 0.31, 0.43, 0.43, 0.51, 0.63, 0.63, 0.71, 0.83, 0.83, 0.91, 1.00],
+  // 4. SHARP LEGS WITH RECOVERIES
+  [0, 0.13, 0.19, 0.12, 0.26, 0.36, 0.29, 0.44, 0.55, 0.48, 0.63, 0.75, 0.68, 0.83, 0.94, 0.86, 1.00],
+  // 5. FAST DROP THEN STABILIZE
+  [0, 0.05, 0.10, 0.07, 0.15, 0.20, 0.17, 0.26, 0.34, 0.30, 0.43, 0.56, 0.52, 0.69, 0.85, 0.81, 1.00],
 ];
 
+// Hold patterns: signed values from -1 to +1 that get scaled to a tiny
+// fraction of basePrice. 5 distinct oscillation shapes so consecutive
+// holds don't look identical.
 const HOLD_PATTERNS: number[][] = [
-  [0.0, 0.35, 0.12, 0.42, 0.16, 0.45, 0.2, 0.5, 0.24, 0.52, 0.3, 0.55, 0.28, 0.5, 0.18, 0.35, 0.0],
-  [0.0, 0.28, 0.1, 0.33, 0.15, 0.38, 0.2, 0.41, 0.24, 0.43, 0.26, 0.4, 0.22, 0.34, 0.14, 0.25, 0.0],
-  [0.0, 0.4, 0.16, 0.45, 0.2, 0.5, 0.23, 0.52, 0.28, 0.55, 0.3, 0.5, 0.25, 0.44, 0.18, 0.32, 0.0],
-  [0.0, 0.25, 0.08, 0.3, 0.12, 0.35, 0.16, 0.38, 0.2, 0.4, 0.18, 0.34, 0.15, 0.28, 0.1, 0.2, 0.0],
-  [0.0, 0.32, 0.11, 0.37, 0.15, 0.43, 0.18, 0.47, 0.23, 0.5, 0.2, 0.44, 0.16, 0.36, 0.12, 0.24, 0.0],
+  // 1. SLOW WIGGLE — symmetric soft oscillation
+  [0, 0.3, -0.2, 0.4, -0.3, 0.5, -0.4, 0.3, -0.2, 0.4, -0.3, 0.5, -0.4, 0.3, -0.2, 0.4, 0],
+  // 2. RAPID JITTER — alternating quick swings
+  [0, 0.5, -0.4, 0.3, -0.5, 0.4, -0.3, 0.5, -0.4, 0.3, -0.5, 0.4, -0.3, 0.5, -0.4, 0.3, 0],
+  // 3. DRIFTING UP THEN DOWN — leaning above then below target
+  [0, 0.2, 0.4, 0.3, 0.5, 0.4, 0.3, 0.2, 0.0, -0.2, -0.3, -0.4, -0.5, -0.4, -0.3, -0.2, 0],
+  // 4. STRUGGLE BELOW THEN ABOVE — leaning below first
+  [0, -0.3, -0.5, -0.4, -0.5, -0.3, -0.2, 0, 0.2, 0.3, 0.5, 0.4, 0.5, 0.3, 0.2, 0, 0],
+  // 5. ASYMMETRIC — irregular biased wiggles
+  [0, 0.4, -0.1, 0.5, -0.2, 0.3, -0.3, 0.2, -0.4, 0.5, 0.2, -0.5, 0.4, -0.2, 0.3, -0.4, 0],
 ];
 
 function clamp(n: number, min: number, max: number): number {
@@ -130,6 +168,13 @@ function pickPatternIndex(max: number): number {
   return Math.floor(Math.random() * max);
 }
 
+/**
+ * Sample a pattern at a given progress (0..1) using smoothstep interpolation
+ * within each segment. Smoothstep (t*t*(3-2*t)) accelerates inside a segment
+ * and slows near each checkpoint, which makes individual up-steps and
+ * pullbacks visible as discrete moves on the chart instead of being averaged
+ * away by linear interpolation.
+ */
 function samplePattern(pattern: number[], progress: number): number {
   if (pattern.length === 0) return 0;
   if (progress <= 0) return pattern[0];
@@ -137,14 +182,38 @@ function samplePattern(pattern: number[], progress: number): number {
   const scaled = progress * (pattern.length - 1);
   const i = Math.floor(scaled);
   const frac = scaled - i;
+  const eased = frac * frac * (3 - 2 * frac);
   const a = pattern[i];
   const b = pattern[Math.min(i + 1, pattern.length - 1)];
-  return a + (b - a) * frac;
+  return a + (b - a) * eased;
 }
 
 /**
- * Keeps BTC-like assets from jumping $100-$200 in one tick while still
- * allowing short recoveries to actually reach the real price.
+ * Cap any single counter-trend movement (a pullback in an up-trend or a
+ * bounce in a down-trend) to the smaller of 4% of total distance or $30.
+ * This guarantees BTC ramps never have a >$30 reverse step while keeping
+ * smaller-distance ramps proportional.
+ */
+function applyPullbackCap(
+  prev: number,
+  next: number,
+  totalDistance: number
+): number {
+  if (totalDistance === 0) return next;
+  const trendSign = Math.sign(totalDistance);
+  const movement = next - prev;
+  const isCounterTrend = movement * trendSign < 0;
+  if (!isCounterTrend) return next;
+  const maxPullback = Math.min(Math.abs(totalDistance) * 0.04, 30);
+  if (Math.abs(movement) > maxPullback) {
+    return prev - trendSign * maxPullback;
+  }
+  return next;
+}
+
+/**
+ * Keeps high-value assets like BTC from jumping unrealistically in a single
+ * second while still letting fast ramps catch up to checkpoints.
  */
 function limitTickMove(
   previous: number,
@@ -155,8 +224,8 @@ function limitTickMove(
 ): number {
   const avgPerSecond = Math.abs(totalDistance) / Math.max(phaseSeconds, 1);
   const priceBasedCap = referencePrice * 0.00042;
-  const catchUpCap = avgPerSecond * 1.55;
-  const absoluteCap = referencePrice * 0.00075;
+  const catchUpCap = avgPerSecond * 1.4;
+  const absoluteCap = referencePrice * 0.00050;
   const maxMove = Math.max(
     avgPerSecond * 1.2,
     Math.min(Math.max(priceBasedCap, catchUpCap), absoluteCap)
@@ -165,8 +234,9 @@ function limitTickMove(
 }
 
 /**
- * Hold-phase noise: tiny random walk with strong mean reversion.
- * Price "struggles" at the level with barely-visible oscillations.
+ * Hold-phase oscillation: signed pattern (-1..+1) scaled to ~0.01% of base
+ * price, plus tiny random jitter, smoothed across ticks. Final amplitude is
+ * clamped to ±0.012% of basePrice (~$9 on BTC at $76k).
  */
 function holdNoise(
   key: string,
@@ -174,10 +244,14 @@ function holdNoise(
   progress: number,
   holdPattern: number[]
 ): number {
-  const patternComponent = samplePattern(holdPattern, progress) * basePrice * 0.00014;
-  const random = (Math.random() - 0.5) * basePrice * 0.00005;
+  const patternComponent = samplePattern(holdPattern, progress) * basePrice * 0.00010;
+  const random = (Math.random() - 0.5) * basePrice * 0.00003;
   const prev = phaseScratch.get(key) ?? 0;
-  const next = clamp(prev * 0.45 + patternComponent + random, -basePrice * 0.00028, basePrice * 0.00028);
+  const next = clamp(
+    prev * 0.5 + patternComponent + random,
+    -basePrice * 0.00012,
+    basePrice * 0.00012
+  );
   phaseScratch.set(key, next);
   return next;
 }
@@ -263,10 +337,10 @@ export async function POST(request: NextRequest) {
     let recoveryStartPrice: number | null = null;
     const rampIsUp = target_price >= rampStartPrice;
     const rampPattern = rampIsUp
-      ? RAMP_PATTERNS_UP[pickPatternIndex(RAMP_PATTERNS_UP.length)]
-      : RAMP_PATTERNS_DOWN[pickPatternIndex(RAMP_PATTERNS_DOWN.length)];
+      ? RAMP_UP_PATTERNS[pickPatternIndex(RAMP_UP_PATTERNS.length)]
+      : RAMP_DOWN_PATTERNS[pickPatternIndex(RAMP_DOWN_PATTERNS.length)];
     let recoveryPattern =
-      RECOVERY_PATTERNS_DOWN[pickPatternIndex(RECOVERY_PATTERNS_DOWN.length)];
+      RECOVERY_DOWN_PATTERNS[pickPatternIndex(RECOVERY_DOWN_PATTERNS.length)];
     const holdPattern = HOLD_PATTERNS[pickPatternIndex(HOLD_PATTERNS.length)];
 
     // Phase 1 frame at t=0: anchor the override at the live price so users
@@ -291,11 +365,12 @@ export async function POST(request: NextRequest) {
       let next: number;
 
       if (elapsed < rampMs) {
-        const progress = easeInOut(elapsed / rampMs);
+        const progress = clamp(elapsed / rampMs, 0, 1);
         const distance = target_price - rampStartPrice;
         const completion = samplePattern(rampPattern, progress);
         next = rampStartPrice + distance * completion;
         next = clampToRange(next, rampStartPrice, target_price);
+        next = applyPullbackCap(lastOverridePrice, next, distance);
         next = limitTickMove(
           lastOverridePrice,
           next,
@@ -310,21 +385,22 @@ export async function POST(request: NextRequest) {
         next =
           target_price +
           holdNoise(`hold_${sym}`, target_price, holdProgress, holdPattern);
-        next = clampToRange(next, target_price * 0.99972, target_price * 1.00028);
+        next = clampToRange(next, target_price * 0.99988, target_price * 1.00012);
       } else {
         if (recoveryStartPrice == null) {
           recoveryStartPrice = lastOverridePrice;
           const recoveryIsUp = lastReal >= recoveryStartPrice;
           recoveryPattern = recoveryIsUp
-            ? RECOVERY_PATTERNS_UP[pickPatternIndex(RECOVERY_PATTERNS_UP.length)]
-            : RECOVERY_PATTERNS_DOWN[pickPatternIndex(RECOVERY_PATTERNS_DOWN.length)];
+            ? RECOVERY_UP_PATTERNS[pickPatternIndex(RECOVERY_UP_PATTERNS.length)]
+            : RECOVERY_DOWN_PATTERNS[pickPatternIndex(RECOVERY_DOWN_PATTERNS.length)];
         }
         const recoveryElapsed = elapsed - rampMs - holdMs;
-        const progress = easeInOut(recoveryElapsed / recoveryMs);
+        const progress = clamp(recoveryElapsed / recoveryMs, 0, 1);
         const distance = lastReal - recoveryStartPrice;
         const completion = samplePattern(recoveryPattern, progress);
         next = recoveryStartPrice + distance * completion;
         next = clampToRange(next, recoveryStartPrice, lastReal);
+        next = applyPullbackCap(lastOverridePrice, next, distance);
         next = limitTickMove(
           lastOverridePrice,
           next,
