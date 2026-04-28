@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     const profileTotalPnl = Number(profileRow?.total_pnl);
     const realizedRows = rows.filter((t) => {
       const pnl = Number(t.profit_loss) || 0;
-      return t.side === "sell" || Math.abs(pnl) > EPSILON;
+      return Math.abs(pnl) > EPSILON;
     });
 
     const dailyMap = new Map<string, number>();
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
       const existing = symbolMap.get(sym) || { pnl: 0, count: 0, wins: 0 };
       existing.pnl += pnl;
       existing.count += 1;
-      if (pnl > 0) existing.wins += 1;
+      if (pnl > EPSILON) existing.wins += 1;
       symbolMap.set(sym, existing);
     }
 
