@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const userId = body.userId as string | undefined;
     const amount = parseFloat(String(body.amount));
+    const note   = (body.note as string | undefined)?.trim() || null;
 
     if (!userId) {
       return NextResponse.json({ error: "Client is required" }, { status: 400 });
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const prev = Number(profile.balance) || 0;
+    const prev       = Number(profile.balance) || 0;
     const newBalance = prev + amount;
     const serviceClient = await createServiceClient();
 
@@ -55,11 +56,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
     }
 
+    // Record in deposit history
+    const { error: historyErr } = await serviceClient.from("deposit_history").insert({
+      user_id:    userId,
+      amount,
+      note,
+      created_by: admin.id,
+    });
+    if (historyErr) {
+      // Non-fatal — balance was already updated, just log the failure
+      console.error("Deposit history insert:", historyErr);
+    }
+
+    // In-app notification
     if (profile.notify_deposit !== false) {
       const { error: notifErr } = await serviceClient.from("notifications").insert({
         user_id: userId,
-        type: "deposit",
-        title: "Deposit credited",
+        type:    "deposit",
+        title:   "Deposit credited",
         message: `$${amount.toFixed(2)} was added to your account balance.`,
       });
       if (notifErr) {
