@@ -21,6 +21,7 @@ import {
   Banknote,
   Menu,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 
@@ -35,6 +36,7 @@ const adminNav = [
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquare },
   { href: "/admin/payment-links", label: "Payment Links", icon: CreditCard },
+  { href: "/admin/leads", label: "Leads", icon: ClipboardList },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

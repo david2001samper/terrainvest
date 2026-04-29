@@ -19,6 +19,7 @@ import { ClientTestimonialsCarousel } from "@/components/client-testimonials-car
 import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
 import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
 import { PUBLIC_CONTENT_PAGES } from "@/lib/public-content";
+import { LeadsForm } from "@/components/leads-form";
 
 export default async function LandingPage() {
   const [content, clientTestimonials, videoTestimonials, marketSnapshot] = await Promise.all([
@@ -280,6 +281,50 @@ export default async function LandingPage() {
 
       {/* Client Video Testimonials */}
       <VideoTestimonialsCarousel testimonials={videoTestimonials} />
+
+      {/* Leads / Contact Form */}
+      <section id="get-started" className="relative z-10 px-6 lg:px-12 py-24 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left: copy */}
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-[#00D4FF] mb-4">
+              Private Consultation
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold leading-tight mb-5">
+              Start your investment journey today
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-8 max-w-md">
+              Fill out the form and one of our account managers will reach out within 24 hours to discuss your investment goals and how Terra Invest VIP can work for you.
+            </p>
+            <div className="space-y-4">
+              {[
+                { title: "Dedicated Account Manager", desc: "Personal support from a specialist who knows your portfolio." },
+                { title: "Institutional-Grade Tools", desc: "Access the same analytics and execution as professional traders." },
+                { title: "Strict Confidentiality", desc: "Your information is never shared with third parties." },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-2 h-2 rounded-full bg-[#00D4FF]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: form */}
+          <div className="glass-card accent-border rounded-2xl p-7 sm:p-8">
+            <h3 className="text-lg font-bold mb-1">Request a Consultation</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              No commitments — our team will get back to you shortly.
+            </p>
+            <LeadsForm />
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-border px-6 lg:px-12 pt-14 pb-10 max-w-7xl mx-auto">
