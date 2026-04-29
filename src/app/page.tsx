@@ -7,6 +7,9 @@ import {
   Zap,
   Target,
   Heart,
+  BookOpen,
+  ShieldCheck,
+  UserRoundCheck,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { getHomeContent } from "@/lib/content";
@@ -15,6 +18,7 @@ import { getMarketSnapshot } from "@/lib/market-snapshot";
 import { ClientTestimonialsCarousel } from "@/components/client-testimonials-carousel";
 import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
 import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
+import { PUBLIC_CONTENT_PAGES } from "@/lib/public-content";
 
 export default async function LandingPage() {
   const [content, clientTestimonials, videoTestimonials, marketSnapshot] = await Promise.all([
@@ -27,6 +31,9 @@ export default async function LandingPage() {
   const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
   const mission = content.home_mission || "To provide institutional-grade trading tools and execution to every investor, with transparency, security, and exceptional support at the core of everything we do.";
   const values = content.home_values || "Integrity • Innovation • Client-First • Excellence • Trust";
+  const credibilityPages = PUBLIC_CONTENT_PAGES.filter((page) =>
+    ["journey", "history", "trading-approach", "account-management", "contact"].includes(page.slug)
+  );
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -41,6 +48,17 @@ export default async function LandingPage() {
           <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
         </Link>
         <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-5 mr-2">
+            <Link href="/content/journey" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Our Journey
+            </Link>
+            <Link href="/content/trading-approach" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Trading Approach
+            </Link>
+            <Link href="/content/contact" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
+              Contact
+            </Link>
+          </div>
           <Link
             href="/auth/login"
             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -104,6 +122,126 @@ export default async function LandingPage() {
       {/* Live Market Prices */}
       <MarketSnapshotGrid assets={marketSnapshot} />
 
+      {/* Credibility Pages */}
+      <section className="relative z-10 px-6 lg:px-12 py-24 max-w-7xl mx-auto">
+        <div className="text-center mb-14">
+          <p className="text-xs font-semibold tracking-widest uppercase text-[#00D4FF] mb-4">
+            Private Client Framework
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-bold max-w-2xl mx-auto leading-tight">
+            Built on structure, guided by transparency
+          </h2>
+          <p className="text-muted-foreground leading-relaxed max-w-xl mx-auto mt-5">
+            Every part of the Terra Invest VIP experience is designed around clarity,
+            accountability, and professional client service.
+          </p>
+        </div>
+
+        {/* Featured row — Journey + Trading Approach side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          {[
+            {
+              slug: "journey",
+              icon: BookOpen,
+              accent: "#A78BFA",
+              label: "Our Story",
+              title: credibilityPages.find((p) => p.slug === "journey")?.homeTitle ?? "Our Journey",
+              desc: credibilityPages.find((p) => p.slug === "journey")?.homeDescription ?? "",
+            },
+            {
+              slug: "trading-approach",
+              icon: BarChart3,
+              accent: "#34D399",
+              label: "Methodology",
+              title: credibilityPages.find((p) => p.slug === "trading-approach")?.homeTitle ?? "Trading Approach",
+              desc: credibilityPages.find((p) => p.slug === "trading-approach")?.homeDescription ?? "",
+            },
+          ].map((card) => (
+            <Link
+              key={card.slug}
+              href={`/content/${card.slug}`}
+              className="group relative rounded-2xl border border-border bg-card/60 p-7 sm:p-8 transition-all hover:border-[#00D4FF]/25 hover:-translate-y-0.5 overflow-hidden"
+            >
+              <div
+                className="absolute top-0 right-0 w-[220px] h-[180px] rounded-full blur-[100px] opacity-[0.06]"
+                style={{ background: card.accent }}
+              />
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: `${card.accent}15`, border: `1px solid ${card.accent}25` }}
+                  >
+                    <card.icon className="w-5 h-5" style={{ color: card.accent }} />
+                  </div>
+                  <span
+                    className="text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: card.accent }}
+                  >
+                    {card.label}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold group-hover:text-[#00D4FF] transition-colors">
+                  {card.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-md">
+                  {card.desc}
+                </p>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold mt-5 text-[#00D4FF] opacity-0 group-hover:opacity-100 transition-opacity">
+                  Read more <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Secondary row — History, Account Mgmt, Contact */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {[
+            {
+              slug: "history",
+              icon: ShieldCheck,
+              accent: "#F59E0B",
+              title: credibilityPages.find((p) => p.slug === "history")?.homeTitle ?? "Our History",
+              desc: credibilityPages.find((p) => p.slug === "history")?.homeDescription ?? "",
+            },
+            {
+              slug: "account-management",
+              icon: UserRoundCheck,
+              accent: "#60A5FA",
+              title: credibilityPages.find((p) => p.slug === "account-management")?.homeTitle ?? "Account Management",
+              desc: credibilityPages.find((p) => p.slug === "account-management")?.homeDescription ?? "",
+            },
+            {
+              slug: "contact",
+              icon: ShieldCheck,
+              accent: "#F472B6",
+              title: credibilityPages.find((p) => p.slug === "contact")?.homeTitle ?? "Contact & Support",
+              desc: credibilityPages.find((p) => p.slug === "contact")?.homeDescription ?? "",
+            },
+          ].map((card) => (
+            <Link
+              key={card.slug}
+              href={`/content/${card.slug}`}
+              className="group rounded-2xl border border-border bg-card/40 p-6 transition-all hover:border-[#00D4FF]/25 hover:-translate-y-0.5"
+            >
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center mb-4"
+                style={{ background: `${card.accent}12` }}
+              >
+                <card.icon className="w-4 h-4" style={{ color: card.accent }} />
+              </div>
+              <h3 className="font-semibold text-sm group-hover:text-[#00D4FF] transition-colors">
+                {card.title}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-2 line-clamp-2">
+                {card.desc}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* What Our Clients Say */}
       <ClientTestimonialsCarousel testimonials={clientTestimonials} />
 
@@ -144,31 +282,78 @@ export default async function LandingPage() {
       <VideoTestimonialsCarousel testimonials={videoTestimonials} />
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border px-6 lg:px-12 py-12 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex items-center gap-2">
-            <PlatformLogo size={40} />
-            <span className="text-sm font-medium accent-gradient">Terra Invest VIP</span>
+      <footer className="relative z-10 border-t border-border px-6 lg:px-12 pt-14 pb-10 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
+          <div className="md:col-span-1">
+            <div className="flex items-center gap-2 mb-3">
+              <PlatformLogo size={36} />
+              <span className="text-sm font-bold accent-gradient">Terra Invest VIP</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+              Private trading services and advisory platform for qualified clients.
+            </p>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-6">
-            <Link href="/content/about" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
-              About Us
-            </Link>
-            <Link href="/content/terms" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/content/privacy" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/content/contact" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
-              Contact Us
-            </Link>
-            <Link href="/content/support" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
-              Support
-            </Link>
-          </nav>
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+              Company
+            </p>
+            <div className="flex flex-col gap-2">
+              {PUBLIC_CONTENT_PAGES.filter((p) =>
+                ["about", "journey", "history"].includes(p.slug)
+              ).map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/content/${p.slug}`}
+                  className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors"
+                >
+                  {p.navLabel}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+              Services
+            </p>
+            <div className="flex flex-col gap-2">
+              {PUBLIC_CONTENT_PAGES.filter((p) =>
+                ["trading-approach", "account-management", "support"].includes(p.slug)
+              ).map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/content/${p.slug}`}
+                  className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors"
+                >
+                  {p.navLabel}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+              Legal & Contact
+            </p>
+            <div className="flex flex-col gap-2">
+              {PUBLIC_CONTENT_PAGES.filter((p) =>
+                ["contact", "terms", "privacy"].includes(p.slug)
+              ).map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/content/${p.slug}`}
+                  className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors"
+                >
+                  {p.navLabel}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Terra Invest VIP. All rights reserved.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            terrainvest.vip
           </p>
         </div>
       </footer>

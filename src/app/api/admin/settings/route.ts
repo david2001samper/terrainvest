@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_PUBLIC_CONTENT, PUBLIC_CONTENT_KEYS, DEFAULT_CONTACT_INFO, CONTACT_INFO_KEYS } from "@/lib/public-content";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,7 +26,8 @@ export async function GET() {
       .in("key", [
         "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
         "wallet_btc", "wallet_usdt", "paygate_wallet",
-        "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+        ...PUBLIC_CONTENT_KEYS,
+        ...CONTACT_INFO_KEYS,
         "home_journey", "home_mission", "home_values", "home_cta",
         "order_book_cache_minutes",
       ]);
@@ -55,11 +57,17 @@ export async function GET() {
       wallet_btc: settings.wallet_btc ?? "",
       wallet_usdt: settings.wallet_usdt ?? "",
       paygate_wallet: settings.paygate_wallet ?? "",
-      about_us: settings.about_us ?? "",
-      terms_of_service: settings.terms_of_service ?? "",
-      privacy_policy: settings.privacy_policy ?? "",
-      contact_us: settings.contact_us ?? "",
-      support: settings.support ?? "",
+      about_us: settings.about_us ?? DEFAULT_PUBLIC_CONTENT.about_us,
+      terms_of_service: settings.terms_of_service ?? DEFAULT_PUBLIC_CONTENT.terms_of_service,
+      privacy_policy: settings.privacy_policy ?? DEFAULT_PUBLIC_CONTENT.privacy_policy,
+      contact_us: settings.contact_us ?? DEFAULT_PUBLIC_CONTENT.contact_us,
+      support: settings.support ?? DEFAULT_PUBLIC_CONTENT.support,
+      journey: settings.journey ?? DEFAULT_PUBLIC_CONTENT.journey,
+      our_history: settings.our_history ?? DEFAULT_PUBLIC_CONTENT.our_history,
+      trading_approach: settings.trading_approach ?? DEFAULT_PUBLIC_CONTENT.trading_approach,
+      account_management: settings.account_management ?? DEFAULT_PUBLIC_CONTENT.account_management,
+      contact_phone: settings.contact_phone ?? DEFAULT_CONTACT_INFO.contact_phone,
+      contact_email: settings.contact_email ?? DEFAULT_CONTACT_INFO.contact_email,
       home_journey: settings.home_journey ?? "",
       home_mission: settings.home_mission ?? "",
       home_values: settings.home_values ?? "",
@@ -82,7 +90,8 @@ export async function PATCH(request: NextRequest) {
     const keys = [
       "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
       "wallet_btc", "wallet_usdt", "paygate_wallet",
-      "about_us", "terms_of_service", "privacy_policy", "contact_us", "support",
+      ...PUBLIC_CONTENT_KEYS,
+      ...CONTACT_INFO_KEYS,
       "home_journey", "home_mission", "home_values", "home_cta",
       "order_book_cache_minutes",
     ];
