@@ -32,7 +32,10 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const publicPaths = ["/auth/login", "/auth/signup", "/auth/callback", "/"];
-  const isPublicPath = publicPaths.includes(pathname) || pathname.startsWith("/content/");
+  const isPublicPath =
+    publicPaths.includes(pathname) ||
+    pathname.startsWith("/content/") ||
+    pathname.startsWith("/landing");
   const isApiPath = pathname.startsWith("/api/");
 
   let profile: { role?: string } | null = null;
