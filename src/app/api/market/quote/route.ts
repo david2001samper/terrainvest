@@ -52,52 +52,101 @@ export async function GET(request: NextRequest) {
       };
     } else if (type === "crypto") {
       let cgId = cgIdParam;
+      let resolvedSymbol = symbol.toUpperCase();
+
       if (!cgId) {
-        const searchRes = await fetch(
-          `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`,
-          { headers: { Accept: "application/json" }, next: { revalidate: 120 } }
+        // Resolve CoinGecko ID from search (cached 2 min — not price sensitive)
+        try {
+          const searchRes = await fetch(
+            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`,
+            { headers: { Accept: "application/json" }, next: { revalidate: 120 } }
+          );
+          if (searchRes.ok) {
+            const data = await searchRes.json();
+            const coins = (data.coins || []) as { id: string; symbol: string; name: string }[];
+            const symU = symbol.toUpperCase();
+            const match = coins.find((c) => c.symbol?.toUpperCase() === symU) || coins[0];
+            if (match?.id) {
+              cgId = match.id;
+              resolvedSymbol = (match.symbol || symbol).toUpperCase();
+            }
+          }
+        } catch {
+          // will try Binance fallback below
+        }
+      }
+
+      // Try CoinGecko markets for full data
+      let coinData: {
+        id: string; symbol: string; name: string;
+        current_price?: number; price_change_24h?: number;
+        price_change_percentage_24h?: number; total_volume?: number;
+        market_cap?: number; high_24h?: number; low_24h?: number;
+      } | null = null;
+
+      if (cgId) {
+        try {
+          const mRes = await fetch(
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(cgId)}&sparkline=false&price_change_percentage=24h`,
+            { headers: { Accept: "application/json" }, cache: "no-store" }
+          );
+          if (mRes.ok) {
+            const markets = await mRes.json();
+            coinData = markets[0] ?? null;
+          }
+        } catch {
+          // fall through to Binance
+        }
+      }
+
+      if (coinData && (coinData.current_price ?? 0) > 0) {
+        asset = {
+          symbol: (coinData.symbol || resolvedSymbol).toUpperCase(),
+          name: coinData.name || symbol,
+          price: coinData.current_price ?? 0,
+          change24h: coinData.price_change_24h ?? 0,
+          changePercent24h: coinData.price_change_percentage_24h ?? 0,
+          volume: coinData.total_volume ?? 0,
+          marketCap: coinData.market_cap ?? 0,
+          high24h: coinData.high_24h ?? 0,
+          low24h: coinData.low_24h ?? 0,
+          asset_type: "crypto",
+          marketState: null,
+          coingecko_id: coinData.id,
+        };
+      } else {
+        // Binance fallback: use symbol + USDT pair
+        const binanceSym = `${resolvedSymbol}USDT`;
+        const bRes = await fetch(
+          `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSym}`,
+          { cache: "no-store", headers: { Accept: "application/json" } }
         );
-        if (!searchRes.ok) {
+        if (!bRes.ok) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
-        const data = await searchRes.json();
-        const coins = (data.coins || []) as { id: string; symbol: string }[];
-        const symU = symbol.toUpperCase();
-        const match =
-          coins.find((c) => c.symbol?.toUpperCase() === symU) || coins[0];
-        if (!match?.id) {
+        const tick = (await bRes.json()) as {
+          symbol: string; lastPrice: string; priceChange: string;
+          priceChangePercent: string; highPrice: string; lowPrice: string; quoteVolume: string;
+        };
+        const price = parseFloat(tick.lastPrice) || 0;
+        if (price <= 0) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
-        cgId = match.id;
+        asset = {
+          symbol: resolvedSymbol,
+          name: resolvedSymbol,
+          price,
+          change24h: parseFloat(tick.priceChange) || 0,
+          changePercent24h: parseFloat(tick.priceChangePercent) || 0,
+          volume: parseFloat(tick.quoteVolume) || 0,
+          marketCap: 0,
+          high24h: parseFloat(tick.highPrice) || 0,
+          low24h: parseFloat(tick.lowPrice) || 0,
+          asset_type: "crypto",
+          marketState: null,
+          coingecko_id: cgId || undefined,
+        };
       }
-
-      const mRes = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(cgId!)}&sparkline=false&price_change_percentage=24h`,
-        { headers: { Accept: "application/json" }, cache: "no-store" }
-      );
-      if (!mRes.ok) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-      const markets = await mRes.json();
-      const coin = markets[0];
-      if (!coin) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-
-      asset = {
-        symbol: (coin.symbol || symbol).toUpperCase(),
-        name: coin.name || symbol,
-        price: coin.current_price ?? 0,
-        change24h: coin.price_change_24h ?? 0,
-        changePercent24h: coin.price_change_percentage_24h ?? 0,
-        volume: coin.total_volume ?? 0,
-        marketCap: coin.market_cap ?? 0,
-        high24h: coin.high_24h ?? 0,
-        low24h: coin.low_24h ?? 0,
-        asset_type: "crypto",
-        marketState: null,
-        coingecko_id: coin.id,
-      };
     } else {
       const yf = await getYahooFinance();
       const q = await yf.quote(symbol);

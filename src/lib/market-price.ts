@@ -11,12 +11,70 @@ const COINGECKO_IDS: Record<string, string> = {
   LINK: "chainlink",
 };
 
+const BINANCE_SYMBOL_MAP: Record<string, string> = {
+  BTC: "BTCUSDT",
+  ETH: "ETHUSDT",
+  SOL: "SOLUSDT",
+  XRP: "XRPUSDT",
+  ADA: "ADAUSDT",
+  DOGE: "DOGEUSDT",
+  DOT: "DOTUSDT",
+  AVAX: "AVAXUSDT",
+  MATIC: "MATICUSDT",
+  LINK: "LINKUSDT",
+};
+
 const cryptoPriceCache: Record<string, { price: number; ts: number }> = {};
 const CRYPTO_CACHE_TTL = 8_000;
 const CRYPTO_STALE_TTL = 60_000;
 
+// Shared batch cache for Binance prices so all coins share one HTTP call.
+let binanceBatchCache: { prices: Record<string, number>; ts: number } | null = null;
+const BINANCE_BATCH_TTL = 8_000;
+
 export function updateCryptoPriceCache(symbol: string, price: number) {
   cryptoPriceCache[symbol.toUpperCase()] = { price, ts: Date.now() };
+}
+
+/**
+ * Fetch all known crypto prices from Binance in one batch request and cache
+ * the result. Returns a map of symbol → USD price.
+ */
+async function fetchBinancePriceBatch(): Promise<Record<string, number>> {
+  if (binanceBatchCache && Date.now() - binanceBatchCache.ts < BINANCE_BATCH_TTL) {
+    return binanceBatchCache.prices;
+  }
+
+  const symbols = Object.values(BINANCE_SYMBOL_MAP);
+  const url = `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return binanceBatchCache?.prices ?? {};
+
+    const data = (await res.json()) as { symbol: string; price: string }[];
+    const reverseMap = Object.fromEntries(
+      Object.entries(BINANCE_SYMBOL_MAP).map(([sym, bin]) => [bin, sym])
+    );
+
+    const prices: Record<string, number> = {};
+    for (const item of data) {
+      const sym = reverseMap[item.symbol];
+      if (sym) {
+        const p = parseFloat(item.price);
+        if (!isNaN(p) && p > 0) {
+          prices[sym] = p;
+          // Keep the per-symbol cache warm too.
+          cryptoPriceCache[sym] = { price: p, ts: Date.now() };
+        }
+      }
+    }
+
+    binanceBatchCache = { prices, ts: Date.now() };
+    return prices;
+  } catch {
+    return binanceBatchCache?.prices ?? {};
+  }
 }
 
 function resolveAssetType(symbol: string, assetTypeHint?: string) {
@@ -35,10 +93,8 @@ function resolveAssetType(symbol: string, assetTypeHint?: string) {
 }
 
 /**
- * Fetch the live underlying price from CoinGecko / Yahoo, **bypassing** any
- * active admin override. This is what the simulation route calls every tick
- * so the simulated price tracks the real market continuously instead of being
- * anchored on a stale snapshot taken when the simulation was started.
+ * Fetch the live underlying price from Binance (primary) / CoinGecko (fallback)
+ * / Yahoo, bypassing any active admin override.
  */
 export async function fetchRealMarketPrice(
   symbol: string,
@@ -49,15 +105,26 @@ export async function fetchRealMarketPrice(
   void _assetType;
 
   if (COINGECKO_IDS[sym]) {
+    // Check per-symbol cache first.
     const cached = cryptoPriceCache[sym];
     if (cached && Date.now() - cached.ts < CRYPTO_CACHE_TTL) {
       return cached.price;
     }
 
-    const stalePrice = cached && Date.now() - cached.ts < CRYPTO_STALE_TTL
-      ? cached.price
-      : null;
+    const stalePrice =
+      cached && Date.now() - cached.ts < CRYPTO_STALE_TTL ? cached.price : null;
 
+    // --- Primary: Binance batch (one request covers all coins) ---
+    try {
+      const prices = await fetchBinancePriceBatch();
+      if (prices[sym] != null) {
+        return prices[sym];
+      }
+    } catch {
+      // fall through to CoinGecko
+    }
+
+    // --- Fallback: CoinGecko individual call ---
     try {
       const res = await fetch(
         `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS[sym]}&vs_currencies=usd`,

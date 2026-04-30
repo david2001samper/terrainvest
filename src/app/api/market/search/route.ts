@@ -61,6 +61,42 @@ type YahooMarketQuote = {
   regularMarketDayLow?: number | null;
 };
 
+type BinanceTicker24hr = {
+  symbol: string;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
+  highPrice: string;
+  lowPrice: string;
+  quoteVolume: string;
+};
+
+/**
+ * Fetch 24h ticker data from Binance for a list of *USDT pairs.
+ * Returns a map keyed by the base symbol (e.g. "BTC").
+ */
+async function fetchBinanceTickers(
+  baseSymbols: string[]
+): Promise<Map<string, BinanceTicker24hr>> {
+  const pairs = baseSymbols.map((s) => `${s.toUpperCase()}USDT`);
+  const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(
+    JSON.stringify(pairs)
+  )}`;
+  try {
+    const res = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+    if (!res.ok) return new Map();
+    const rows = (await res.json()) as BinanceTicker24hr[];
+    const map = new Map<string, BinanceTicker24hr>();
+    for (const row of rows) {
+      const base = row.symbol.replace(/USDT$/, "");
+      map.set(base, row);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim();
@@ -80,7 +116,8 @@ export async function GET(request: NextRequest) {
     const stocks =
       stockResults.status === "fulfilled" ? stockResults.value : [];
 
-    let combined = [...crypto, ...stocks].slice(0, 20);
+    // Crypto first (usually more relevant), then stocks; cap at 25 total
+    let combined = [...crypto, ...stocks].slice(0, 25);
     const overrides = await getActiveOverrides();
     combined = applyOverrides(combined, overrides);
     return NextResponse.json(combined);
@@ -91,6 +128,7 @@ export async function GET(request: NextRequest) {
 
 async function searchCrypto(query: string): Promise<SearchMarketAsset[]> {
   try {
+    // Step 1: search CoinGecko for matching coin IDs (cached 60s — not price-sensitive)
     const res = await fetch(
       `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`,
       { headers: { Accept: "application/json" }, next: { revalidate: 60 } }
@@ -98,46 +136,64 @@ async function searchCrypto(query: string): Promise<SearchMarketAsset[]> {
     if (!res.ok) return [];
     const data = (await res.json()) as CoinGeckoSearchResponse;
 
-    const coins = (data.coins || []).slice(0, 8);
-
+    const coins = (data.coins || []).slice(0, 12);
     if (coins.length === 0) return [];
 
+    // Step 2a: try CoinGecko for full price + market data
     const ids = coins.map((c) => c.id).join(",");
-    const priceRes = await fetch(
-      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&sparkline=false&price_change_percentage=24h`,
-      { headers: { Accept: "application/json" } }
-    );
+    let prices: CoinGeckoMarketRow[] = [];
+    let cgSucceeded = false;
 
-    if (!priceRes.ok) {
-      return coins.map((c) => ({
-        symbol: (c.symbol || "").toUpperCase(),
-        name: c.name,
-        price: 0,
-        change24h: 0,
-        changePercent24h: 0,
-        volume: 0,
-        marketCap: c.market_cap_rank || 0,
-        high24h: 0,
-        low24h: 0,
+    try {
+      const priceRes = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&sparkline=false&price_change_percentage=24h`,
+        { headers: { Accept: "application/json" }, cache: "no-store" }
+      );
+      if (priceRes.ok) {
+        prices = (await priceRes.json()) as CoinGeckoMarketRow[];
+        cgSucceeded = prices.length > 0;
+      }
+    } catch {
+      // fall through to Binance
+    }
+
+    if (cgSucceeded) {
+      return prices.map((coin) => ({
+        symbol: (coin.symbol || "").toUpperCase(),
+        name: coin.name,
+        price: coin.current_price ?? 0,
+        change24h: coin.price_change_24h ?? 0,
+        changePercent24h: coin.price_change_percentage_24h ?? 0,
+        volume: coin.total_volume ?? 0,
+        marketCap: coin.market_cap ?? 0,
+        high24h: coin.high_24h ?? 0,
+        low24h: coin.low_24h ?? 0,
         asset_type: "crypto",
-        coingecko_id: c.id,
+        coingecko_id: coin.id,
       }));
     }
 
-    const prices = (await priceRes.json()) as CoinGeckoMarketRow[];
-    return prices.map((coin) => ({
-      symbol: (coin.symbol || "").toUpperCase(),
-      name: coin.name,
-      price: coin.current_price ?? 0,
-      change24h: coin.price_change_24h ?? 0,
-      changePercent24h: coin.price_change_percentage_24h ?? 0,
-      volume: coin.total_volume ?? 0,
-      marketCap: coin.market_cap ?? 0,
-      high24h: coin.high_24h ?? 0,
-      low24h: coin.low_24h ?? 0,
-      asset_type: "crypto",
-      coingecko_id: coin.id,
-    }));
+    // Step 2b: Binance fallback — use symbols from the CoinGecko search results
+    const baseSymbols = coins.map((c) => c.symbol.toUpperCase());
+    const binanceMap = await fetchBinanceTickers(baseSymbols);
+
+    return coins.map((c) => {
+      const sym = c.symbol.toUpperCase();
+      const tick = binanceMap.get(sym);
+      return {
+        symbol: sym,
+        name: c.name,
+        price: tick ? parseFloat(tick.lastPrice) || 0 : 0,
+        change24h: tick ? parseFloat(tick.priceChange) || 0 : 0,
+        changePercent24h: tick ? parseFloat(tick.priceChangePercent) || 0 : 0,
+        volume: tick ? parseFloat(tick.quoteVolume) || 0 : 0,
+        marketCap: 0, // not available from Binance
+        high24h: tick ? parseFloat(tick.highPrice) || 0 : 0,
+        low24h: tick ? parseFloat(tick.lowPrice) || 0 : 0,
+        asset_type: "crypto",
+        coingecko_id: c.id,
+      };
+    });
   } catch {
     return [];
   }
@@ -147,7 +203,7 @@ async function searchStocks(query: string): Promise<SearchMarketAsset[]> {
   try {
     const yf = await getYahooFinance();
     const results = (await yf.search(query, {
-      quotesCount: 8,
+      quotesCount: 12,
       newsCount: 0,
     })) as YahooSearchQuote[] | YahooQuoteResponse;
 
@@ -167,7 +223,7 @@ async function searchStocks(query: string): Promise<SearchMarketAsset[]> {
             q.quoteType === "FUTURE" ||
             q.quoteType === "COMMODITY")
       )
-      .slice(0, 8);
+      .slice(0, 12);
 
     const resolvedQuotes = await Promise.allSettled(
       symbols.map(async (s) => {
