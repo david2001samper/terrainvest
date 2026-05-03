@@ -15,13 +15,13 @@ import {
   Star,
   ArrowRight,
   Lock,
+  Home,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { PublicSiteNav } from "@/components/public-site-nav";
 
 const COUNTRY_CODES = [
   { code: "+1",   flag: "🇺🇸", label: "+1",   country: "US/CA" },
@@ -151,7 +151,13 @@ export default function LandingPage() {
         </Link>
         <div className="flex flex-col items-stretch sm:items-end gap-3">
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
-            <PublicSiteNav className="justify-start sm:justify-end" />
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md text-sm font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground hover:border-[#00D4FF]/30 transition-colors"
+            >
+              <Home className="w-4 h-4 shrink-0" aria-hidden />
+              Home
+            </Link>
             <Link
               href="/auth/login"
               className="inline-flex items-center justify-center h-9 px-3 rounded-md text-sm font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground hover:border-[#00D4FF]/30 transition-colors"
@@ -468,7 +474,7 @@ export default function LandingPage() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link href="/" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">
-            Main site
+            Home
           </Link>
           <span className="text-border hidden sm:inline">|</span>
           <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">
