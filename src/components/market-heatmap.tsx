@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useCurrencyFormat } from "@/hooks/use-currency-format";
 import type { MarketAsset } from "@/lib/types";
+import { AssetLogo } from "@/components/asset-logo";
 
 interface MarketHeatmapProps {
   assets: MarketAsset[];
@@ -57,12 +58,22 @@ export function MarketHeatmap({ assets }: MarketHeatmapProps) {
                 ? `&cg=${encodeURIComponent(asset.coingecko_id)}`
                 : ""
             }`}
-            className="group relative rounded-lg p-3 transition-all hover:scale-105 hover:z-10 hover:shadow-lg border border-transparent hover:border-white/25"
+            className="group relative rounded-lg p-3 transition-all hover:scale-105 hover:z-10 hover:shadow-lg border border-transparent hover:border-white/25 flex flex-col gap-1.5"
             style={{ backgroundColor: bgColor }}
           >
-            <p className="text-xs font-bold text-white truncate">
-              {asset.symbol.replace("=X", "").replace("^", "")}
-            </p>
+            <div className="flex items-center gap-2 min-w-0">
+              <AssetLogo
+                symbol={asset.symbol}
+                assetType={asset.asset_type}
+                coingeckoId={asset.coingecko_id}
+                fetchMode="lazy"
+                size={28}
+                className="ring-2 ring-white/25 shrink-0"
+              />
+              <p className="text-xs font-bold text-white truncate min-w-0">
+                {asset.symbol.replace("=X", "").replace("^", "")}
+              </p>
+            </div>
             <p className="text-[11px] font-medium text-white mt-0.5">
               {formatCurrency(asset.price, asset.price < 1 ? 4 : 2)}
             </p>

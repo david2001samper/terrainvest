@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, ArrowDownCircle, Loader2 } from "lucide-react";
+import { AssetLogo } from "@/components/asset-logo";
 
 type OrderType = "market" | "limit" | "stop" | "stop-limit";
 
@@ -38,6 +39,7 @@ interface TradePanelProps {
   ask?: number;
   spreadPips?: number;
   assetType?: string;
+  coingeckoId?: string | null;
   compact?: boolean;
 }
 
@@ -51,6 +53,7 @@ export function TradePanel({
   ask,
   spreadPips,
   assetType,
+  coingeckoId,
   compact = false,
 }: TradePanelProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -272,10 +275,23 @@ export function TradePanel({
   return (
     <>
     <Card className={`glass-card accent-border ${compact ? "" : "w-full max-w-sm"}`}>
-      <CardHeader className={compact ? "p-4 pb-2" : ""}>
-        <CardTitle className="text-sm font-medium text-foreground">
-          Trade {name} ({symbol})
-        </CardTitle>
+      <CardHeader className={compact ? "p-4 pb-2 space-y-2" : "space-y-2"}>
+        <div className="flex items-start gap-3">
+          <AssetLogo
+            symbol={symbol}
+            assetType={assetType ?? "stock"}
+            coingeckoId={coingeckoId}
+            fetchMode="eager"
+            size={compact ? 36 : 44}
+            className="shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-sm font-medium text-foreground leading-snug">
+              Trade {name}{" "}
+              <span className="text-muted-foreground font-normal">({symbol})</span>
+            </CardTitle>
+          </div>
+        </div>
         <p className="text-2xl font-bold accent-gradient">
           {formatCurrency(price)}
         </p>

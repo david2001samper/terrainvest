@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useInView } from "@/hooks/use-in-view";
 import {
   getCachedAssetIconUrl,
   setCachedAssetIconUrl,
 } from "@/lib/asset-icon-cache";
+import { symbolTradingViewLogoUrl } from "@/lib/tradingview-symbol-logos";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin",
@@ -72,8 +73,15 @@ export function AssetLogo({
   coingeckoId: coingeckoIdProp,
   fetchMode = "lazy",
 }: AssetLogoProps) {
+  const tvUrl = useMemo(() => symbolTradingViewLogoUrl(symbol), [symbol]);
+  const [tvFailed, setTvFailed] = useState(false);
   const [imgError, setImgError] = useState(false);
   const { ref: inViewRef, inView } = useInView({ rootMargin: "100px", once: true });
+
+  useEffect(() => {
+    setTvFailed(false);
+    setImgError(false);
+  }, [symbol]);
 
   const resolvedCgId = useMemo(() => {
     if (assetType !== "crypto") return null;
@@ -85,6 +93,7 @@ export function AssetLogo({
   const shouldFetchNetwork =
     assetType === "crypto" &&
     !!resolvedCgId &&
+    (!tvUrl || tvFailed) &&
     (fetchMode === "eager" || inView);
 
   const { data: logoUrl } = useQuery<string | null>({
@@ -113,7 +122,10 @@ export function AssetLogo({
     enabled: shouldFetchNetwork,
   });
 
-  const color = STOCK_COLORS[symbol] || symbolColor(symbol);
+  const color =
+    STOCK_COLORS[symbol] ??
+    STOCK_COLORS[symbol.toUpperCase()] ??
+    symbolColor(symbol);
   const label = symbol.replace(/[^A-Z]/g, "").slice(0, 3) || symbol.slice(0, 2);
   const iconMap: Record<string, string> = {
     "GC=F": "Au",
@@ -126,18 +138,28 @@ export function AssetLogo({
     "^DJI": "DJI",
     "^RUT": "RUT",
   };
-  const text = iconMap[symbol] || label;
+  const text = iconMap[symbol] ?? iconMap[symbol.toUpperCase()] ?? label;
 
-  const showRemote = logoUrl && !imgError;
+  const remoteUrl =
+    tvUrl && !tvFailed ? tvUrl : logoUrl && (!tvUrl || tvFailed) ? logoUrl : null;
+
+  const showRemote = !!remoteUrl && !imgError;
 
   const inner = showRemote ? (
     <Image
-      src={logoUrl}
+      src={remoteUrl}
       alt={symbol}
       width={size}
       height={size}
       className={`rounded-full object-cover ${className}`}
-      onError={() => setImgError(true)}
+      onError={() => {
+        if (tvUrl && !tvFailed) {
+          setTvFailed(true);
+          setImgError(false);
+        } else {
+          setImgError(true);
+        }
+      }}
       unoptimized
     />
   ) : (

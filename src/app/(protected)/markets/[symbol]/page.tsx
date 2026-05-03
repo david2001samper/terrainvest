@@ -410,6 +410,7 @@ export default function AssetDetailPage() {
             ask={asset.ask}
             spreadPips={asset.spreadPips}
             assetType={resolvedType}
+            coingeckoId={coingeckoId}
           />
         </div>
       </div>

@@ -35,8 +35,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Activity } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { AssetLogo } from "@/components/asset-logo";
 import type { OptionContract } from "@/lib/types";
 
 interface ChainData {
@@ -207,7 +208,7 @@ export default function OptionsChainPage() {
           Markets
         </Link>
         <div className="flex items-center gap-3">
-          <Activity className="w-6 h-6 text-[#00D4FF]" />
+          <AssetLogo symbol={symbol} assetType="stock" fetchMode="eager" size={40} />
           <div>
             <h1 className="text-2xl font-bold">{symbol} Options Chain</h1>
             {underlyingPrice > 0 && (

@@ -1,7 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { getYahooFinance } from "@/lib/yahoo";
-
-const TV_LOGO = "https://s3-symbol-logo.tradingview.com";
+import { symbolTradingViewLogoUrl } from "@/lib/tradingview-symbol-logos";
 
 export interface SnapshotAsset {
   symbol: string;
@@ -45,19 +44,6 @@ const HOME_SNAPSHOT_ORDER: string[] = [
   "ETH",
   ...STOCK_ITEMS.map((s) => s.symbol),
 ];
-
-const HOME_MARKET_LOGOS: Record<string, string> = {
-  BTC: `${TV_LOGO}/crypto/XTVCBTC.svg`,
-  ETH: `${TV_LOGO}/crypto/XTVCETH.svg`,
-  AAPL: `${TV_LOGO}/apple.svg`,
-  TSLA: `${TV_LOGO}/tesla.svg`,
-  NVDA: `${TV_LOGO}/nvidia.svg`,
-  AMZN: `${TV_LOGO}/amazon.svg`,
-  "GC=F": `${TV_LOGO}/metal/gold.svg`,
-  "CL=F": `${TV_LOGO}/crude-oil.svg`,
-  "^GSPC": `${TV_LOGO}/indices/s-and-p-500.svg`,
-  "^IXIC": `${TV_LOGO}/indices/nasdaq-100.svg`,
-};
 
 const BINANCE_SNAPSHOT_MAP: Record<string, string> = {
   BTC: "BTCUSDT",
@@ -194,7 +180,7 @@ async function fetchSnapshotUncached(): Promise<SnapshotAsset[]> {
 function attachHomeLogos(assets: SnapshotAsset[]): SnapshotAsset[] {
   return assets.map((a) => ({
     ...a,
-    logoUrl: HOME_MARKET_LOGOS[a.symbol] ?? null,
+    logoUrl: symbolTradingViewLogoUrl(a.symbol),
   }));
 }
 
