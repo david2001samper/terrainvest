@@ -14,7 +14,7 @@ import {
 import { PlatformLogo } from "@/components/platform-logo";
 import { getHomeContent } from "@/lib/content";
 import { getClientTestimonials, getVideoTestimonials } from "@/lib/testimonials";
-import { getMarketSnapshot } from "@/lib/market-snapshot";
+import { getHomeMarketSnapshot } from "@/lib/market-snapshot";
 import { ClientTestimonialsCarousel } from "@/components/client-testimonials-carousel";
 import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carousel";
 import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
@@ -26,7 +26,7 @@ export default async function LandingPage() {
     getHomeContent(),
     getClientTestimonials(),
     getVideoTestimonials(),
-    getMarketSnapshot(),
+    getHomeMarketSnapshot(),
   ]);
 
   const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
@@ -48,7 +48,7 @@ export default async function LandingPage() {
           <PlatformLogo size={96} className="shrink-0" />
           <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <div className="hidden md:flex items-center gap-5 mr-2">
             <Link href="/content/journey" className="text-sm text-muted-foreground hover:text-[#00D4FF] transition-colors">
               Our Journey
@@ -60,6 +60,12 @@ export default async function LandingPage() {
               Contact
             </Link>
           </div>
+          <Link
+            href="/"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Home
+          </Link>
           <Link
             href="/auth/login"
             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
+import { PublicSiteNav } from "@/components/public-site-nav";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -60,6 +61,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-4 left-4 right-4 z-20 flex justify-start">
+        <PublicSiteNav />
+      </div>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(0,212,255,0.08)_0%,_transparent_50%)]" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan/5 rounded-full blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan/3 rounded-full blur-[120px]" />

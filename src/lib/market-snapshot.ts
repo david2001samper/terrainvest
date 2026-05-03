@@ -1,12 +1,16 @@
 import { unstable_cache } from "next/cache";
 import { getYahooFinance } from "@/lib/yahoo";
 
+const TV_LOGO = "https://s3-symbol-logo.tradingview.com";
+
 export interface SnapshotAsset {
   symbol: string;
   name: string;
   price: number;
   changePercent24h: number;
   asset_type: string;
+  /** Populated for home snapshot tiles when available */
+  logoUrl?: string | null;
 }
 
 const CRYPTO_IDS = [
@@ -31,7 +35,29 @@ const STOCK_ITEMS = [
   { symbol: "CL=F", name: "Crude Oil", type: "commodity" },
   { symbol: "^GSPC", name: "S&P 500", type: "index" },
   { symbol: "^IXIC", name: "NASDAQ", type: "index" },
+] as const;
+
+/** Main homepage: two majors + eight Yahoo instruments (two rows × five columns). */
+const HOME_CRYPTO_SYMBOLS = new Set<string>(["BTC", "ETH"]);
+
+const HOME_SNAPSHOT_ORDER: string[] = [
+  "BTC",
+  "ETH",
+  ...STOCK_ITEMS.map((s) => s.symbol),
 ];
+
+const HOME_MARKET_LOGOS: Record<string, string> = {
+  BTC: `${TV_LOGO}/crypto/XTVCBTC.svg`,
+  ETH: `${TV_LOGO}/crypto/XTVCETH.svg`,
+  AAPL: `${TV_LOGO}/apple.svg`,
+  TSLA: `${TV_LOGO}/tesla.svg`,
+  NVDA: `${TV_LOGO}/nvidia.svg`,
+  AMZN: `${TV_LOGO}/amazon.svg`,
+  "GC=F": `${TV_LOGO}/metal/gold.svg`,
+  "CL=F": `${TV_LOGO}/crude-oil.svg`,
+  "^GSPC": `${TV_LOGO}/indices/s-and-p-500.svg`,
+  "^IXIC": `${TV_LOGO}/indices/nasdaq-100.svg`,
+};
 
 const BINANCE_SNAPSHOT_MAP: Record<string, string> = {
   BTC: "BTCUSDT",
@@ -46,11 +72,20 @@ const BINANCE_SNAPSHOT_MAP: Record<string, string> = {
   LINK: "LINKUSDT",
 };
 
-async function fetchCryptoSnapshotFromBinance(): Promise<SnapshotAsset[]> {
-  const symbols = Object.values(BINANCE_SNAPSHOT_MAP);
-  const reverseMap = Object.fromEntries(
-    Object.entries(BINANCE_SNAPSHOT_MAP).map(([sym, bin]) => [bin, sym])
-  );
+function binanceMapEntries(symbolsFilter?: Set<string>): [string, string][] {
+  const entries = Object.entries(BINANCE_SNAPSHOT_MAP);
+  if (!symbolsFilter) return entries;
+  return entries.filter(([sym]) => symbolsFilter.has(sym));
+}
+
+async function fetchCryptoSnapshotFromBinance(
+  symbolsFilter?: Set<string>
+): Promise<SnapshotAsset[]> {
+  const pairs = binanceMapEntries(symbolsFilter);
+  if (pairs.length === 0) return [];
+
+  const symbols = pairs.map(([, bin]) => bin);
+  const reverseMap = Object.fromEntries(pairs.map(([sym, bin]) => [bin, sym]));
 
   const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(
     JSON.stringify(symbols)
@@ -83,8 +118,13 @@ async function fetchCryptoSnapshotFromBinance(): Promise<SnapshotAsset[]> {
     .filter((x): x is SnapshotAsset => x !== null && x.price > 0);
 }
 
-async function fetchCryptoSnapshot(): Promise<SnapshotAsset[]> {
-  const ids = CRYPTO_IDS.map((c) => c.id).join(",");
+async function fetchCryptoSnapshot(symbolsFilter?: Set<string>): Promise<SnapshotAsset[]> {
+  const cryptos = symbolsFilter
+    ? CRYPTO_IDS.filter((c) => symbolsFilter.has(c.symbol))
+    : CRYPTO_IDS;
+  if (cryptos.length === 0) return [];
+
+  const ids = cryptos.map((c) => c.id).join(",");
 
   try {
     const res = await fetch(
@@ -100,8 +140,8 @@ async function fetchCryptoSnapshot(): Promise<SnapshotAsset[]> {
       const result: SnapshotAsset[] = coins.map((coin: Record<string, unknown>) => {
         const match = CRYPTO_IDS.find((c) => c.id === coin.id);
         return {
-          symbol: match?.symbol ?? (coin.symbol as string).toUpperCase(),
-          name: match?.name ?? coin.name,
+          symbol: match?.symbol ?? String(coin.symbol ?? "").toUpperCase(),
+          name: match?.name ?? String(coin.name ?? ""),
           price: (coin.current_price as number) ?? 0,
           changePercent24h: (coin.price_change_percentage_24h as number) ?? 0,
           asset_type: "crypto",
@@ -113,14 +153,15 @@ async function fetchCryptoSnapshot(): Promise<SnapshotAsset[]> {
     // fall through to Binance
   }
 
-  // Binance fallback: generous rate limits, always available
-  return fetchCryptoSnapshotFromBinance();
+  return fetchCryptoSnapshotFromBinance(symbolsFilter);
 }
 
-async function fetchStocksSnapshot(): Promise<SnapshotAsset[]> {
+async function fetchStocksSnapshot(
+  items: readonly (typeof STOCK_ITEMS)[number][] = STOCK_ITEMS
+): Promise<SnapshotAsset[]> {
   const yf = await getYahooFinance();
   const results = await Promise.allSettled(
-    STOCK_ITEMS.map(async (item) => {
+    items.map(async (item) => {
       const quote = await yf.quote(item.symbol);
       return {
         symbol: item.symbol,
@@ -150,11 +191,52 @@ async function fetchSnapshotUncached(): Promise<SnapshotAsset[]> {
   return [...cryptoData, ...stocksData];
 }
 
+function attachHomeLogos(assets: SnapshotAsset[]): SnapshotAsset[] {
+  return assets.map((a) => ({
+    ...a,
+    logoUrl: HOME_MARKET_LOGOS[a.symbol] ?? null,
+  }));
+}
+
+async function fetchHomeSnapshotUncached(): Promise<SnapshotAsset[]> {
+  const [crypto, stocks] = await Promise.allSettled([
+    fetchCryptoSnapshot(HOME_CRYPTO_SYMBOLS),
+    fetchStocksSnapshot(STOCK_ITEMS),
+  ]);
+  const cryptoData = crypto.status === "fulfilled" ? crypto.value : [];
+  const stocksData = stocks.status === "fulfilled" ? stocks.value : [];
+  const map = new Map<string, SnapshotAsset>();
+  for (const a of [...cryptoData, ...stocksData]) {
+    map.set(a.symbol, a);
+  }
+
+  const ordered: SnapshotAsset[] = [];
+  for (const sym of HOME_SNAPSHOT_ORDER) {
+    const row = map.get(sym);
+    if (row) ordered.push(row);
+  }
+
+  return attachHomeLogos(ordered.slice(0, 10));
+}
+
 export async function getMarketSnapshot(): Promise<SnapshotAsset[]> {
   try {
     return await unstable_cache(
       () => fetchSnapshotUncached(),
       ["market-snapshot"],
+      { revalidate: 30 }
+    )();
+  } catch {
+    return [];
+  }
+}
+
+/** Curated 10 tiles for the homepage (two rows × five columns), each with a logo URL when listed. */
+export async function getHomeMarketSnapshot(): Promise<SnapshotAsset[]> {
+  try {
+    return await unstable_cache(
+      () => fetchHomeSnapshotUncached(),
+      ["home-market-snapshot"],
       { revalidate: 30 }
     )();
   } catch {

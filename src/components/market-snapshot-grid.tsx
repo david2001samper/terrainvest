@@ -2,6 +2,7 @@ import type { SnapshotAsset } from "@/lib/market-snapshot";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { stripYahooInstrumentSuffixes } from "@/lib/market-display";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { MarketAssetLogo } from "@/components/market-asset-logo";
 
 const DISPLAY_NAMES: Record<string, string> = {
   BTC: "BTC/USD",
@@ -48,7 +49,7 @@ export function MarketSnapshotGrid({ assets }: MarketSnapshotGridProps) {
   return (
     <section className="relative z-10 px-6 lg:px-12 py-16 max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold mb-8 text-center">Live Market Prices</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 min-[520px]:grid-cols-5 gap-3 sm:gap-4">
         {assets.map((asset) => {
           const isUp = (asset.changePercent24h ?? 0) >= 0;
           const displaySymbol =
@@ -60,19 +61,13 @@ export function MarketSnapshotGrid({ assets }: MarketSnapshotGridProps) {
           return (
             <div
               key={asset.symbol}
-              className="glass-card-hover p-4 rounded-xl flex items-center gap-3"
+              className="glass-card-hover p-3 sm:p-4 rounded-xl flex items-center gap-2 sm:gap-3 min-w-0"
             >
-              <div
-                className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
-                style={{
-                  width: 36,
-                  height: 36,
-                  fontSize: 11,
-                  background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-                }}
-              >
-                {text}
-              </div>
+              <MarketAssetLogo
+                logoUrl={asset.logoUrl}
+                fallbackText={text}
+                fallbackBg={color}
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-foreground truncate">
                   {displaySymbol}

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   Target,
   BookOpen,
@@ -16,6 +15,7 @@ import {
 import { PlatformLogo } from "@/components/platform-logo";
 import { getContent, getContactInfo } from "@/lib/content";
 import { PUBLIC_CONTENT_PAGES, getPublicContentPage } from "@/lib/public-content";
+import { PublicSiteNav } from "@/components/public-site-nav";
 
 const SLUG_ICONS: Record<string, typeof Target> = {
   about: Target,
@@ -95,13 +95,7 @@ export default async function ContentPage({
               </Link>
             ))}
           </div>
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Home
-          </Link>
+          <PublicSiteNav />
         </div>
       </nav>
 

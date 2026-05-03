@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   CheckCircle,
   Loader2,
@@ -20,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { PublicSiteNav } from "@/components/public-site-nav";
 
 const COUNTRY_CODES = [
   { code: "+1",   flag: "🇺🇸", label: "+1",   country: "US/CA" },
@@ -137,8 +139,8 @@ export default function LandingPage() {
       </div>
 
       {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between px-6 lg:px-14 py-5 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
+      <header className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-6 lg:px-14 py-5 max-w-7xl mx-auto">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <Image src="/logo.png" alt="Terra Invest VIP" width={40} height={40} className="object-contain" priority />
           <div>
             <p className="text-sm font-bold leading-tight">Terra Invest VIP</p>
@@ -146,17 +148,28 @@ export default function LandingPage() {
               Private Trading Platform
             </p>
           </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-1.5">
-          {TRUST_BADGES.map((b) => (
-            <div
-              key={b.label}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/60 border border-border text-[11px] text-muted-foreground"
+        </Link>
+        <div className="flex flex-col items-stretch sm:items-end gap-3">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
+            <PublicSiteNav className="justify-start sm:justify-end" />
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center justify-center h-9 px-3 rounded-md text-sm font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground hover:border-[#00D4FF]/30 transition-colors"
             >
-              <b.icon className="w-3 h-3 text-[#00D4FF]" />
-              {b.label}
-            </div>
-          ))}
+              Sign in
+            </Link>
+          </div>
+          <div className="hidden sm:flex flex-wrap items-center justify-end gap-1.5">
+            {TRUST_BADGES.map((b) => (
+              <div
+                key={b.label}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/60 border border-border text-[11px] text-muted-foreground"
+              >
+                <b.icon className="w-3 h-3 text-[#00D4FF]" />
+                {b.label}
+              </div>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -165,7 +178,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20 items-start">
 
           {/* ─── Left: pitch copy ─────────────────────────────────────── */}
-          <div className="lg:pt-6">
+          <div id="landing-pitch" className="lg:pt-6 scroll-mt-24">
             {/* Label */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/25 mb-6">
               <Star className="w-3 h-3 text-[#00D4FF] fill-[#00D4FF]" />
@@ -241,6 +254,33 @@ export default function LandingPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-md mx-auto">
+                    <Link
+                      href="/"
+                      className="inline-flex flex-1 items-center justify-center h-11 rounded-lg bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] font-semibold text-sm hover:from-[#22D3EE] hover:to-[#00D4FF] transition-all shadow-lg shadow-[#00D4FF]/20"
+                    >
+                      Home
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 h-11 border-border bg-background/50 hover:bg-background/80"
+                      onClick={() => {
+                        document.getElementById("landing-pitch")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      }}
+                    >
+                      Explore this page
+                    </Button>
+                  </div>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Ready to trade?{" "}
+                    <Link href="/auth/signup" className="text-[#00D4FF] hover:underline font-medium">
+                      Create an account
+                    </Link>
+                  </p>
                 </div>
               ) : (
                 /* ── Form ── */
@@ -422,13 +462,21 @@ export default function LandingPage() {
       </main>
 
       {/* Footer strip */}
-      <footer className="relative z-10 border-t border-border px-6 lg:px-14 py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="relative z-10 border-t border-border px-6 lg:px-14 py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="text-xs text-muted-foreground">
           © {new Date().getFullYear()} Terra Invest VIP. All rights reserved.
         </p>
-        <p className="text-xs text-muted-foreground">
-          terrainvest.vip
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link href="/" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">
+            Main site
+          </Link>
+          <span className="text-border hidden sm:inline">|</span>
+          <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">
+            Sign in
+          </Link>
+          <span className="text-border hidden sm:inline">|</span>
+          <p className="text-xs text-muted-foreground">terrainvest.vip</p>
+        </div>
       </footer>
     </div>
   );

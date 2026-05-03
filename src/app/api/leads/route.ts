@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 // CORS headers — allow any origin so external ad servers can POST here
 const CORS_HEADERS = {
@@ -16,11 +16,17 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const dbForWrites =
+      serviceRoleKey !== undefined && serviceRoleKey.length > 0
+        ? await createServiceClient()
+        : supabase;
 
     // ── API key auth (for cross-origin / external server submissions) ──────────
     const apiKeyHeader = request.headers.get("x-api-key");
     if (apiKeyHeader) {
-      const { data: keyRow } = await supabase
+      // leads_api_key is not in the anon-readable platform_settings allow-list — requires service role above.
+      const { data: keyRow } = await dbForWrites
         .from("platform_settings")
         .select("value")
         .eq("key", "leads_api_key")
@@ -53,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase.from("leads").insert({
+    const { error } = await dbForWrites.from("leads").insert({
       full_name: full_name.trim(),
       email: email.trim().toLowerCase(),
       phone: phone?.trim() || null,
@@ -69,8 +75,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Lead submission error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to submit";
+    const devDetail =
+      process.env.NODE_ENV === "development"
+        ? { detail: message }
+        : {};
     return NextResponse.json(
-      { error: "Failed to submit" },
+      { error: "Failed to submit", ...devDetail },
       { status: 500, headers: CORS_HEADERS }
     );
   }

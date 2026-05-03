@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CheckCircle, Loader2, Send, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,6 +125,26 @@ export function LeadsForm() {
         <h3 className="text-2xl font-bold mb-3">Thank you!</h3>
         <p className="text-muted-foreground max-w-sm leading-relaxed">
           Your information has been received. A member of our team will reach out to you shortly.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-md">
+          <Link
+            href="/"
+            className="inline-flex flex-1 items-center justify-center h-11 rounded-lg bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] font-semibold text-sm hover:from-[#22D3EE] hover:to-[#00D4FF] transition-all"
+          >
+            Home
+          </Link>
+          <Link
+            href="/landing"
+            className="inline-flex flex-1 items-center justify-center h-11 rounded-lg border border-border bg-background/50 text-sm font-medium hover:bg-background/80 transition-colors"
+          >
+            VIP landing
+          </Link>
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Already a client?{" "}
+          <Link href="/auth/login" className="text-[#00D4FF] hover:underline font-medium">
+            Sign in
+          </Link>
         </p>
       </div>
     );
