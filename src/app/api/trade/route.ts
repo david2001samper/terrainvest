@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let tradePnl = 0;
     if (side === "sell" && assetType !== "forex") {
       const { data: positionForSell, error: positionForSellError } = await supabase
         .from("positions")
@@ -168,7 +167,6 @@ export async function POST(request: NextRequest) {
       if (!positionForSell || positionForSell.quantity < quantity) {
         return NextResponse.json({ error: "Insufficient position" }, { status: 400 });
       }
-      tradePnl = (execPrice - positionForSell.entry_price) * quantity;
     }
 
     // -----------------------------
@@ -310,25 +308,23 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (Math.abs(next.realizedPnlUsd) > 0.001) {
-        const { data: fxProf, error: fxProfErr } = await supabase
+      const { data: fxProf, error: fxProfErr } = await supabase
+        .from("profiles")
+        .select("total_pnl")
+        .eq("id", user.id)
+        .single();
+      if (fxProfErr) {
+        await restoreProfileBalance("forex P&L lookup");
+        return NextResponse.json({ error: fxProfErr.message }, { status: 500 });
+      }
+      if (fxProf) {
+        const { error: updateFxPnlErr } = await supabase
           .from("profiles")
-          .select("total_pnl")
-          .eq("id", user.id)
-          .single();
-        if (fxProfErr) {
-          await restoreProfileBalance("forex P&L lookup");
-          return NextResponse.json({ error: fxProfErr.message }, { status: 500 });
-        }
-        if (fxProf) {
-          const { error: updateFxPnlErr } = await supabase
-            .from("profiles")
-            .update({ total_pnl: fxProf.total_pnl + next.realizedPnlUsd })
-            .eq("id", user.id);
-          if (updateFxPnlErr) {
-            await restoreProfileBalance("forex P&L update");
-            return NextResponse.json({ error: updateFxPnlErr.message }, { status: 500 });
-          }
+          .update({ total_pnl: fxProf.total_pnl + next.realizedPnlUsd })
+          .eq("id", user.id);
+        if (updateFxPnlErr) {
+          await restoreProfileBalance("forex P&L update");
+          return NextResponse.json({ error: updateFxPnlErr.message }, { status: 500 });
         }
       }
 
@@ -501,7 +497,7 @@ export async function POST(request: NextRequest) {
       quantity,
       price: execPrice,
       total,
-      profit_loss: tradePnl,
+      profit_loss: pnl,
       status: "filled",
     });
     if (sellTradeErr) {

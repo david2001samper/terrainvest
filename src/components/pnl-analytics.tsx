@@ -51,6 +51,7 @@ interface PnlData {
   todayPnl: number;
   todayTrades: number;
   totalPnl: number;
+  reconciliationDelta?: number;
   winRate: number;
   totalTrades: number;
   symbols: SymbolBreakdown[];
@@ -144,6 +145,11 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
               {isPositiveTotal ? "+" : ""}
               {formatCurrency(data.totalPnl)}
             </p>
+            {Math.abs(Number(data.reconciliationDelta ?? 0)) > 0.00000001 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Includes historical balance adjustment sync
+              </p>
+            )}
           </CardContent>
         </Card>
 

@@ -289,13 +289,17 @@ async function fillOrder(
       if (insErr) return { ok: false as const, fatal: false, reason: insErr.message };
     }
 
-    if (Math.abs(next.realizedPnlUsd) > 0.001) {
-      const { error: pnlErr } = await supabase
-        .from("profiles")
-        .update({ total_pnl: profile.total_pnl + next.realizedPnlUsd })
-        .eq("id", order.user_id);
-      if (pnlErr) return { ok: false as const, fatal: false, reason: pnlErr.message };
-    }
+    const { data: forexProfile, error: forexProfileErr } = await supabase
+      .from("profiles")
+      .select("total_pnl")
+      .eq("id", order.user_id)
+      .single();
+    if (forexProfileErr) return { ok: false as const, fatal: false, reason: forexProfileErr.message };
+    const { error: pnlErr } = await supabase
+      .from("profiles")
+      .update({ total_pnl: Number(forexProfile?.total_pnl ?? 0) + next.realizedPnlUsd })
+      .eq("id", order.user_id);
+    if (pnlErr) return { ok: false as const, fatal: false, reason: pnlErr.message };
 
     const { error: tradeErr } = await supabase.from("trades").insert({
       user_id: order.user_id,
@@ -416,9 +420,15 @@ async function fillOrder(
     if (upErr) return { ok: false as const, fatal: false, reason: upErr.message };
   }
 
+  const { data: sellProfile, error: sellProfileErr } = await supabase
+    .from("profiles")
+    .select("total_pnl")
+    .eq("id", order.user_id)
+    .single();
+  if (sellProfileErr) return { ok: false as const, fatal: false, reason: sellProfileErr.message };
   const { error: pnlErr } = await supabase
     .from("profiles")
-    .update({ total_pnl: profile.total_pnl + pnl })
+    .update({ total_pnl: Number(sellProfile?.total_pnl ?? 0) + pnl })
     .eq("id", order.user_id);
   if (pnlErr) return { ok: false as const, fatal: false, reason: pnlErr.message };
 

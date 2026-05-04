@@ -15,6 +15,10 @@ interface SymbolBreakdown {
   winRate: number;
 }
 
+interface ProfilePnlRow {
+  total_pnl: number | null;
+}
+
 const MAX_TZ_OFFSET_MINUTES = 14 * 60;
 const EPSILON = 1e-8;
 
@@ -47,14 +51,22 @@ export async function GET(request: Request) {
       searchParams.get("tzOffsetMinutes")
     );
 
-    const { data: trades, error } = await supabase
-      .from("trades")
-      .select("symbol, side, quantity, price, profit_loss, created_at")
-      .eq("user_id", user.id)
-      .eq("status", "filled")
-      .order("created_at", { ascending: true });
+    const [{ data: trades, error }, { data: profile, error: profileError }] = await Promise.all([
+      supabase
+        .from("trades")
+        .select("symbol, side, quantity, price, profit_loss, created_at")
+        .eq("user_id", user.id)
+        .eq("status", "filled")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("total_pnl")
+        .eq("id", user.id)
+        .single<ProfilePnlRow>(),
+    ]);
 
     if (error) throw error;
+    if (profileError) throw profileError;
 
     const rows = trades || [];
     const realizedRows = rows.filter((t) => {
@@ -86,6 +98,20 @@ export async function GET(request: Request) {
       (sum, v) => sum + v,
       0
     );
+    const profileTotalPnl = Number(profile?.total_pnl ?? 0);
+    const reconciliationDelta = profileTotalPnl - totalPnlFromTrades;
+
+    // Keep cumulative curve aligned with the profile total shown elsewhere.
+    // When historical trades and profile total diverge (legacy data or manual
+    // admin adjustments), we apply one carry adjustment at the earliest day.
+    if (Math.abs(reconciliationDelta) > EPSILON) {
+      if (dailyMap.size === 0) {
+        dailyMap.set(dayKeyForInstant(new Date(), tzOffsetMinutes), reconciliationDelta);
+      } else {
+        const firstDay = Array.from(dailyMap.keys()).sort((a, b) => a.localeCompare(b))[0];
+        dailyMap.set(firstDay, (dailyMap.get(firstDay) || 0) + reconciliationDelta);
+      }
+    }
 
     const dailyPnl: DayPnl[] = [];
     let cumulative = 0;
@@ -103,7 +129,7 @@ export async function GET(request: Request) {
       (t) =>
         dayKeyForInstant(new Date(t.created_at), tzOffsetMinutes) === todayStr
     ).length;
-    const totalPnl = totalPnlFromTrades;
+    const totalPnl = profileTotalPnl;
     const totalTrades = realizedRows.length;
     const totalWins = realizedRows.filter(
       (t) => (Number(t.profit_loss) || 0) > EPSILON
@@ -125,6 +151,7 @@ export async function GET(request: Request) {
       todayPnl,
       todayTrades,
       totalPnl,
+      reconciliationDelta,
       winRate,
       totalTrades,
       symbols,
