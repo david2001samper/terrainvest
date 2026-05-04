@@ -61,6 +61,7 @@ export default function AdminClientsPage() {
   const [editClient, setEditClient] = useState<Profile | null>(null);
   const [editBalance, setEditBalance] = useState("");
   const [editPnl, setEditPnl] = useState("");
+  const [applyPnlToBalance, setApplyPnlToBalance] = useState(false);
   const [editVip, setEditVip] = useState("");
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -118,6 +119,7 @@ export default function AdminClientsPage() {
     setEditClient(client);
     setEditBalance(client.balance.toString());
     setEditPnl(client.total_pnl.toString());
+    setApplyPnlToBalance(false);
     setEditVip(client.vip_level.toString());
     setEditLocked(client.is_locked ?? false);
     setEditName(client.display_name ?? "");
@@ -178,6 +180,7 @@ export default function AdminClientsPage() {
           userId: editClient.id,
           balance: parseFloat(editBalance),
           total_pnl: parseFloat(editPnl),
+          apply_pnl_to_balance: applyPnlToBalance,
           vip_level: parseInt(editVip),
           is_locked: editLocked,
           display_name: editName,
@@ -564,6 +567,25 @@ export default function AdminClientsPage() {
                   onChange={(e) => setEditPnl(e.target.value)}
                   className="bg-background/50"
                 />
+              </div>
+              <div className="rounded-lg border border-border bg-background/40 p-3">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="applyPnlToBalance"
+                    checked={applyPnlToBalance}
+                    onChange={(e) => setApplyPnlToBalance(e.target.checked)}
+                    className="mt-1 rounded border-border"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="applyPnlToBalance" className="text-sm">
+                      Apply P&L change to balance
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Adds the P&L difference to the balance when saving.
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">VIP Level</Label>

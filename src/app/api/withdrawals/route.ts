@@ -11,6 +11,8 @@ export type BankDetailsSnapshot = {
   country?: string | null;
 };
 
+const MAX_WITHDRAWAL_AMOUNT = 1_000_000_000_000;
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
     const saveBankAccount = Boolean(body.save_bank_account);
     const bankAccountId = typeof body.bank_account_id === "string" ? body.bank_account_id.trim() : "";
 
-    if (isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_WITHDRAWAL_AMOUNT) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
@@ -138,7 +140,21 @@ export async function POST(request: NextRequest) {
 
     if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     if (profile.is_locked) return NextResponse.json({ error: "Account locked" }, { status: 403 });
-    if ((profile.balance ?? 0) < amount) {
+    const { data: pendingRequests, error: pendingError } = await supabase
+      .from("withdrawal_requests")
+      .select("amount")
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+
+    if (pendingError) throw pendingError;
+
+    const pendingTotal = (pendingRequests ?? []).reduce(
+      (sum, req) => sum + (Number(req.amount) || 0),
+      0
+    );
+    const availableBalance = (Number(profile.balance) || 0) - pendingTotal;
+
+    if (availableBalance < amount) {
       return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
     }
 

@@ -48,6 +48,7 @@ If the update includes new SQL migrations:
 - `supabase-migration-forex-realistic.sql` – realistic FX (lots, bid/ask spread, swap) + forex_positions
 - `supabase-migration-ibkr-features.sql` – order book permission (can_view_order_book) + order book cache duration setting
 - `supabase-migration-credibility-pages.sql` – public credibility pages (journey, history, trading approach, account management)
+- `supabase-migration-money-safety-guards.sql` – protect financial profile fields and positive money constraints
 
 ---
 

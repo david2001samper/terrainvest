@@ -14,6 +14,8 @@ async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return profile?.role === "admin" ? user : null;
 }
 
+const MAX_DEPOSIT_AMOUNT = 1_000_000_000_000;
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "Client is required" }, { status: 400 });
     }
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_DEPOSIT_AMOUNT) {
       return NextResponse.json({ error: "Amount must be a positive number" }, { status: 400 });
     }
 
@@ -46,6 +48,22 @@ export async function POST(request: NextRequest) {
     const newBalance = prev + amount;
     const serviceClient = await createServiceClient();
 
+    const { data: historyRecord, error: historyErr } = await serviceClient
+      .from("deposit_history")
+      .insert({
+        user_id: userId,
+        amount,
+        note,
+        created_by: admin.id,
+      })
+      .select("id")
+      .single();
+
+    if (historyErr || !historyRecord) {
+      console.error("Deposit history insert:", historyErr);
+      return NextResponse.json({ error: "Failed to record deposit" }, { status: 500 });
+    }
+
     const { error: updateErr } = await serviceClient
       .from("profiles")
       .update({ balance: newBalance, updated_at: new Date().toISOString() })
@@ -53,19 +71,8 @@ export async function POST(request: NextRequest) {
 
     if (updateErr) {
       console.error("Deposit balance update:", updateErr);
+      await serviceClient.from("deposit_history").delete().eq("id", historyRecord.id);
       return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
-    }
-
-    // Record in deposit history
-    const { error: historyErr } = await serviceClient.from("deposit_history").insert({
-      user_id:    userId,
-      amount,
-      note,
-      created_by: admin.id,
-    });
-    if (historyErr) {
-      // Non-fatal — balance was already updated, just log the failure
-      console.error("Deposit history insert:", historyErr);
     }
 
     // In-app notification

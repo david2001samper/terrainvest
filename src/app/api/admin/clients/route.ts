@@ -12,6 +12,22 @@ async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return profile?.role === "admin" ? user : null;
 }
 
+const MAX_MONEY_AMOUNT = 1_000_000_000_000;
+
+function parseMoneyField(value: unknown, field: string, options: { allowNegative?: boolean } = {}) {
+  const parsed = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(parsed)) {
+    return { error: `${field} must be a valid number` };
+  }
+  if (!options.allowNegative && parsed < 0) {
+    return { error: `${field} cannot be negative` };
+  }
+  if (Math.abs(parsed) > MAX_MONEY_AMOUNT) {
+    return { error: `${field} is outside the allowed range` };
+  }
+  return { value: parsed };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -108,6 +124,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     const { userId, balance, total_pnl, vip_level, role, display_name, preferred_currency, email } = body;
+    const applyPnlToBalance = body.apply_pnl_to_balance === true;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });
@@ -115,25 +132,58 @@ export async function PATCH(request: NextRequest) {
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-    if (total_pnl !== undefined && balance === undefined) {
-      const { data: current } = await supabase
+    if (total_pnl !== undefined) {
+      const parsedPnl = parseMoneyField(total_pnl, "Total P&L", { allowNegative: true });
+      if ("error" in parsedPnl) {
+        return NextResponse.json({ error: parsedPnl.error }, { status: 400 });
+      }
+      updates.total_pnl = parsedPnl.value;
+    }
+
+    if (balance !== undefined) {
+      const parsedBalance = parseMoneyField(balance, "Balance");
+      if ("error" in parsedBalance) {
+        return NextResponse.json({ error: parsedBalance.error }, { status: 400 });
+      }
+      updates.balance = parsedBalance.value;
+    }
+
+    if (applyPnlToBalance) {
+      if (total_pnl === undefined) {
+        return NextResponse.json(
+          { error: "Total P&L is required when applying P&L change to balance" },
+          { status: 400 }
+        );
+      }
+
+      const { data: currentProfile, error: currentProfileError } = await supabase
         .from("profiles")
         .select("balance, total_pnl")
         .eq("id", userId)
         .single();
 
-      if (current) {
-        const pnlDelta = parseFloat(String(total_pnl)) - (current.total_pnl ?? 0);
-        updates.total_pnl = total_pnl;
-        updates.balance = (current.balance ?? 0) + pnlDelta;
+      if (currentProfileError || !currentProfile) {
+        return NextResponse.json({ error: "Client not found" }, { status: 404 });
       }
-    } else {
-      if (total_pnl !== undefined) updates.total_pnl = total_pnl;
+
+      const currentPnl = Number(currentProfile.total_pnl) || 0;
+      const baseBalance = balance !== undefined
+        ? Number(updates.balance)
+        : Number(currentProfile.balance) || 0;
+      const pnlDelta = Number(updates.total_pnl) - currentPnl;
+      const adjustedBalance = baseBalance + pnlDelta;
+
+      if (!Number.isFinite(adjustedBalance) || adjustedBalance < 0) {
+        return NextResponse.json(
+          { error: "Applying the P&L change would make the balance invalid" },
+          { status: 400 }
+        );
+      }
+
+      updates.balance = adjustedBalance;
     }
 
-    if (balance !== undefined) {
-      updates.balance = balance;
-
+    if (updates.balance !== undefined) {
       // Send deposit notification if balance increased
       const { data: currentProfile } = await supabase
         .from("profiles")
@@ -141,8 +191,9 @@ export async function PATCH(request: NextRequest) {
         .eq("id", userId)
         .single();
 
-      if (currentProfile && balance > (currentProfile.balance ?? 0) && currentProfile.notify_deposit !== false) {
-        const depositAmount = balance - (currentProfile.balance ?? 0);
+      const nextBalance = Number(updates.balance);
+      if (currentProfile && nextBalance > (currentProfile.balance ?? 0) && currentProfile.notify_deposit !== false) {
+        const depositAmount = nextBalance - (currentProfile.balance ?? 0);
         const serviceClient = await createServiceClient();
         await serviceClient.from("notifications").insert({
           user_id: userId,

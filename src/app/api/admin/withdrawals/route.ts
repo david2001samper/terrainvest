@@ -13,6 +13,8 @@ async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return profile?.role === "admin" ? user : null;
 }
 
+const MAX_WITHDRAWAL_AMOUNT = 1_000_000_000_000;
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -77,6 +79,12 @@ export async function PATCH(request: NextRequest) {
     const userId = req.user_id;
     const amount = parseFloat(req.amount);
 
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_WITHDRAWAL_AMOUNT) {
+      return NextResponse.json({ error: "Invalid withdrawal amount" }, { status: 400 });
+    }
+
+    const serviceClient = await createServiceClient();
+    let previousBalance: number | null = null;
     if (action === "approve") {
       const { data: profile } = await supabase
         .from("profiles")
@@ -88,7 +96,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "User has insufficient balance" }, { status: 400 });
       }
 
-      const serviceClient = await createServiceClient();
+      previousBalance = balance;
       const { error: updateError } = await serviceClient
         .from("profiles")
         .update({
@@ -101,16 +109,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     const newStatus = action === "approve" ? "approved" : "rejected";
-    const { error: reqError } = await supabase
+    const { data: processedRequest, error: reqError } = await serviceClient
       .from("withdrawal_requests")
       .update({
         status: newStatus,
         processed_at: new Date().toISOString(),
         processed_by: admin.id,
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("status", "pending")
+      .select("id")
+      .single();
 
-    if (reqError) throw reqError;
+    if (reqError || !processedRequest) {
+      if (action === "approve" && previousBalance != null) {
+        await serviceClient
+          .from("profiles")
+          .update({ balance: previousBalance, updated_at: new Date().toISOString() })
+          .eq("id", userId);
+      }
+      throw reqError ?? new Error("Withdrawal request was already processed");
+    }
 
     // Check if user wants withdrawal notifications
     const { data: userProfile } = await supabase
@@ -120,7 +139,6 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (userProfile?.notify_withdrawal !== false) {
-      const serviceClient = action === "approve" ? await createServiceClient() : await createServiceClient();
       await serviceClient.from("notifications").insert({
         user_id: userId,
         type: "withdrawal",

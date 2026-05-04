@@ -130,10 +130,9 @@ export async function POST(request: NextRequest) {
     const leverage = assetType === "forex" ? (profile.max_leverage || 1) : 1;
     const marginRequired = total / leverage;
 
-    // Use pre-slippage price for the balance check so slippage variation never
-    // causes a spurious "Insufficient balance" rejection.
-    const preSlippageMargin = (quantity * price) / leverage;
-    const totalWithFee = side === "buy" ? preSlippageMargin + fee : total - fee;
+    // Use the same execution price for the affordability check and debit so a
+    // stale quote cannot pass validation and then overdraw the account.
+    const totalWithFee = side === "buy" ? marginRequired + fee : total - fee;
     if (side === "buy" && profile.balance < totalWithFee) {
       return NextResponse.json(
         { error: "Insufficient balance" },

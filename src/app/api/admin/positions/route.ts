@@ -34,22 +34,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Position not found" }, { status: 404 });
     }
 
-    await supabase.from("positions").delete().eq("id", positionId);
-
-    const { data: userProfile } = await supabase
-      .from("profiles")
-      .select("balance")
-      .eq("id", position.user_id)
-      .single();
-
-    if (userProfile) {
-      await supabase
-        .from("profiles")
-        .update({
-          balance: userProfile.balance + position.current_value,
-        })
-        .eq("id", position.user_id);
-    }
+    const { error: deleteError } = await supabase.from("positions").delete().eq("id", positionId);
+    if (deleteError) throw deleteError;
 
     return NextResponse.json({ success: true });
   } catch {

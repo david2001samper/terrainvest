@@ -108,7 +108,19 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      const newBalance = Math.max(0, Number(profile.balance) - Number(record.amount));
+      const currentBalance = Number(profile.balance) || 0;
+      const amount = Number(record.amount) || 0;
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return NextResponse.json({ error: "Invalid deposit amount" }, { status: 400 });
+      }
+      if (currentBalance < amount) {
+        return NextResponse.json(
+          { error: "Cannot reverse deposit because the client balance is lower than the deposit amount" },
+          { status: 400 }
+        );
+      }
+
+      const newBalance = currentBalance - amount;
       const { error: updateErr } = await serviceClient
         .from("profiles")
         .update({ balance: newBalance, updated_at: new Date().toISOString() })
