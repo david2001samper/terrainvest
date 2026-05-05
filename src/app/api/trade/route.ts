@@ -7,6 +7,7 @@ import { parseForexSymbol, inferPipSize, DEFAULT_CONTRACT_SIZE, lotsToUnits } fr
 import { midToBidAsk } from "@/lib/forex/pricing";
 import { convertToUSD } from "@/lib/forex/convert";
 import { computeSwapDeltaUsd } from "@/lib/forex/swap";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 // Maximum allowed gap between the price the user submitted (what was on
 // screen when they clicked) and the server's view of the market price.
@@ -30,6 +31,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const limit = checkRateLimit({
+      key: `trade:${user.id}:${clientIp(request)}`,
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
 
     const body = await request.json();
     const parsed = tradeSchema.safeParse(body);

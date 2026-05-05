@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { fetchMarketPrice } from "@/lib/market-price";
 import { isMarketOpen, resolveAssetTypeFromSymbol } from "@/lib/market-hours";
 import { processOpenOrders } from "@/lib/orders/processor";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const UNREALISTIC_LIMIT = 0.5;
 const CRYPTO_SYMBOLS = new Set([
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = checkRateLimit({
+      key: `orders:create:${user.id}:${clientIp(request)}`,
+      limit: 20,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
 
     const body = (await request.json()) as {
       symbol?: unknown;

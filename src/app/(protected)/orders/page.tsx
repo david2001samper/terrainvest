@@ -28,8 +28,11 @@ export default function OrdersPage() {
   const [editLimit, setEditLimit] = useState("");
   const [editStop, setEditStop] = useState("");
   const [saving, setSaving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   async function handleCancel(id: string) {
+    if (cancellingId) return;
+    setCancellingId(id);
     try {
       const res = await fetch(`/api/orders/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -40,6 +43,8 @@ export default function OrdersPage() {
       invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to cancel");
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -153,8 +158,13 @@ export default function OrdersPage() {
                       size="sm"
                       className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                       onClick={() => handleCancel(order.id)}
+                      disabled={cancellingId === order.id}
                     >
-                      <X className="w-4 h-4" />
+                      {cancellingId === order.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </div>

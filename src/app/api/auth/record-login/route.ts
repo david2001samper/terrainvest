@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/auth/record-login
@@ -23,6 +24,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const limit = checkRateLimit({
+      key: `record-login:${user.id}:${clientIp(request)}`,
+      limit: 5,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
 
     const now = new Date().toISOString();
 

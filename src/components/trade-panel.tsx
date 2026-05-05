@@ -45,6 +45,14 @@ interface TradePanelProps {
 
 type InputMode = "quantity" | "amount";
 
+function safeTradeError(value: unknown, fallback: string) {
+  const message = typeof value === "string" ? value : "";
+  if (!message || message.length > 160 || /stack|trace|constraint|schema|supabase|postgres|sql/i.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
 export function TradePanel({
   symbol,
   name,
@@ -205,7 +213,7 @@ export function TradePanel({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Order failed");
+        toast.error(safeTradeError(data.error, "Order failed. Please check the details and try again."));
         return;
       }
       toast.success("Order placed successfully");
@@ -239,7 +247,7 @@ export function TradePanel({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Trade failed");
+        toast.error(safeTradeError(data.error, "Trade failed. Please check the details and try again."));
         return;
       }
       toast.success(data.message);

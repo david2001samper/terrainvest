@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isMarketOpen } from "@/lib/market-hours";
 import { getExecutableOptionPremium } from "@/lib/options-market";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,13 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = checkRateLimit({
+      key: `options-trade:${user.id}:${clientIp(request)}`,
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
 
     const body = await request.json();
     const {

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export type BankDetailsSnapshot = {
   label?: string | null;
@@ -37,6 +38,13 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = checkRateLimit({
+      key: `withdrawals:create:${user.id}:${clientIp(request)}`,
+      limit: 5,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
 
     const body = await request.json();
     const amount = parseFloat(body.amount);

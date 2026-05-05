@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { processOpenOrders } from "@/lib/orders/processor";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 function hasValidProcessorSecret(request: NextRequest) {
   const expected = process.env.ORDER_PROCESSOR_KEY;
@@ -16,8 +17,16 @@ function hasValidProcessorSecret(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const service = await createServiceClient();
+    const ip = clientIp(request);
 
     if (hasValidProcessorSecret(request)) {
+      const limit = checkRateLimit({
+        key: `orders-process:secret:${ip}`,
+        limit: 10,
+        windowMs: 60_000,
+      });
+      if (limit.limited) return rateLimitResponse(limit.resetInMs);
+
       const summary = await processOpenOrders(service, { maxOrders: 500 });
       return NextResponse.json({ mode: "all", ...summary });
     }
@@ -29,6 +38,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const limit = checkRateLimit({
+      key: `orders-process:user:${user.id}:${ip}`,
+      limit: 10,
+      windowMs: 60_000,
+    });
+    if (limit.limited) return rateLimitResponse(limit.resetInMs);
+
     const summary = await processOpenOrders(service, {
       userId: user.id,
       maxOrders: 100,
