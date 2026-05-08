@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
-    const { headshot_url, quote, attribution, sort_order, visible } = body;
+    const { headshot_url, quote, attribution, client_label, result_badge, rating, sort_order, visible } = body;
 
-    if (!headshot_url || !quote || !attribution) {
+    if (!quote || !attribution) {
       return NextResponse.json(
-        { error: "headshot_url, quote, and attribution are required" },
+        { error: "quote and attribution are required" },
         { status: 400 }
       );
     }
@@ -51,9 +51,12 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("client_testimonials")
       .insert({
-        headshot_url,
+        headshot_url: headshot_url || "",
         quote,
         attribution,
+        client_label: client_label || null,
+        result_badge: result_badge || null,
+        rating: Math.min(5, Math.max(1, Number(rating) || 5)),
         sort_order: sort_order ?? 0,
         visible: visible ?? true,
       })

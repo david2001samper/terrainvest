@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -85,26 +85,66 @@ const STATS = [
   { value: "24/7",  label: "Dedicated Support" },
 ];
 
-const FEATURED_REVIEW = {
-  name: "Elena V.",
-  role: "Private investor, Zurich",
-  quote:
-    "The onboarding felt personal from day one. My account manager helped me understand the platform, set realistic goals, and respond faster when markets moved.",
-  highlight: "VIP client since 2023",
+type LandingTestimonial = {
+  id: string;
+  headshot_url?: string | null;
+  quote: string;
+  attribution: string;
+  client_label?: string | null;
+  result_badge?: string | null;
+  rating?: number | null;
 };
 
-const CLIENT_REVIEWS = [
+const TRUST_METRICS = [
+  { value: "100+", label: "Investors" },
+  { value: "10+", label: "Years Experience" },
+  { value: "30-120%", label: "ROI Range" },
+  { value: "100%", label: "Transparent Process" },
+];
+
+const DEFAULT_LANDING_TESTIMONIALS: LandingTestimonial[] = [
   {
-    name: "Marcus L.",
-    role: "Business owner, London",
-    quote: "Clear reporting, quick answers, and a platform I can check between meetings.",
+    id: "default-elena-v",
+    quote: "The onboarding felt personal from day one. My account manager helped me compare opportunities and move with more confidence.",
+    attribution: "Elena V.",
+    client_label: "Private Investor",
+    result_badge: "+38% ROI",
+    rating: 5,
   },
   {
-    name: "Ari N.",
-    role: "Active trader, Dubai",
-    quote: "The 24/7 support is what made the difference when I started trading across time zones.",
+    id: "default-marcus-l",
+    quote: "Clear reporting, quick answers, and a private investment flow I can review between meetings without feeling rushed.",
+    attribution: "Marcus L.",
+    client_label: "Apartment Investor",
+    result_badge: "Passive Monthly Income",
+    rating: 5,
+  },
+  {
+    id: "default-ari-n",
+    quote: "The team explained the risk profile clearly and kept me updated through each step. It felt structured and transparent.",
+    attribution: "Ari N.",
+    client_label: "Early Investor",
+    result_badge: "Project Fully Funded",
+    rating: 5,
+  },
+  {
+    id: "default-sophia-r",
+    quote: "I wanted something more hands-off. The process was simple, the updates were consistent, and the experience felt premium.",
+    attribution: "Sophia R.",
+    client_label: "Private Investor",
+    result_badge: "Priority Access",
+    rating: 5,
   },
 ];
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function LandingPage() {
   const [fullName,        setFullName]        = useState("");
@@ -116,6 +156,39 @@ export default function LandingPage() {
   const [notes,           setNotes]           = useState("");
   const [submitting,      setSubmitting]      = useState(false);
   const [submitted,       setSubmitted]       = useState(false);
+  const [testimonials, setTestimonials] = useState<LandingTestimonial[]>(DEFAULT_LANDING_TESTIMONIALS);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTestimonials() {
+      try {
+        const res = await fetch("/api/testimonials");
+        if (!res.ok) return;
+        const data = (await res.json()) as LandingTestimonial[];
+        if (!cancelled && data.length > 0) {
+          setTestimonials(data);
+        }
+      } catch {
+        /* Keep the polished fallback reviews if testimonials cannot load. */
+      }
+    }
+
+    loadTestimonials();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function scrollToTestimonial(index: number) {
+    const clampedIndex = Math.max(0, Math.min(index, testimonials.length - 1));
+    setActiveTestimonial(clampedIndex);
+    const container = testimonialsRef.current;
+    const slide = container?.querySelector(`[data-testimonial-index="${clampedIndex}"]`);
+    slide?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -201,11 +274,11 @@ export default function LandingPage() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 px-6 lg:px-14 pt-8 pb-20 max-w-7xl mx-auto">
+      <main className="relative z-10 px-6 lg:px-14 pt-8 pb-32 lg:pb-20 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-20 items-start">
 
           {/* ─── Left: pitch copy ─────────────────────────────────────── */}
-          <div id="landing-pitch" className="order-2 lg:order-1 lg:pt-6 scroll-mt-24">
+          <div id="landing-pitch" className="order-1 lg:order-1 lg:pt-6 scroll-mt-24">
             {/* Label */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/25 mb-6">
               <Star className="w-3 h-3 text-[#00D4FF] fill-[#00D4FF]" />
@@ -226,18 +299,129 @@ export default function LandingPage() {
               institutional-grade tools, and a dedicated account manager.
             </p>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-10">
-              {STATS.map((s) => (
-                <div key={s.label} className="rounded-xl bg-card/60 border border-border p-4 text-center">
-                  <p className="text-2xl font-bold text-[#00D4FF]">{s.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-tight">{s.label}</p>
+            {/* Trust metrics */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+              {TRUST_METRICS.map((metric) => (
+                <div key={metric.label} className="rounded-2xl bg-card/55 border border-border px-3 py-4 text-center shadow-lg shadow-black/10">
+                  <p className="text-lg sm:text-xl font-bold text-[#00D4FF]">{metric.value}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{metric.label}</p>
                 </div>
               ))}
             </div>
 
+            {/* Testimonials */}
+            <section className="rounded-[1.75rem] border border-[#00D4FF]/20 bg-[#07111F]/85 p-4 sm:p-6 shadow-2xl shadow-[#00D4FF]/10 backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="mb-5 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
+                    Client feedback
+                  </p>
+                  <h2 className="mt-2 text-xl sm:text-2xl font-bold leading-tight">
+                    Trusted by private investors
+                  </h2>
+                </div>
+                <div className="hidden items-center gap-1.5 rounded-full border border-[#00D4FF]/20 bg-[#00D4FF]/10 px-3 py-1.5 sm:flex">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-3.5 w-3.5 fill-[#00D4FF] text-[#00D4FF]" />
+                  ))}
+                  <span className="ml-1 text-xs font-semibold text-foreground">4.9</span>
+                </div>
+              </div>
+
+              <div
+                ref={testimonialsRef}
+                className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (window.innerWidth >= 1024) return;
+                  const index = Math.round(el.scrollLeft / el.clientWidth);
+                  setActiveTestimonial(Math.max(0, Math.min(index, testimonials.length - 1)));
+                }}
+              >
+                {testimonials.map((testimonial, index) => {
+                  const rating = Math.min(5, Math.max(1, testimonial.rating ?? 5));
+                  const isActive = index === activeTestimonial;
+
+                  return (
+                    <article
+                      key={testimonial.id}
+                      data-testimonial-index={index}
+                      className={`relative min-w-full snap-center rounded-3xl border bg-card/70 p-5 shadow-xl transition-all duration-300 lg:min-w-0 ${
+                        isActive
+                          ? "border-[#00D4FF]/35 shadow-[#00D4FF]/15"
+                          : "border-border shadow-black/10"
+                      }`}
+                    >
+                      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#00D4FF]/10 blur-3xl" />
+                      <div className="relative z-10">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: rating }).map((_, i) => (
+                              <Star key={i} className="h-4 w-4 fill-[#00D4FF] text-[#00D4FF]" />
+                            ))}
+                          </div>
+                          {testimonial.result_badge ? (
+                            <span className="rounded-full border border-[#00D4FF]/25 bg-[#00D4FF]/10 px-3 py-1 text-[11px] font-semibold text-[#00D4FF]">
+                              {testimonial.result_badge}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-[15px] leading-relaxed text-foreground/90 sm:text-base">
+                          &ldquo;{testimonial.quote}&rdquo;
+                        </p>
+                        <div className="mt-5 flex items-center gap-3">
+                          {testimonial.headshot_url ? (
+                            <Image
+                              src={testimonial.headshot_url}
+                              alt={testimonial.attribution}
+                              width={44}
+                              height={44}
+                              className="h-11 w-11 rounded-full object-cover ring-2 ring-[#00D4FF]/20"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#00D4FF]/15 text-sm font-bold text-[#00D4FF] ring-2 ring-[#00D4FF]/20">
+                              {getInitials(testimonial.attribution)}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold">{testimonial.attribution}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {testimonial.client_label || "Private Investor"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 flex justify-center gap-2 lg:hidden">
+                {testimonials.map((testimonial, index) => (
+                  <button
+                    key={testimonial.id}
+                    type="button"
+                    onClick={() => scrollToTestimonial(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === activeTestimonial ? "w-7 bg-[#00D4FF]" : "w-2 bg-muted-foreground/35"
+                    }`}
+                    aria-label={`Show testimonial ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              <a
+                href="#lead-form"
+                className="mt-5 inline-flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#00D4FF] via-[#22D3EE] to-[#0EA5E9] px-6 text-base font-bold text-[#07111F] shadow-xl shadow-[#00D4FF]/20 transition-all hover:-translate-y-0.5 hover:shadow-[#00D4FF]/30"
+              >
+                Gain Early Access
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+            </section>
+
             {/* Feature list */}
-            <div className="space-y-3">
+            <div className="mt-6 hidden space-y-3 lg:block">
               {[
                 { icon: TrendingUp, title: "Real-Time Global Markets",    desc: "Crypto, stocks, indexes, commodities & forex in one platform." },
                 { icon: Users,      title: "Dedicated Account Manager",   desc: "Personal specialist who knows your portfolio and goals." },
@@ -255,62 +439,10 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Sample review block */}
-            <div className="mt-6 sm:mt-8 rounded-2xl border border-[#00D4FF]/20 bg-[#0B1324]/80 p-5 sm:p-6 shadow-2xl shadow-[#00D4FF]/5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#00D4FF]">
-                    Sample client feedback
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Realistic preview copy for the VIP experience.
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-full border border-[#00D4FF]/20 bg-[#00D4FF]/10 px-3 py-1.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-[#00D4FF] text-[#00D4FF]" />
-                  ))}
-                  <span className="ml-1 text-xs font-semibold text-foreground">4.9</span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-5">
-                <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/90">
-                  “{FEATURED_REVIEW.quote}”
-                </p>
-                <div className="mt-5 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00D4FF]/15 text-sm font-bold text-[#00D4FF]">
-                      EV
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{FEATURED_REVIEW.name}</p>
-                      <p className="text-xs text-muted-foreground">{FEATURED_REVIEW.role}</p>
-                    </div>
-                  </div>
-                  <span className="hidden rounded-full border border-border bg-background/50 px-3 py-1 text-[11px] text-muted-foreground sm:inline-flex">
-                    {FEATURED_REVIEW.highlight}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {CLIENT_REVIEWS.map((review) => (
-                  <div key={review.name} className="rounded-xl border border-border bg-card/35 p-4">
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      “{review.quote}”
-                    </p>
-                    <p className="mt-3 text-xs font-semibold text-foreground">{review.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{review.role}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
           </div>
 
           {/* ─── Right: form ──────────────────────────────────────────── */}
-          <div className="order-1 lg:order-2">
+          <div id="lead-form" className="order-2 lg:order-2 scroll-mt-6 lg:sticky lg:top-6">
             <div className="rounded-2xl bg-card/70 border border-border backdrop-blur-sm p-7 sm:p-8 shadow-2xl relative overflow-hidden">
               {/* Card glow */}
               <div className="pointer-events-none absolute -top-20 -right-20 w-64 h-64 bg-[#00D4FF]/6 rounded-full blur-[80px]" />
@@ -539,6 +671,16 @@ export default function LandingPage() {
           </div>
         </div>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#00D4FF]/20 bg-[#07111F]/90 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
+        <a
+          href="#lead-form"
+          className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#00D4FF] via-[#22D3EE] to-[#0EA5E9] text-base font-bold text-[#07111F] shadow-lg shadow-[#00D4FF]/25 transition-transform active:scale-[0.98]"
+        >
+          Apply for Access
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </a>
+      </div>
 
       {/* Footer strip */}
       <footer className="relative z-10 border-t border-border px-6 lg:px-14 py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">

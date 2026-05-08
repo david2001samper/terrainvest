@@ -29,6 +29,9 @@ export async function PATCH(
     if (body.headshot_url !== undefined) updates.headshot_url = body.headshot_url;
     if (body.quote !== undefined) updates.quote = body.quote;
     if (body.attribution !== undefined) updates.attribution = body.attribution;
+    if (body.client_label !== undefined) updates.client_label = body.client_label || null;
+    if (body.result_badge !== undefined) updates.result_badge = body.result_badge || null;
+    if (body.rating !== undefined) updates.rating = Math.min(5, Math.max(1, Number(body.rating) || 5));
     if (body.sort_order !== undefined) updates.sort_order = body.sort_order;
     if (body.visible !== undefined) updates.visible = body.visible;
     updates.updated_at = new Date().toISOString();

@@ -30,6 +30,9 @@ interface ClientTestimonial {
   headshot_url: string;
   quote: string;
   attribution: string;
+  client_label?: string | null;
+  result_badge?: string | null;
+  rating?: number | null;
   sort_order: number;
   visible: boolean;
   created_at: string;
@@ -58,6 +61,9 @@ export default function AdminTestimonialsPage() {
   const [headshotUrl, setHeadshotUrl] = useState("");
   const [quote, setQuote] = useState("");
   const [attribution, setAttribution] = useState("");
+  const [clientLabel, setClientLabel] = useState("Private Investor");
+  const [resultBadge, setResultBadge] = useState("");
+  const [rating, setRating] = useState(5);
   const [sortOrder, setSortOrder] = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -93,6 +99,9 @@ export default function AdminTestimonialsPage() {
     setHeadshotUrl("");
     setQuote("");
     setAttribution("");
+    setClientLabel("Private Investor");
+    setResultBadge("");
+    setRating(5);
     setSortOrder(textTestimonials.length);
     setVisible(true);
     setTextDialogOpen(false);
@@ -114,6 +123,9 @@ export default function AdminTestimonialsPage() {
     setHeadshotUrl(t.headshot_url);
     setQuote(t.quote);
     setAttribution(t.attribution);
+    setClientLabel(t.client_label ?? "Private Investor");
+    setResultBadge(t.result_badge ?? "");
+    setRating(t.rating ?? 5);
     setSortOrder(t.sort_order);
     setVisible(t.visible);
     setTextDialogOpen(true);
@@ -137,6 +149,9 @@ export default function AdminTestimonialsPage() {
         headshot_url: headshotUrl,
         quote,
         attribution,
+        client_label: clientLabel,
+        result_badge: resultBadge,
+        rating,
         sort_order: sortOrder,
         visible,
       };
@@ -220,10 +235,10 @@ export default function AdminTestimonialsPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <MessageSquare className="w-6 h-6 text-muted-foreground" />
-          Home Page Testimonials
+          Home & Landing Page Testimonials
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Manage &quot;What Our Clients Say&quot; and video testimonials on the public homepage
+          Manage testimonial cards shown on the homepage and dedicated landing page
         </p>
       </div>
 
@@ -258,7 +273,7 @@ export default function AdminTestimonialsPage() {
                 </div>
               ) : textTestimonials.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No testimonials yet. Add headshots, quotes, and attributions (e.g. &quot;– Family Office CIO, Dubai&quot;).
+                  No testimonials yet. Add realistic reviews, investor labels, result badges, and optional avatar URLs.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -267,17 +282,32 @@ export default function AdminTestimonialsPage() {
                       key={t.id}
                       className="flex items-center gap-4 p-4 rounded-lg bg-background/50 border border-border"
                     >
-                      <Image
-                        src={t.headshot_url}
-                        alt={t.attribution}
-                        width={48}
-                        height={48}
-                        className="w-12 h-12 rounded-full object-cover"
-                        unoptimized
-                      />
+                      {t.headshot_url ? (
+                        <Image
+                          src={t.headshot_url}
+                          alt={t.attribution}
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-[#00D4FF]/15 text-[#00D4FF] flex items-center justify-center text-sm font-bold shrink-0">
+                          {t.attribution
+                            .split(" ")
+                            .map((part) => part[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">&ldquo;{t.quote}&rdquo;</p>
-                        <p className="text-xs text-muted-foreground">{t.attribution}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.attribution}
+                          {t.client_label ? ` • ${t.client_label}` : ""}
+                          {t.result_badge ? ` • ${t.result_badge}` : ""}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span
@@ -393,7 +423,7 @@ export default function AdminTestimonialsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Headshot URL</Label>
+              <Label>Avatar / Headshot URL <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input
                 value={headshotUrl}
                 onChange={(e) => setHeadshotUrl(e.target.value)}
@@ -410,16 +440,47 @@ export default function AdminTestimonialsPage() {
                 className="bg-background/50 min-h-[80px]"
               />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Investor Label</Label>
+                <Input
+                  value={clientLabel}
+                  onChange={(e) => setClientLabel(e.target.value)}
+                  placeholder="Private Investor"
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Result Badge</Label>
+                <Input
+                  value={resultBadge}
+                  onChange={(e) => setResultBadge(e.target.value)}
+                  placeholder="+38% ROI"
+                  className="bg-background/50"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Attribution</Label>
               <Input
                 value={attribution}
                 onChange={(e) => setAttribution(e.target.value)}
-                placeholder="– Family Office CIO, Dubai"
+                placeholder="Elena V."
                 className="bg-background/50"
               />
             </div>
             <div className="flex gap-4">
+              <div className="space-y-2 flex-1">
+                <Label>Rating</Label>
+                <Input
+                  type="number"
+                  value={rating}
+                  onChange={(e) => setRating(Math.min(5, Math.max(1, parseInt(e.target.value, 10) || 5)))}
+                  className="bg-background/50"
+                  min={1}
+                  max={5}
+                />
+              </div>
               <div className="space-y-2 flex-1">
                 <Label>Sort Order</Label>
                 <Input
@@ -448,7 +509,7 @@ export default function AdminTestimonialsPage() {
             </Button>
             <Button
               onClick={saveTextTestimonial}
-              disabled={saving || !headshotUrl || !quote || !attribution}
+              disabled={saving || !quote || !attribution}
               className="bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F]"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
