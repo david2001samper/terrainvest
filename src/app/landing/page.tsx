@@ -85,6 +85,27 @@ const STATS = [
   { value: "24/7",  label: "Dedicated Support" },
 ];
 
+const FEATURED_REVIEW = {
+  name: "Elena V.",
+  role: "Private investor, Zurich",
+  quote:
+    "The onboarding felt personal from day one. My account manager helped me understand the platform, set realistic goals, and respond faster when markets moved.",
+  highlight: "VIP client since 2023",
+};
+
+const CLIENT_REVIEWS = [
+  {
+    name: "Marcus L.",
+    role: "Business owner, London",
+    quote: "Clear reporting, quick answers, and a platform I can check between meetings.",
+  },
+  {
+    name: "Ari N.",
+    role: "Active trader, Dubai",
+    quote: "The 24/7 support is what made the difference when I started trading across time zones.",
+  },
+];
+
 export default function LandingPage() {
   const [fullName,        setFullName]        = useState("");
   const [email,           setEmail]           = useState("");
@@ -181,10 +202,10 @@ export default function LandingPage() {
 
       {/* Main content */}
       <main className="relative z-10 px-6 lg:px-14 pt-8 pb-20 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-20 items-start">
 
           {/* ─── Left: pitch copy ─────────────────────────────────────── */}
-          <div id="landing-pitch" className="lg:pt-6 scroll-mt-24">
+          <div id="landing-pitch" className="order-2 lg:order-1 lg:pt-6 scroll-mt-24">
             {/* Label */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/25 mb-6">
               <Star className="w-3 h-3 text-[#00D4FF] fill-[#00D4FF]" />
@@ -234,10 +255,62 @@ export default function LandingPage() {
               ))}
             </div>
 
+            {/* Sample review block */}
+            <div className="mt-6 sm:mt-8 rounded-2xl border border-[#00D4FF]/20 bg-[#0B1324]/80 p-5 sm:p-6 shadow-2xl shadow-[#00D4FF]/5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#00D4FF]">
+                    Sample client feedback
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Realistic preview copy for the VIP experience.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-[#00D4FF]/20 bg-[#00D4FF]/10 px-3 py-1.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-3.5 w-3.5 fill-[#00D4FF] text-[#00D4FF]" />
+                  ))}
+                  <span className="ml-1 text-xs font-semibold text-foreground">4.9</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-5">
+                <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/90">
+                  “{FEATURED_REVIEW.quote}”
+                </p>
+                <div className="mt-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00D4FF]/15 text-sm font-bold text-[#00D4FF]">
+                      EV
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{FEATURED_REVIEW.name}</p>
+                      <p className="text-xs text-muted-foreground">{FEATURED_REVIEW.role}</p>
+                    </div>
+                  </div>
+                  <span className="hidden rounded-full border border-border bg-background/50 px-3 py-1 text-[11px] text-muted-foreground sm:inline-flex">
+                    {FEATURED_REVIEW.highlight}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {CLIENT_REVIEWS.map((review) => (
+                  <div key={review.name} className="rounded-xl border border-border bg-card/35 p-4">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      “{review.quote}”
+                    </p>
+                    <p className="mt-3 text-xs font-semibold text-foreground">{review.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{review.role}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
 
           {/* ─── Right: form ──────────────────────────────────────────── */}
-          <div>
+          <div className="order-1 lg:order-2">
             <div className="rounded-2xl bg-card/70 border border-border backdrop-blur-sm p-7 sm:p-8 shadow-2xl relative overflow-hidden">
               {/* Card glow */}
               <div className="pointer-events-none absolute -top-20 -right-20 w-64 h-64 bg-[#00D4FF]/6 rounded-full blur-[80px]" />
