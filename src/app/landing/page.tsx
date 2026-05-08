@@ -171,7 +171,9 @@ export default function LandingPage() {
       if (!el) return;
       const clamped = Math.max(0, Math.min(idx, testimonials.length - 1));
       setActiveSlide(clamped);
-      el.scrollTo({ left: clamped * el.offsetWidth, behavior: "smooth" });
+      const page = el.clientWidth;
+      if (page <= 0) return;
+      el.scrollTo({ left: clamped * page, behavior: "smooth" });
     },
     [testimonials.length],
   );
@@ -180,19 +182,53 @@ export default function LandingPage() {
     const el = scrollRef.current;
     if (!el) return;
     let raf = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function pageWidth() {
+      return el.clientWidth;
+    }
+
+    /** After swipe/momentum ends, lock to the nearest “page” (like investment-strategy.html slides). */
+    function snapToNearestPage() {
+      const w = pageWidth();
+      if (w <= 0 || testimonials.length <= 1) return;
+      const idx = Math.round(el.scrollLeft / w);
+      const clamped = Math.max(0, Math.min(idx, testimonials.length - 1));
+      const target = clamped * w;
+      if (Math.abs(el.scrollLeft - target) > 2) {
+        el.scrollTo({ left: target, behavior: "smooth" });
+      }
+      setActiveSlide(clamped);
+    }
+
     function handleScroll() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        if (!el) return;
-        const idx = Math.round(el.scrollLeft / el.offsetWidth);
+        const w = pageWidth();
+        if (w <= 0) return;
+        const idx = Math.round(el.scrollLeft / w);
         setActiveSlide((prev) => {
           const next = Math.max(0, Math.min(idx, testimonials.length - 1));
           return prev === next ? prev : next;
         });
       });
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(snapToNearestPage, 140);
     }
+
+    function onScrollEnd() {
+      clearTimeout(settleTimer);
+      snapToNearestPage();
+    }
+
     el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => { el.removeEventListener("scroll", handleScroll); cancelAnimationFrame(raf); };
+    el.addEventListener("scrollend", onScrollEnd);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      el.removeEventListener("scrollend", onScrollEnd);
+      cancelAnimationFrame(raf);
+      clearTimeout(settleTimer);
+    };
   }, [testimonials.length]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -264,7 +300,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-20 items-start">
 
           {/* ─── Left: pitch + testimonials ─────────────────────────── */}
-          <div id="landing-pitch" className="order-1 lg:pt-6 scroll-mt-24">
+          <div id="landing-pitch" className="order-1 min-w-0 lg:pt-6 scroll-mt-24">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/25 mb-6">
               <Star className="w-3 h-3 text-[#00D4FF] fill-[#00D4FF]" />
               <span className="text-xs font-semibold text-[#00D4FF] tracking-wide">Exclusive VIP Access</span>
@@ -310,7 +346,7 @@ export default function LandingPage() {
             </div>
 
             {/* ── Testimonials carousel ── */}
-            <section className="relative rounded-2xl border border-[#00D4FF]/15 bg-[#07111F]/80 p-5 sm:p-6 shadow-2xl shadow-[#00D4FF]/8 backdrop-blur-md overflow-hidden">
+            <section className="relative min-w-0 rounded-2xl border border-[#00D4FF]/15 bg-[#07111F]/80 p-5 sm:p-6 shadow-2xl shadow-[#00D4FF]/8 backdrop-blur-md overflow-hidden">
               <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#00D4FF]/6 blur-[80px]" />
 
               <div className="relative z-10 mb-5 flex items-center justify-between gap-4">
@@ -326,10 +362,10 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Cards — each card is exactly 100% width, no gap so snap aligns perfectly */}
+              {/* Cards — one full “page” per slide (mandatory snap + scroll-end lock, same idea as investment-strategy.html) */}
               <div
                 ref={scrollRef}
-                className="relative z-10 flex overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="relative z-10 flex w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
               >
                 {testimonials.map((t, i) => {
                   const stars = Math.min(5, Math.max(1, t.rating ?? 5));
@@ -337,7 +373,7 @@ export default function LandingPage() {
                     <div
                       key={t.id}
                       data-slide={i}
-                      className="w-full shrink-0 snap-start"
+                      className="min-w-0 shrink-0 grow-0 basis-full max-w-full snap-start snap-always"
                     >
                       <div className="rounded-2xl border border-border bg-card/60 p-5 mr-0">
                         {/* Stars + badge */}
