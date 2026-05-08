@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -8,6 +8,8 @@ import {
   Loader2,
   Send,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   TrendingUp,
   Users,
@@ -182,13 +184,43 @@ export default function LandingPage() {
     };
   }, []);
 
-  function scrollToTestimonial(index: number) {
-    const clampedIndex = Math.max(0, Math.min(index, testimonials.length - 1));
-    setActiveTestimonial(clampedIndex);
-    const container = testimonialsRef.current;
-    const slide = container?.querySelector(`[data-testimonial-index="${clampedIndex}"]`);
-    slide?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }
+  const goToSlide = useCallback(
+    (index: number) => {
+      const clamped = Math.max(0, Math.min(index, testimonials.length - 1));
+      setActiveTestimonial(clamped);
+      const el = testimonialsRef.current;
+      if (!el) return;
+      const card = el.children[clamped] as HTMLElement | undefined;
+      if (card) {
+        el.scrollTo({ left: card.offsetLeft - el.offsetLeft, behavior: "smooth" });
+      }
+    },
+    [testimonials.length],
+  );
+
+  useEffect(() => {
+    const el = testimonialsRef.current;
+    if (!el) return;
+
+    let timeout: ReturnType<typeof setTimeout>;
+    function onScroll() {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (!el) return;
+        const scrollLeft = el.scrollLeft;
+        const cardWidth = el.children[0]?.clientWidth ?? el.clientWidth;
+        const gap = 16;
+        const idx = Math.round(scrollLeft / (cardWidth + gap));
+        setActiveTestimonial(Math.max(0, Math.min(idx, testimonials.length - 1)));
+      }, 60);
+    }
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearTimeout(timeout);
+    };
+  }, [testimonials.length]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -277,7 +309,7 @@ export default function LandingPage() {
       <main className="relative z-10 px-6 lg:px-14 pt-8 pb-32 lg:pb-20 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-20 items-start">
 
-          {/* ─── Left: pitch copy ─────────────────────────────────────── */}
+          {/* ─── Left: pitch + testimonials ─────────────────────────── */}
           <div id="landing-pitch" className="order-1 lg:order-1 lg:pt-6 scroll-mt-24">
             {/* Label */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00D4FF]/10 border border-[#00D4FF]/25 mb-6">
@@ -294,140 +326,19 @@ export default function LandingPage() {
               </span>
             </h1>
 
-            <p className="text-lg text-muted-foreground leading-relaxed mb-10 max-w-lg">
+            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
               Join a private network of high-net-worth investors with access to real-time global markets,
               institutional-grade tools, and a dedicated account manager.
             </p>
 
-            {/* Trust metrics */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-              {TRUST_METRICS.map((metric) => (
-                <div key={metric.label} className="rounded-2xl bg-card/55 border border-border px-3 py-4 text-center shadow-lg shadow-black/10">
-                  <p className="text-lg sm:text-xl font-bold text-[#00D4FF]">{metric.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{metric.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Testimonials */}
-            <section className="rounded-[1.75rem] border border-[#00D4FF]/20 bg-[#07111F]/85 p-4 sm:p-6 shadow-2xl shadow-[#00D4FF]/10 backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
-                    Client feedback
-                  </p>
-                  <h2 className="mt-2 text-xl sm:text-2xl font-bold leading-tight">
-                    Trusted by private investors
-                  </h2>
-                </div>
-                <div className="hidden items-center gap-1.5 rounded-full border border-[#00D4FF]/20 bg-[#00D4FF]/10 px-3 py-1.5 sm:flex">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-[#00D4FF] text-[#00D4FF]" />
-                  ))}
-                  <span className="ml-1 text-xs font-semibold text-foreground">4.9</span>
-                </div>
-              </div>
-
-              <div
-                ref={testimonialsRef}
-                className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
-                onScroll={(e) => {
-                  const el = e.currentTarget;
-                  if (window.innerWidth >= 1024) return;
-                  const index = Math.round(el.scrollLeft / el.clientWidth);
-                  setActiveTestimonial(Math.max(0, Math.min(index, testimonials.length - 1)));
-                }}
-              >
-                {testimonials.map((testimonial, index) => {
-                  const rating = Math.min(5, Math.max(1, testimonial.rating ?? 5));
-                  const isActive = index === activeTestimonial;
-
-                  return (
-                    <article
-                      key={testimonial.id}
-                      data-testimonial-index={index}
-                      className={`relative min-w-full snap-center rounded-3xl border bg-card/70 p-5 shadow-xl transition-all duration-300 lg:min-w-0 ${
-                        isActive
-                          ? "border-[#00D4FF]/35 shadow-[#00D4FF]/15"
-                          : "border-border shadow-black/10"
-                      }`}
-                    >
-                      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#00D4FF]/10 blur-3xl" />
-                      <div className="relative z-10">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: rating }).map((_, i) => (
-                              <Star key={i} className="h-4 w-4 fill-[#00D4FF] text-[#00D4FF]" />
-                            ))}
-                          </div>
-                          {testimonial.result_badge ? (
-                            <span className="rounded-full border border-[#00D4FF]/25 bg-[#00D4FF]/10 px-3 py-1 text-[11px] font-semibold text-[#00D4FF]">
-                              {testimonial.result_badge}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-[15px] leading-relaxed text-foreground/90 sm:text-base">
-                          &ldquo;{testimonial.quote}&rdquo;
-                        </p>
-                        <div className="mt-5 flex items-center gap-3">
-                          {testimonial.headshot_url ? (
-                            <Image
-                              src={testimonial.headshot_url}
-                              alt={testimonial.attribution}
-                              width={44}
-                              height={44}
-                              className="h-11 w-11 rounded-full object-cover ring-2 ring-[#00D4FF]/20"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#00D4FF]/15 text-sm font-bold text-[#00D4FF] ring-2 ring-[#00D4FF]/20">
-                              {getInitials(testimonial.attribution)}
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-sm font-semibold">{testimonial.attribution}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {testimonial.client_label || "Private Investor"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 flex justify-center gap-2 lg:hidden">
-                {testimonials.map((testimonial, index) => (
-                  <button
-                    key={testimonial.id}
-                    type="button"
-                    onClick={() => scrollToTestimonial(index)}
-                    className={`h-2 rounded-full transition-all ${
-                      index === activeTestimonial ? "w-7 bg-[#00D4FF]" : "w-2 bg-muted-foreground/35"
-                    }`}
-                    aria-label={`Show testimonial ${index + 1}`}
-                  />
-                ))}
-              </div>
-
-              <a
-                href="#lead-form"
-                className="mt-5 inline-flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#00D4FF] via-[#22D3EE] to-[#0EA5E9] px-6 text-base font-bold text-[#07111F] shadow-xl shadow-[#00D4FF]/20 transition-all hover:-translate-y-0.5 hover:shadow-[#00D4FF]/30"
-              >
-                Gain Early Access
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </section>
-
-            {/* Feature list */}
-            <div className="mt-6 hidden space-y-3 lg:block">
+            {/* Feature highlights */}
+            <div className="space-y-3 mb-8">
               {[
-                { icon: TrendingUp, title: "Real-Time Global Markets",    desc: "Crypto, stocks, indexes, commodities & forex in one platform." },
-                { icon: Users,      title: "Dedicated Account Manager",   desc: "Personal specialist who knows your portfolio and goals." },
-                { icon: ShieldCheck,title: "Bank-Grade Security",         desc: "Enterprise encryption and multi-factor authentication." },
+                { icon: TrendingUp,  title: "Real-Time Global Markets", desc: "Crypto, stocks, indexes, commodities & forex in one platform." },
+                { icon: Users,       title: "Dedicated Account Manager", desc: "Personal specialist who knows your portfolio and goals." },
+                { icon: ShieldCheck, title: "Bank-Grade Security", desc: "Enterprise encryption and multi-factor authentication." },
               ].map((f) => (
-                <div key={f.title} className="flex items-start gap-3.5 p-4 rounded-xl bg-card/40 border border-border">
+                <div key={f.title} className="flex items-start gap-3.5 p-4 rounded-xl bg-card/40 border border-border transition-colors hover:border-[#00D4FF]/20">
                   <div className="w-9 h-9 rounded-xl bg-[#00D4FF]/10 flex items-center justify-center shrink-0">
                     <f.icon className="w-4 h-4 text-[#00D4FF]" />
                   </div>
@@ -439,6 +350,148 @@ export default function LandingPage() {
               ))}
             </div>
 
+            {/* Trust metrics row */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-8">
+              {TRUST_METRICS.map((metric) => (
+                <div key={metric.label} className="rounded-xl bg-card/55 border border-border px-2 py-3 text-center">
+                  <p className="text-base sm:text-lg font-bold text-[#00D4FF] leading-tight">{metric.value}</p>
+                  <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1 leading-tight">{metric.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Testimonials carousel ── */}
+            <section className="relative rounded-[1.25rem] border border-[#00D4FF]/15 bg-[#07111F]/80 p-5 sm:p-6 shadow-2xl shadow-[#00D4FF]/8 backdrop-blur-md overflow-hidden">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#00D4FF]/6 blur-[80px]" />
+
+              {/* Header */}
+              <div className="relative z-10 mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#00D4FF]">
+                    Client feedback
+                  </p>
+                  <h2 className="mt-1.5 text-lg sm:text-xl font-bold leading-tight">
+                    Trusted by private investors
+                  </h2>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-[#00D4FF]/20 bg-[#00D4FF]/10 px-2.5 py-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-[#00D4FF] text-[#00D4FF]" />
+                  ))}
+                  <span className="ml-0.5 text-xs font-semibold text-foreground">4.9</span>
+                </div>
+              </div>
+
+              {/* Snap scroll container */}
+              <div className="relative z-10">
+                <div
+                  ref={testimonialsRef}
+                  className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {testimonials.map((testimonial, index) => {
+                    const stars = Math.min(5, Math.max(1, testimonial.rating ?? 5));
+
+                    return (
+                      <article
+                        key={testimonial.id}
+                        data-testimonial-index={index}
+                        className="relative min-w-full snap-start rounded-2xl border border-border bg-card/60 p-5 transition-shadow duration-300 hover:shadow-lg hover:shadow-[#00D4FF]/10"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-0.5">
+                            {Array.from({ length: stars }).map((_, i) => (
+                              <Star key={i} className="h-3.5 w-3.5 fill-[#00D4FF] text-[#00D4FF]" />
+                            ))}
+                          </div>
+                          {testimonial.result_badge && (
+                            <span className="shrink-0 rounded-full border border-[#00D4FF]/25 bg-[#00D4FF]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#00D4FF]">
+                              {testimonial.result_badge}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/90">
+                          &ldquo;{testimonial.quote}&rdquo;
+                        </p>
+
+                        <div className="mt-4 flex items-center gap-3">
+                          {testimonial.headshot_url ? (
+                            <Image
+                              src={testimonial.headshot_url}
+                              alt={testimonial.attribution}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-full object-cover ring-2 ring-[#00D4FF]/20"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00D4FF]/15 text-xs font-bold text-[#00D4FF] ring-2 ring-[#00D4FF]/20">
+                              {getInitials(testimonial.attribution)}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold leading-tight">{testimonial.attribution}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {testimonial.client_label || "Private Investor"}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {/* Arrows + dots */}
+                {testimonials.length > 1 && (
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => goToSlide(activeTestimonial - 1)}
+                      disabled={activeTestimonial === 0}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/60 text-muted-foreground transition-colors hover:border-[#00D4FF]/30 hover:text-[#00D4FF] disabled:opacity-30 disabled:pointer-events-none"
+                      aria-label="Previous testimonial"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      {testimonials.map((t, index) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => goToSlide(index)}
+                          className={`rounded-full transition-all duration-300 ${
+                            index === activeTestimonial
+                              ? "h-2 w-6 bg-[#00D4FF]"
+                              : "h-2 w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                          }`}
+                          aria-label={`Testimonial ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => goToSlide(activeTestimonial + 1)}
+                      disabled={activeTestimonial === testimonials.length - 1}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/60 text-muted-foreground transition-colors hover:border-[#00D4FF]/30 hover:text-[#00D4FF] disabled:opacity-30 disabled:pointer-events-none"
+                      aria-label="Next testimonial"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* CTA inside testimonials section */}
+              <a
+                href="#lead-form"
+                className="relative z-10 mt-5 inline-flex h-13 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#00D4FF] via-[#22D3EE] to-[#0EA5E9] px-6 text-[15px] font-bold text-[#07111F] shadow-lg shadow-[#00D4FF]/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[#00D4FF]/30 active:scale-[0.98]"
+              >
+                Gain Early Access
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+            </section>
           </div>
 
           {/* ─── Right: form ──────────────────────────────────────────── */}
