@@ -108,8 +108,8 @@ export default function SignupPage() {
         }
         return;
       }
-      toast.success("Account created. Welcome to Terra Invest VIP.");
-      router.push("/dashboard");
+      toast.success("Account created. Your account is pending approval.");
+      router.push("/auth/pending-approval");
       router.refresh();
     } catch {
       toast.error("An unexpected error occurred");

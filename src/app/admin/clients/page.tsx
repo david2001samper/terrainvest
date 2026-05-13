@@ -36,6 +36,10 @@ import {
   Unlock,
   Trash2,
   UserCircle,
+  UserCheck,
+  UserX,
+  CheckCircle,
+  Filter,
 } from "lucide-react";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
@@ -71,6 +75,9 @@ export default function AdminClientsPage() {
   const [editLocked, setEditLocked] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [infoClient, setInfoClient] = useState<Profile | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
   // Stats are now embedded in the /api/admin/clients response itself,
   // so we no longer fan out N requests per page render. recent_logins is
   // fetched lazily only when the user opens the detail dialog.
@@ -146,6 +153,72 @@ export default function AdminClientsPage() {
       toast.error("Failed to update");
     }
   }
+
+  async function toggleApproval(client: Profile) {
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: client.id,
+          is_approved: !(client.is_approved ?? false),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(client.is_approved ? "Approval revoked" : "User approved");
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "pending-count"] });
+    } catch {
+      toast.error("Failed to update");
+    }
+  }
+
+  async function bulkApproveSelected() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkApproving(true);
+    try {
+      const res = await fetch("/api/admin/clients/bulk-approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: ids }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(`Approved ${ids.length} user${ids.length > 1 ? "s" : ""}`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "pending-count"] });
+    } catch {
+      toast.error("Failed to bulk approve");
+    } finally {
+      setBulkApproving(false);
+    }
+  }
+
+  function toggleSelectAll(clients: Profile[]) {
+    const unapproved = clients.filter((c) => c.role !== "admin" && !c.is_approved);
+    const allSelected = unapproved.every((c) => selectedIds.has(c.id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(unapproved.map((c) => c.id)));
+    }
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const visibleClients: ClientWithStats[] = (() => {
+    const all = data?.clients ?? [];
+    if (!showPendingOnly) return all;
+    return all.filter((c: ClientWithStats) => !c.is_approved && c.role !== "admin");
+  })();
 
   async function deleteClient(client: Profile) {
     if (!confirm(`Permanently delete ${client.email}? This cannot be undone.`)) return;
@@ -239,17 +312,39 @@ export default function AdminClientsPage() {
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by email or name..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="pl-10 bg-background/50 border-border focus:border-[#00D4FF] h-10"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by email or name..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="pl-10 bg-background/50 border-border focus:border-[#00D4FF] h-10"
+          />
+        </div>
+        <Button
+          variant={showPendingOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowPendingOnly((v) => !v)}
+          className={showPendingOnly ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30" : ""}
+        >
+          <Filter className="w-3.5 h-3.5 mr-1.5" />
+          Pending Only
+        </Button>
+        {selectedIds.size > 0 && (
+          <Button
+            size="sm"
+            onClick={bulkApproveSelected}
+            disabled={bulkApproving}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold"
+          >
+            <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+            Approve {selectedIds.size} selected
+          </Button>
+        )}
       </div>
 
       <Card className="glass-card">
@@ -265,7 +360,17 @@ export default function AdminClientsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border"
+                        checked={visibleClients.filter((c) => !c.is_approved && c.role !== "admin").length > 0 && visibleClients.filter((c) => !c.is_approved && c.role !== "admin").every((c) => selectedIds.has(c.id))}
+                        onChange={() => toggleSelectAll(visibleClients)}
+                        title="Select all unapproved"
+                      />
+                    </TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground">Client</TableHead>
+                    <TableHead className="text-[11px] uppercase text-muted-foreground">Approval</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground">Status</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground">Role</TableHead>
                     <TableHead className="text-[11px] uppercase text-muted-foreground text-right">Balance</TableHead>
@@ -277,8 +382,18 @@ export default function AdminClientsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.clients?.map((client: ClientWithStats) => (
+                  {visibleClients.map((client: ClientWithStats) => (
                     <TableRow key={client.id} className="border-border hover:bg-accent/30">
+                      <TableCell>
+                        {client.role !== "admin" && !client.is_approved ? (
+                          <input
+                            type="checkbox"
+                            className="rounded border-border"
+                            checked={selectedIds.has(client.id)}
+                            onChange={() => toggleSelectOne(client.id)}
+                          />
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">{client.display_name || "—"}</p>
@@ -286,8 +401,17 @@ export default function AdminClientsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {client.role === "admin" ? (
+                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">Admin</Badge>
+                        ) : client.is_approved ? (
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Approved</Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">Pending</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {client.is_locked ? (
-                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">Locked</Badge>
+                          <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">Locked</Badge>
                         ) : (
                           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Active</Badge>
                         )}
@@ -359,6 +483,17 @@ export default function AdminClientsPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
+                        {client.role !== "admin" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleApproval(client)}
+                            className={`h-8 w-8 mr-1 ${client.is_approved ? "hover:text-amber-400" : "hover:text-green-400"}`}
+                            title={client.is_approved ? "Revoke approval" : "Approve user"}
+                          >
+                            {client.is_approved ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -437,6 +572,7 @@ export default function AdminClientsPage() {
                 <DetailRow label="Balance" value={formatCurrency(infoClient.balance)} />
                 <DetailRow label={"Total P&L"} value={formatCurrency(infoClient.total_pnl)} />
                 <DetailRow label="Preferred currency" value={infoClient.preferred_currency || "—"} />
+                <DetailRow label="Approved" value={yesNo(infoClient.is_approved)} />
                 <DetailRow label="Account locked" value={yesNo(infoClient.is_locked)} />
                 <DetailRow
                   label="Joined"

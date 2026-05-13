@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import {
@@ -17,7 +17,6 @@ import {
   ArrowUpCircle,
   MessageSquare,
   Shield,
-  CreditCard,
   Banknote,
   Menu,
   X,
@@ -35,7 +34,6 @@ const adminNav = [
   { href: "/admin/price-overrides", label: "Price Overrides", icon: TrendingUp },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquare },
-  { href: "/admin/payment-links", label: "Payment Links", icon: CreditCard },
   { href: "/admin/leads", label: "Leads", icon: ClipboardList },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -48,6 +46,22 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchPendingCount() {
+      try {
+        const res = await fetch("/api/admin/clients/pending-count");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setPendingCount(data.count ?? 0);
+      } catch { /* ignore */ }
+    }
+    fetchPendingCount();
+    const interval = setInterval(fetchPendingCount, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [pathname]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -70,9 +84,10 @@ export default function AdminLayout({
         </div>
       </Link>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {adminNav.map((item) => {
           const isActive = pathname === item.href;
+          const showBadge = item.href === "/admin/clients" && pendingCount > 0;
           return (
             <Link
               key={item.href}
@@ -85,7 +100,12 @@ export default function AdminLayout({
               }`}
             >
               <item.icon className={`w-5 h-5 ${isActive ? "text-red-400" : ""}`} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}

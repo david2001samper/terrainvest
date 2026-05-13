@@ -37,10 +37,11 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/content/") ||
     pathname.startsWith("/landing");
   const isApiPath = pathname.startsWith("/api/");
+  const isPendingPage = pathname === "/auth/pending-approval";
 
-  let profile: { role?: string } | null = null;
+  let profile: { role?: string; is_approved?: boolean } | null = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const { data } = await supabase.from("profiles").select("role, is_approved").eq("id", user.id).single();
     profile = data;
   }
 
@@ -50,7 +51,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (!user && !isPublicPath && !isApiPath) {
+  if (!user && !isPublicPath && !isApiPath && !isPendingPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
@@ -60,6 +61,15 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = profile?.role === "admin" ? "/admin" : "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  // Unapproved non-admin users get redirected to pending page
+  if (user && profile && profile.role !== "admin" && profile.is_approved === false) {
+    if (!isPendingPage && !isApiPath && !isPublicPath) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/auth/pending-approval";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (user && pathname === "/dashboard") {

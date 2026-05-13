@@ -6,6 +6,7 @@ export interface Profile {
   role: "user" | "admin";
   balance: number;
   is_locked?: boolean;
+  is_approved?: boolean;
   total_pnl: number;
   vip_level: number;
   avatar_url?: string | null;

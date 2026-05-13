@@ -120,6 +120,11 @@ Add your variables (replace with real values):
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# If you have multiple domains pointing to this server and want leads
+# from all of them to flow into the same admin panel, add extra origins:
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+LEADS_ALLOWED_ORIGINS=https://seconddomain.com,https://thirddomain.com
 ```
 
 Save: `Ctrl+O`, `Enter`, `Ctrl+X`

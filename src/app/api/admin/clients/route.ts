@@ -208,6 +208,7 @@ export async function PATCH(request: NextRequest) {
     if (display_name !== undefined) updates.display_name = display_name;
     if (preferred_currency !== undefined) updates.preferred_currency = preferred_currency;
     if (body.is_locked !== undefined) updates.is_locked = body.is_locked;
+    if (body.is_approved !== undefined) updates.is_approved = body.is_approved;
 
     if (email !== undefined) {
       updates.email = email;

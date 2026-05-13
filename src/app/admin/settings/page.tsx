@@ -50,7 +50,6 @@ export default function AdminSettingsPage() {
 
   const [walletBtc, setWalletBtc] = useState("");
   const [walletUsdt, setWalletUsdt] = useState("");
-  const [paygateWallet, setPaygateWallet] = useState("");
 
   const [aboutUs, setAboutUs] = useState("");
   const [termsOfService, setTermsOfService] = useState("");
@@ -94,7 +93,6 @@ export default function AdminSettingsPage() {
       setOrderBookCacheMinutes(settings.order_book_cache_minutes ?? "5");
       setWalletBtc(settings.wallet_btc ?? "");
       setWalletUsdt(settings.wallet_usdt ?? "");
-      setPaygateWallet(settings.paygate_wallet ?? "");
       setAboutUs(settings.about_us ?? "");
       setTermsOfService(settings.terms_of_service ?? "");
       setPrivacyPolicy(settings.privacy_policy ?? "");
@@ -139,7 +137,6 @@ export default function AdminSettingsPage() {
           currency_rates: Object.keys(rates).length ? rates : undefined,
           wallet_btc: walletBtc,
           wallet_usdt: walletUsdt,
-          paygate_wallet: paygateWallet,
           about_us: aboutUs,
           terms_of_service: termsOfService,
           privacy_policy: privacyPolicy,
@@ -576,18 +573,6 @@ export default function AdminSettingsPage() {
                   placeholder="0x..."
                   className="bg-background/50 font-mono text-sm"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">PayGate USDC (Polygon) Wallet</Label>
-                <Input
-                  value={paygateWallet}
-                  onChange={(e) => setPaygateWallet(e.target.value)}
-                  placeholder="0x..."
-                  className="bg-background/50 font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used for card payment link generation via PayGate.to. Must start with 0x.
-                </p>
               </div>
               <SaveButton label="Save Wallets" />
             </CardContent>

@@ -143,7 +143,6 @@ export default function LandingPage() {
   const [email,           setEmail]           = useState("");
   const [countryCode,     setCountryCode]     = useState("+1");
   const [phone,           setPhone]           = useState("");
-  const [country,         setCountry]         = useState("");
   const [investmentRange, setInvestmentRange] = useState("");
   const [notes,           setNotes]           = useState("");
   const [submitting,      setSubmitting]      = useState(false);
@@ -246,7 +245,6 @@ export default function LandingPage() {
           full_name: fullName, email,
           phone: phone ? `${countryCode} ${phone}` : null,
           country_code: countryCode,
-          country: country || null,
           investment_range: investmentRange || null,
           message: notes || null,
           source: "dedicated_landing",
@@ -523,20 +521,14 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</Label>
-                        <Input type="text" placeholder="United States" value={country} onChange={(e) => setCountry(e.target.value)} className="bg-background/50 border-border focus:border-[#00D4FF] h-11" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Investment Range</Label>
-                        <div className="relative">
-                          <select value={investmentRange} onChange={(e) => setInvestmentRange(e.target.value)} className="w-full h-11 rounded-md border border-border bg-background/50 px-3 pr-8 text-sm appearance-none focus:border-[#00D4FF] focus:outline-none">
-                            <option value="">Select range...</option>
-                            {INVESTMENT_RANGES.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
-                          </select>
-                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                        </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Investment Range</Label>
+                      <div className="relative">
+                        <select value={investmentRange} onChange={(e) => setInvestmentRange(e.target.value)} className="w-full h-11 rounded-md border border-border bg-background/50 px-3 pr-8 text-sm appearance-none focus:border-[#00D4FF] focus:outline-none">
+                          <option value="">Select range...</option>
+                          {INVESTMENT_RANGES.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       </div>
                     </div>
 
