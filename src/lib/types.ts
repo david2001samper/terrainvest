@@ -8,6 +8,9 @@ export interface Profile {
   is_locked?: boolean;
   is_approved?: boolean;
   total_pnl: number;
+  stored_total_pnl?: number;
+  trade_realized_pnl?: number;
+  pnl_discrepancy?: number;
   vip_level: number;
   avatar_url?: string | null;
   preferred_currency?: string | null;

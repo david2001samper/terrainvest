@@ -46,6 +46,7 @@ export default function AdminClientDetailPage() {
   const [addQty, setAddQty] = useState("");
   const [addPrice, setAddPrice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncingPnl, setSyncingPnl] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["admin", "client", userId],
@@ -117,6 +118,21 @@ export default function AdminClientDetailPage() {
     }
   }
 
+  async function syncPnlFromTrades() {
+    setSyncingPnl(true);
+    try {
+      const res = await fetch(`/api/admin/clients/${userId}`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("P&L synced from filled trades");
+      queryClient.invalidateQueries({ queryKey: ["admin", "client", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+    } catch {
+      toast.error("Failed to sync P&L");
+    } finally {
+      setSyncingPnl(false);
+    }
+  }
+
   async function addPosition() {
     if (!addSymbol || !addQty || !addPrice || parseFloat(addQty) <= 0 || parseFloat(addPrice) <= 0) {
       toast.error("Fill all fields");
@@ -182,6 +198,23 @@ export default function AdminClientDetailPage() {
             <p className={`text-xl font-bold ${(profile?.total_pnl ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
               {formatCurrency(profile?.total_pnl)}
             </p>
+            {Math.abs(Number(profile?.pnl_discrepancy ?? 0)) > 0.01 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-amber-400">
+                  Trade-history P&L: {formatCurrency(profile?.trade_realized_pnl ?? 0)}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={syncPnlFromTrades}
+                  disabled={syncingPnl}
+                  className="h-8 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                >
+                  {syncingPnl ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
+                  Sync P&L
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="glass-card">

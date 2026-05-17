@@ -34,7 +34,6 @@ import {
   Globe,
   Code2,
 } from "lucide-react";
-import ExcelJS from "exceljs";
 
 type Lead = {
   id: string;
@@ -194,43 +193,37 @@ export default function AdminLeadsPage() {
         return;
       }
 
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet("Leads");
-
-      ws.columns = [
-        { header: "Full Name",        key: "full_name",        width: 22 },
-        { header: "Email",            key: "email",            width: 30 },
-        { header: "Phone",            key: "phone",            width: 18 },
-        { header: "Country Code",     key: "country_code",     width: 14 },
-        { header: "Country",          key: "country",          width: 18 },
-        { header: "Investment Range", key: "investment_range", width: 20 },
-        { header: "Message",          key: "message",          width: 40 },
-        { header: "Source",           key: "source",           width: 16 },
-        { header: "Date Submitted",   key: "date_submitted",   width: 22 },
+      const headers = [
+        "Full Name",
+        "Email",
+        "Phone",
+        "Country Code",
+        "Country",
+        "Investment Range",
+        "Message",
+        "Source",
+        "Date Submitted",
       ];
-
-      for (const l of leads) {
-        ws.addRow({
-          full_name: l.full_name,
-          email: l.email,
-          phone: l.phone ?? "",
-          country_code: l.country_code ?? "",
-          country: l.country ?? "",
-          investment_range: l.investment_range ? (INVESTMENT_RANGE_LABELS[l.investment_range] ?? l.investment_range) : "",
-          message: l.message ?? "",
-          source: l.source,
-          date_submitted: formatDateTime(l.created_at),
-        });
-      }
-
-      ws.getRow(1).font = { bold: true };
-
-      const buf = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
+      const rows = leads.map((l) => [
+        l.full_name,
+        l.email,
+        l.phone ?? "",
+        l.country_code ?? "",
+        l.country ?? "",
+        l.investment_range ? (INVESTMENT_RANGE_LABELS[l.investment_range] ?? l.investment_range) : "",
+        l.message ?? "",
+        l.source,
+        formatDateTime(l.created_at),
+      ]);
+      const csv = [headers, ...rows]
+        .map((row) => row.map((cell) => escapeCsv(String(cell))).join(","))
+        .join("\r\n");
+      const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `leads-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`Exported ${leads.length} leads`);
@@ -258,7 +251,7 @@ export default function AdminLeadsPage() {
           className="bg-gradient-to-r from-[#00D4FF] to-[#0EA5E9] text-[#0A0B0F] font-semibold"
         >
           <Download className="w-4 h-4 mr-2" />
-          Export to Excel
+          Export CSV
         </Button>
       </div>
 

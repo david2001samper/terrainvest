@@ -27,17 +27,41 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    const [{ data, error }, { data: trades, error: tradesError }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("trades")
+        .select("profit_loss")
+        .eq("user_id", user.id)
+        .eq("status", "filled"),
+    ]);
 
     if (error) {
       console.error("Profile fetch error:", error);
       return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
     }
-    return NextResponse.json(data);
+    if (tradesError) {
+      console.error("Profile P&L fetch error:", tradesError);
+      return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
+    }
+
+    const tradeRealizedPnl = (trades ?? []).reduce(
+      (sum, trade) => sum + (Number(trade.profit_loss) || 0),
+      0
+    );
+    const storedPnl = Number(data.total_pnl) || 0;
+
+    return NextResponse.json({
+      ...data,
+      stored_total_pnl: storedPnl,
+      trade_realized_pnl: tradeRealizedPnl,
+      pnl_discrepancy: storedPnl - tradeRealizedPnl,
+      total_pnl: tradeRealizedPnl,
+    });
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }

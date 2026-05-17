@@ -49,8 +49,10 @@ interface SymbolBreakdown {
 interface PnlData {
   dailyPnl: DayPnl[];
   todayPnl: number;
+  todayPnlPercent: number;
   todayTrades: number;
   totalPnl: number;
+  totalPnlPercent: number;
   reconciliationDelta?: number;
   winRate: number;
   totalTrades: number;
@@ -137,17 +139,26 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
               )}
               Total Realized P&L
             </p>
-            <p
-              className={`text-2xl font-bold ${
-                isPositiveTotal ? "text-green-400" : "text-red-400"
-              }`}
-            >
-              {isPositiveTotal ? "+" : ""}
-              {formatCurrency(data.totalPnl)}
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p
+                className={`text-2xl font-bold ${
+                  isPositiveTotal ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {isPositiveTotal ? "+" : ""}
+                {formatCurrency(data.totalPnl)}
+              </p>
+              <span
+                className={`text-sm font-semibold ${
+                  isPositiveTotal ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                ({isPositiveTotal ? "+" : ""}{data.totalPnlPercent.toFixed(2)}%)
+              </span>
+            </div>
             {Math.abs(Number(data.reconciliationDelta ?? 0)) > 0.00000001 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Includes historical balance adjustment sync
+                Showing trade-history realized P&L
               </p>
             )}
           </CardContent>
@@ -159,14 +170,23 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
               <CalendarDays className="w-3 h-3" />
               Today&apos;s Realized P&L
             </p>
-            <p
-              className={`text-2xl font-bold ${
-                isPositiveToday ? "text-green-400" : "text-red-400"
-              }`}
-            >
-              {isPositiveToday ? "+" : ""}
-              {formatCurrency(data.todayPnl)}
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p
+                className={`text-2xl font-bold ${
+                  isPositiveToday ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {isPositiveToday ? "+" : ""}
+                {formatCurrency(data.todayPnl)}
+              </p>
+              <span
+                className={`text-sm font-semibold ${
+                  isPositiveToday ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                ({isPositiveToday ? "+" : ""}{data.todayPnlPercent.toFixed(2)}%)
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               {data.todayTrades} closed trade{data.todayTrades !== 1 ? "s" : ""} today
             </p>
