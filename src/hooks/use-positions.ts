@@ -3,11 +3,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Position, Trade } from "@/lib/types";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
 export function usePositions() {
   const supabase = createClient();
   const queryClient = useQueryClient();
+  const id = useId();
 
   const query = useQuery<Position[]>({
     queryKey: ["positions"],
@@ -27,7 +28,7 @@ export function usePositions() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("position-changes")
+      .channel(`position-changes-${id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "positions" },
@@ -36,7 +37,7 @@ export function usePositions() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, queryClient]);
+  }, [supabase, queryClient, id]);
 
   return query;
 }
@@ -44,6 +45,7 @@ export function usePositions() {
 export function useTrades(limit = 50) {
   const supabase = createClient();
   const queryClient = useQueryClient();
+  const id = useId();
 
   const query = useQuery<Trade[]>({
     queryKey: ["trades", limit],
@@ -58,15 +60,13 @@ export function useTrades(limit = 50) {
         .limit(limit);
       return (data as Trade[]) || [];
     },
-    // Trades are also pushed via realtime subscription (below), so a long
-    // staleTime is safe — we don't need polling on top.
     staleTime: 30000,
     refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     const channel = supabase
-      .channel("trade-changes")
+      .channel(`trade-changes-${id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "trades" },
@@ -75,7 +75,7 @@ export function useTrades(limit = 50) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, queryClient]);
+  }, [supabase, queryClient, id]);
 
   return query;
 }
