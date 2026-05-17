@@ -11,10 +11,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   display_name TEXT,
+  phone_e164 TEXT,
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   balance NUMERIC(20, 2) NOT NULL DEFAULT 0,
   total_pnl NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
   vip_level INTEGER NOT NULL DEFAULT 1,
+  is_approved BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -158,24 +160,58 @@ CREATE POLICY "Admin can manage settings" ON platform_settings FOR ALL USING (
 -- Uses platform_settings.default_balance (set in Admin → Settings)
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   default_bal NUMERIC := 0;
+  admin_addr TEXT := 'admin@terrainvestvip.com';
+  require_approval BOOLEAN := false;
+  is_admin BOOLEAN := false;
 BEGIN
-  SELECT COALESCE(NULLIF(TRIM(value), '')::numeric, 0) INTO default_bal
-  FROM platform_settings WHERE key = 'default_balance' LIMIT 1;
+  BEGIN
+    SELECT COALESCE(NULLIF(TRIM(value), '')::numeric, 0) INTO default_bal
+    FROM public.platform_settings WHERE key = 'default_balance' LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    default_bal := 0;
+  END;
 
-  INSERT INTO public.profiles (id, email, display_name, role, balance)
+  BEGIN
+    SELECT COALESCE(NULLIF(TRIM(value), ''), 'admin@terrainvestvip.com') INTO admin_addr
+    FROM public.platform_settings WHERE key = 'admin_email' LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    admin_addr := 'admin@terrainvestvip.com';
+  END;
+
+  BEGIN
+    SELECT COALESCE(LOWER(TRIM(value)) IN ('true', '1', 'yes', 'on'), false)
+    INTO require_approval
+    FROM public.platform_settings WHERE key = 'signup_approval_enabled' LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    require_approval := false;
+  END;
+
+  is_admin := (NEW.email = admin_addr);
+
+  INSERT INTO public.profiles (id, email, display_name, phone_e164, role, balance, is_approved)
   VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
-    CASE WHEN NEW.email = 'admin@terrainvestvip.com' THEN 'admin' ELSE 'user' END,
-    COALESCE(default_bal, 0)
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(COALESCE(NEW.email, ''), '@', 1)),
+    NEW.raw_user_meta_data->>'phone_e164',
+    CASE WHEN is_admin THEN 'admin' ELSE 'user' END,
+    COALESCE(default_bal, 0),
+    CASE
+      WHEN is_admin THEN true
+      WHEN require_approval THEN false
+      ELSE true
+    END
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -226,6 +262,22 @@ ON CONFLICT (symbol) DO NOTHING;
 INSERT INTO platform_settings (key, value) VALUES
   ('default_balance', '0'),
   ('platform_name', 'Terra Invest VIP'),
+  ('platform_short_name', 'Terra Invest'),
+  ('platform_tagline', 'Premium Trading Platform'),
+  ('platform_logo_url', '/logo.png'),
+  ('primary_brand_color', '#00D4FF'),
+  ('secondary_brand_color', '#0EA5E9'),
+  ('platform_domain', 'terrainvest.vip'),
+  ('platform_footer_domain', 'terrainvest.vip'),
+  ('admin_email', 'admin@terrainvestvip.com'),
+  ('email_from_name', 'Terra Invest VIP'),
+  ('email_from_address', 'support@terrainvestvip.com'),
+  ('admin_alert_email', 'admin@terrainvestvip.com'),
+  ('email_provider', 'resend'),
+  ('lead_allowed_origins', ''),
+  ('approval_time_text', 'Approval usually takes 10 minutes to 1 hour, and your dedicated account manager will contact you shortly.'),
+  ('email_enabled', 'false'),
+  ('signup_approval_enabled', 'false'),
   ('maintenance_mode', 'false')
 ON CONFLICT (key) DO NOTHING;
 

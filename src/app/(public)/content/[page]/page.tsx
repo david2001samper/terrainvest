@@ -56,6 +56,8 @@ export default async function ContentPage({
   const [content, contactInfo, branding] = await Promise.all([getContent(page), getContactInfo(), getPlatformBranding()]);
   const accent = SLUG_ACCENT[page] ?? "#00D4FF";
   const Icon = SLUG_ICONS[page] ?? Target;
+  const brandText = (value: string) =>
+    value.replaceAll("Terra Invest VIP", branding.platform_name);
 
   const relatedPages = PUBLIC_CONTENT_PAGES.filter(
     (item) => item.slug !== page && !["terms", "privacy"].includes(item.slug)
@@ -114,10 +116,10 @@ export default async function ContentPage({
               {branding.platform_name}
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
-              {pageMeta.title}
+              {brandText(pageMeta.title)}
             </h1>
             <p className="text-muted-foreground leading-relaxed mt-4 max-w-2xl text-base sm:text-lg">
-              {pageMeta.summary}
+              {brandText(pageMeta.summary)}
             </p>
           </div>
         </div>
@@ -217,10 +219,10 @@ export default async function ContentPage({
                     <RelIcon className="w-4 h-4" style={{ color: relAccent }} />
                   </div>
                   <p className="font-semibold text-sm group-hover:text-[#00D4FF] transition-colors">
-                    {item.homeTitle}
+                    {brandText(item.homeTitle)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">
-                    {item.homeDescription}
+                    {brandText(item.homeDescription)}
                   </p>
                 </Link>
               );

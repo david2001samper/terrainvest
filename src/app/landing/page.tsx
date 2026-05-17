@@ -591,7 +591,7 @@ export default function LandingPage() {
           <span className="text-border hidden sm:inline">|</span>
           <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">Sign in</Link>
           <span className="text-border hidden sm:inline">|</span>
-          <p className="text-xs text-muted-foreground">{branding.platform_domain}</p>
+          <p className="text-xs text-muted-foreground">{branding.platform_footer_domain || branding.platform_domain}</p>
         </div>
       </footer>
     </div>

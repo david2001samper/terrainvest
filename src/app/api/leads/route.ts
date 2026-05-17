@@ -14,20 +14,40 @@ const leadSchema = z.object({
   source: z.string().trim().max(120).optional().nullable(),
 });
 
-function allowedOrigins() {
-  return new Set(
-    [
-      process.env.NEXT_PUBLIC_SITE_URL,
-      ...(process.env.LEADS_ALLOWED_ORIGINS ?? "")
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    ].filter(Boolean)
-  );
+async function allowedOrigins() {
+  const origins = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    ...(process.env.LEADS_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ];
+
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const service = await createServiceClient();
+      const { data } = await service
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "lead_allowed_origins")
+        .maybeSingle();
+
+      origins.push(
+        ...String(data?.value ?? "")
+          .split(",")
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+      );
+    }
+  } catch {
+    // Environment origins still apply if settings cannot be loaded.
+  }
+
+  return new Set(origins.filter(Boolean));
 }
 
-function corsHeaders(origin: string | null) {
-  const allowed = allowedOrigins();
+async function corsHeaders(origin: string | null) {
+  const allowed = await allowedOrigins();
   const headers: Record<string, string> = {
     "Vary": "Origin",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -39,12 +59,12 @@ function corsHeaders(origin: string | null) {
   return headers;
 }
 
-function isAllowedCorsOrigin(request: NextRequest) {
+async function isAllowedCorsOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
-  return !origin || origin === request.nextUrl.origin || allowedOrigins().has(origin);
+  return !origin || origin === request.nextUrl.origin || (await allowedOrigins()).has(origin);
 }
 
-function responseHeaders(request: NextRequest) {
+async function responseHeaders(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (origin === request.nextUrl.origin) return {};
   return corsHeaders(origin);
@@ -57,15 +77,15 @@ const CORS_PREFLIGHT_HEADERS = {
 
 // Preflight handler required for cross-origin requests
 export async function OPTIONS(request: NextRequest) {
-  if (!isAllowedCorsOrigin(request)) {
+  if (!(await isAllowedCorsOrigin(request))) {
     return new NextResponse(null, { status: 403, headers: CORS_PREFLIGHT_HEADERS });
   }
-  return new NextResponse(null, { status: 204, headers: responseHeaders(request) });
+  return new NextResponse(null, { status: 204, headers: await responseHeaders(request) });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isAllowedCorsOrigin(request)) {
+    if (!(await isAllowedCorsOrigin(request))) {
       return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
     }
 
@@ -80,7 +100,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: {
-            ...responseHeaders(request),
+            ...(await responseHeaders(request)),
             "Retry-After": String(Math.max(1, Math.ceil(limit.resetInMs / 1000))),
           },
         }
@@ -109,7 +129,7 @@ export async function POST(request: NextRequest) {
       if (!keyRow?.value || keyRow.value !== apiKeyHeader) {
         return NextResponse.json(
           { error: "Invalid or missing API key" },
-          { status: 401, headers: responseHeaders(request) }
+          { status: 401, headers: await responseHeaders(request) }
         );
       }
     }
@@ -119,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid input" },
-        { status: 400, headers: responseHeaders(request) }
+        { status: 400, headers: await responseHeaders(request) }
       );
     }
     const { full_name, email, phone, country_code, country, investment_range, message, source } = parsed.data;
@@ -137,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true }, { headers: responseHeaders(request) });
+    return NextResponse.json({ success: true }, { headers: await responseHeaders(request) });
   } catch (error) {
     console.error("Lead submission error:", error);
     const message =
@@ -148,7 +168,7 @@ export async function POST(request: NextRequest) {
         : {};
     return NextResponse.json(
       { error: "Failed to submit", ...devDetail },
-      { status: 500, headers: responseHeaders(request) }
+      { status: 500, headers: await responseHeaders(request) }
     );
   }
 }

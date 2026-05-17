@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_PUBLIC_CONTENT, PUBLIC_CONTENT_KEYS, DEFAULT_CONTACT_INFO, CONTACT_INFO_KEYS } from "@/lib/public-content";
 import { BRANDING_KEYS, BRANDING_DEFAULTS } from "@/lib/platform-config";
 
+const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || "resend";
+
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -27,6 +29,7 @@ export async function GET() {
       .in("key", [
         "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
         "wallet_btc", "wallet_usdt",
+        "lead_allowed_origins", "email_provider",
         ...PUBLIC_CONTENT_KEYS,
         ...CONTACT_INFO_KEYS,
         "home_journey", "home_mission", "home_values", "home_cta",
@@ -58,6 +61,14 @@ export async function GET() {
       currency_rates,
       wallet_btc: settings.wallet_btc ?? "",
       wallet_usdt: settings.wallet_usdt ?? "",
+      lead_allowed_origins: settings.lead_allowed_origins ?? process.env.LEADS_ALLOWED_ORIGINS ?? "",
+      email_provider: settings.email_provider ?? EMAIL_PROVIDER,
+      email_status: {
+        provider: settings.email_provider ?? EMAIL_PROVIDER,
+        email_enabled: settings.email_enabled ?? BRANDING_DEFAULTS.email_enabled,
+        resend_configured: Boolean(process.env.RESEND_API_KEY),
+        smtp_configured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+      },
       about_us: settings.about_us ?? DEFAULT_PUBLIC_CONTENT.about_us,
       terms_of_service: settings.terms_of_service ?? DEFAULT_PUBLIC_CONTENT.terms_of_service,
       privacy_policy: settings.privacy_policy ?? DEFAULT_PUBLIC_CONTENT.privacy_policy,
@@ -92,6 +103,7 @@ export async function PATCH(request: NextRequest) {
     const keys = [
       "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
       "wallet_btc", "wallet_usdt",
+      "lead_allowed_origins", "email_provider",
       ...PUBLIC_CONTENT_KEYS,
       ...CONTACT_INFO_KEYS,
       "home_journey", "home_mission", "home_values", "home_cta",

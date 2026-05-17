@@ -31,7 +31,7 @@ export default async function LandingPage() {
     getPlatformBranding(),
   ]);
 
-  const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
+  const journey = content.home_journey || `Founded with a vision to democratize premium trading, ${branding.platform_name} has grown from a small team to a trusted platform serving elite investors worldwide.`;
   const mission = content.home_mission || "To provide institutional-grade trading tools and execution to every investor, with transparency, security, and exceptional support at the core of everything we do.";
   const values = content.home_values || "Integrity • Innovation • Client-First • Excellence • Trust";
   const credibilityPages = PUBLIC_CONTENT_PAGES.filter((page) =>
@@ -406,7 +406,7 @@ export default async function LandingPage() {
             © {new Date().getFullYear()} {branding.platform_name}. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
-            {branding.platform_domain}
+            {branding.platform_footer_domain || branding.platform_domain}
           </p>
         </div>
       </footer>

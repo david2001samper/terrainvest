@@ -30,6 +30,10 @@ import { BRANDING_DEFAULTS } from "@/lib/platform-config";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
+function colorInputValue(value: string, fallback: string) {
+  return /^#[0-9A-Fa-f]{6}$/.test(value) ? value : fallback;
+}
+
 const TABS = [
   { id: "general", label: "General", icon: Settings },
   { id: "branding", label: "Branding", icon: Paintbrush },
@@ -76,11 +80,17 @@ export default function AdminSettingsPage() {
   const [platformName, setPlatformName] = useState(BRANDING_DEFAULTS.platform_name);
   const [platformShortName, setPlatformShortName] = useState(BRANDING_DEFAULTS.platform_short_name);
   const [platformTagline, setPlatformTagline] = useState(BRANDING_DEFAULTS.platform_tagline);
+  const [platformLogoUrl, setPlatformLogoUrl] = useState(BRANDING_DEFAULTS.platform_logo_url);
+  const [primaryBrandColor, setPrimaryBrandColor] = useState(BRANDING_DEFAULTS.primary_brand_color);
+  const [secondaryBrandColor, setSecondaryBrandColor] = useState(BRANDING_DEFAULTS.secondary_brand_color);
   const [platformDomain, setPlatformDomain] = useState(BRANDING_DEFAULTS.platform_domain);
+  const [platformFooterDomain, setPlatformFooterDomain] = useState(BRANDING_DEFAULTS.platform_footer_domain);
   const [brandAdminEmail, setBrandAdminEmail] = useState(BRANDING_DEFAULTS.admin_email);
   const [emailFromName, setEmailFromName] = useState(BRANDING_DEFAULTS.email_from_name);
   const [emailFromAddress, setEmailFromAddress] = useState(BRANDING_DEFAULTS.email_from_address);
   const [adminAlertEmail, setAdminAlertEmail] = useState(BRANDING_DEFAULTS.admin_alert_email);
+  const [emailProvider, setEmailProvider] = useState("resend");
+  const [leadAllowedOrigins, setLeadAllowedOrigins] = useState("");
   const [approvalTimeText, setApprovalTimeText] = useState(BRANDING_DEFAULTS.approval_time_text);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [signupApprovalEnabled, setSignupApprovalEnabled] = useState(false);
@@ -127,11 +137,17 @@ export default function AdminSettingsPage() {
       setPlatformName(settings.platform_name ?? BRANDING_DEFAULTS.platform_name);
       setPlatformShortName(settings.platform_short_name ?? BRANDING_DEFAULTS.platform_short_name);
       setPlatformTagline(settings.platform_tagline ?? BRANDING_DEFAULTS.platform_tagline);
+      setPlatformLogoUrl(settings.platform_logo_url ?? BRANDING_DEFAULTS.platform_logo_url);
+      setPrimaryBrandColor(settings.primary_brand_color ?? BRANDING_DEFAULTS.primary_brand_color);
+      setSecondaryBrandColor(settings.secondary_brand_color ?? BRANDING_DEFAULTS.secondary_brand_color);
       setPlatformDomain(settings.platform_domain ?? BRANDING_DEFAULTS.platform_domain);
+      setPlatformFooterDomain(settings.platform_footer_domain ?? BRANDING_DEFAULTS.platform_footer_domain);
       setBrandAdminEmail(settings.admin_email ?? BRANDING_DEFAULTS.admin_email);
       setEmailFromName(settings.email_from_name ?? BRANDING_DEFAULTS.email_from_name);
       setEmailFromAddress(settings.email_from_address ?? BRANDING_DEFAULTS.email_from_address);
       setAdminAlertEmail(settings.admin_alert_email ?? BRANDING_DEFAULTS.admin_alert_email);
+      setEmailProvider(settings.email_provider ?? "resend");
+      setLeadAllowedOrigins(settings.lead_allowed_origins ?? "");
       setApprovalTimeText(settings.approval_time_text ?? BRANDING_DEFAULTS.approval_time_text);
       setEmailEnabled(settings.email_enabled === "true");
       setSignupApprovalEnabled(settings.signup_approval_enabled === "true");
@@ -183,11 +199,17 @@ export default function AdminSettingsPage() {
           platform_name: platformName,
           platform_short_name: platformShortName,
           platform_tagline: platformTagline,
+          platform_logo_url: platformLogoUrl,
+          primary_brand_color: primaryBrandColor,
+          secondary_brand_color: secondaryBrandColor,
           platform_domain: platformDomain,
+          platform_footer_domain: platformFooterDomain,
           admin_email: brandAdminEmail,
           email_from_name: emailFromName,
           email_from_address: emailFromAddress,
           admin_alert_email: adminAlertEmail,
+          email_provider: emailProvider,
+          lead_allowed_origins: leadAllowedOrigins,
           approval_time_text: approvalTimeText,
           email_enabled: emailEnabled ? "true" : "false",
           signup_approval_enabled: signupApprovalEnabled ? "true" : "false",
@@ -482,7 +504,63 @@ export default function AdminSettingsPage() {
                     placeholder="terrainvest.vip"
                     className="bg-background/50"
                   />
-                  <p className="text-xs text-muted-foreground">Shown in footer and email templates.</p>
+                  <p className="text-xs text-muted-foreground">Main app domain used for email links and redirects.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Footer Domain</Label>
+                  <Input
+                    value={platformFooterDomain}
+                    onChange={(e) => setPlatformFooterDomain(e.target.value)}
+                    placeholder="terrainvest.vip"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Domain text shown in public footers and email footers.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Logo URL</Label>
+                  <Input
+                    value={platformLogoUrl}
+                    onChange={(e) => setPlatformLogoUrl(e.target.value)}
+                    placeholder="/logo.png or https://example.com/logo.png"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Use a local path like /logo.png or a full HTTPS image URL.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Primary Brand Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={colorInputValue(primaryBrandColor, BRANDING_DEFAULTS.primary_brand_color)}
+                        onChange={(e) => setPrimaryBrandColor(e.target.value)}
+                        className="h-10 w-14 bg-background/50 p-1"
+                      />
+                      <Input
+                        value={primaryBrandColor}
+                        onChange={(e) => setPrimaryBrandColor(e.target.value)}
+                        placeholder="#00D4FF"
+                        className="bg-background/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Secondary Brand Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={colorInputValue(secondaryBrandColor, BRANDING_DEFAULTS.secondary_brand_color)}
+                        onChange={(e) => setSecondaryBrandColor(e.target.value)}
+                        className="h-10 w-14 bg-background/50 p-1"
+                      />
+                      <Input
+                        value={secondaryBrandColor}
+                        onChange={(e) => setSecondaryBrandColor(e.target.value)}
+                        placeholder="#0EA5E9"
+                        className="bg-background/50"
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -523,6 +601,49 @@ export default function AdminSettingsPage() {
                     Email sending is currently disabled. Enable it above and make sure RESEND_API_KEY is set in your environment.
                   </p>
                 )}
+                <div className="rounded-lg border border-border bg-background/50 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Email Provider Status</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Resend is used for sending today. SMTP status is shown for white-label deployment readiness.
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        settings?.email_status?.resend_configured
+                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                      }`}
+                    >
+                      {settings?.email_status?.resend_configured ? "Resend configured" : "Resend missing"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Provider</p>
+                      <p className="font-medium uppercase">{settings?.email_status?.provider ?? emailProvider}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Resend API Key</p>
+                      <p className="font-medium">{settings?.email_status?.resend_configured ? "Configured" : "Not configured"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">SMTP Env</p>
+                      <p className="font-medium">{settings?.email_status?.smtp_configured ? "Configured" : "Not configured"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Email Provider</Label>
+                  <Input
+                    value={emailProvider}
+                    onChange={(e) => setEmailProvider(e.target.value)}
+                    placeholder="resend"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Current supported sender is Resend. SMTP can be configured later without changing the settings model.</p>
+                </div>
                 <div className="flex items-center justify-between rounded-lg border border-border bg-background/50 p-3">
                   <div>
                     <p className="text-sm font-medium">Require Admin Approval for Signup</p>
@@ -591,6 +712,16 @@ export default function AdminSettingsPage() {
                     className="bg-background/50"
                   />
                   <p className="text-xs text-muted-foreground">Receives new signup / withdrawal alerts.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Lead Allowed Origins</Label>
+                  <Textarea
+                    value={leadAllowedOrigins}
+                    onChange={(e) => setLeadAllowedOrigins(e.target.value)}
+                    placeholder="https://example.com, https://second-domain.com"
+                    className="bg-background/50 min-h-[80px]"
+                  />
+                  <p className="text-xs text-muted-foreground">Comma-separated domains allowed to submit leads into this admin panel.</p>
                 </div>
               </CardContent>
             </Card>
@@ -818,8 +949,8 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Create or verify the default admin account. This will create{" "}
-                <span className="text-foreground font-medium">admin@terrainvestvip.com</span>{" "}
+                Create or verify the configured admin account. This will create{" "}
+                <span className="text-foreground font-medium">{brandAdminEmail}</span>{" "}
                 with password <span className="text-foreground font-medium">admin123</span>.
               </p>
               <Button

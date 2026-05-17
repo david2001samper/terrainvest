@@ -1,5 +1,6 @@
-import Image from "next/image";
-import { BRANDING_DEFAULTS } from "@/lib/platform-config";
+"use client";
+
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 interface PlatformLogoProps {
   size?: number;
@@ -8,14 +9,16 @@ interface PlatformLogoProps {
 }
 
 export function PlatformLogo({ size = 96, className = "", alt }: PlatformLogoProps) {
+  const branding = usePlatformBranding();
+  const src = branding.platform_logo_url?.trim() || "/logo.png";
+
   return (
-    <Image
-      src="/logo.png"
-      alt={alt ?? BRANDING_DEFAULTS.platform_short_name}
+    <img
+      src={src}
+      alt={alt ?? branding.platform_short_name}
       width={size}
       height={size}
       className={`object-contain ${className}`}
-      priority
     />
   );
 }

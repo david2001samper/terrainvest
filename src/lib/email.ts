@@ -37,7 +37,7 @@ function baseHtml(branding: PlatformBranding, body: string): string {
         </td></tr>
         <tr><td style="padding:24px 32px;border-top:1px solid #1E2028;text-align:center;">
           <p style="margin:0;color:#666;font-size:12px;">
-            © ${new Date().getFullYear()} ${branding.platform_name} &middot; ${branding.platform_domain}
+            © ${new Date().getFullYear()} ${branding.platform_name} &middot; ${branding.platform_footer_domain || branding.platform_domain}
           </p>
         </td></tr>
       </table>
