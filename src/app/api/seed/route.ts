@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isSeedRouteEnabled } from "@/lib/server-flags";
+import { getPlatformBranding, BRANDING_DEFAULTS } from "@/lib/platform-config";
 
 export async function GET() {
   return seed();
@@ -18,16 +19,20 @@ async function seed() {
   try {
     const supabase = await createServiceClient();
 
+    let branding = BRANDING_DEFAULTS;
+    try { branding = await getPlatformBranding(); } catch { /* use defaults */ }
+    const adminEmail = branding.admin_email;
+
     const { data: existingUser } = await supabase.auth.admin.listUsers();
     const adminUser = existingUser?.users?.find(
-      (u) => u.email === "admin@terrainvestvip.com"
+      (u) => u.email === adminEmail
     );
 
     let userId: string;
 
     if (!adminUser) {
       const { data, error } = await supabase.auth.admin.createUser({
-        email: "admin@terrainvestvip.com",
+        email: adminEmail,
         password: "admin123",
         email_confirm: true,
         user_metadata: { display_name: "Platform Admin" },

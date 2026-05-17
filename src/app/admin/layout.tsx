@@ -23,6 +23,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 const adminNav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -43,6 +44,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const branding = usePlatformBranding();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -80,7 +82,7 @@ export default function AdminLayout({
         <PlatformLogo size={96} className="shrink-0" />
         <div>
           <h2 className="font-bold text-sm">Admin Panel</h2>
-          <p className="text-[11px] text-muted-foreground">Terra Invest VIP</p>
+          <p className="text-[11px] text-muted-foreground">{branding.platform_name}</p>
         </div>
       </Link>
 

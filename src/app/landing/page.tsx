@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 const COUNTRY_CODES = [
   { code: "+1",   flag: "🇺🇸", label: "+1",   country: "US/CA" },
@@ -139,6 +140,7 @@ const DEFAULT_LANDING_TESTIMONIALS: LandingTestimonial[] = [
 ];
 
 export default function LandingPage() {
+  const branding = usePlatformBranding();
   const [fullName,        setFullName]        = useState("");
   const [email,           setEmail]           = useState("");
   const [countryCode,     setCountryCode]     = useState("+1");
@@ -268,9 +270,9 @@ export default function LandingPage() {
       {/* Top bar */}
       <header className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-6 lg:px-14 py-5 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <Image src="/logo.png" alt="Terra Invest VIP" width={40} height={40} className="object-contain" priority />
+          <Image src="/logo.png" alt={branding.platform_name} width={40} height={40} className="object-contain" priority />
           <div>
-            <p className="text-sm font-bold leading-tight">Terra Invest VIP</p>
+            <p className="text-sm font-bold leading-tight">{branding.platform_name}</p>
             <p className="text-[10px] text-[#00D4FF] font-medium tracking-wide uppercase">Private Trading Platform</p>
           </div>
         </Link>
@@ -568,7 +570,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-foreground font-medium">500+ clients</span> already trading with Terra Invest VIP
+                <span className="text-foreground font-medium">500+ clients</span> already trading with {branding.platform_name}
               </p>
             </div>
           </div>
@@ -583,13 +585,13 @@ export default function LandingPage() {
       </div>
 
       <footer className="relative z-10 border-t border-border px-6 lg:px-14 py-5 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Terra Invest VIP. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} {branding.platform_name}. All rights reserved.</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link href="/" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">Home</Link>
           <span className="text-border hidden sm:inline">|</span>
           <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-[#00D4FF] transition-colors">Sign in</Link>
           <span className="text-border hidden sm:inline">|</span>
-          <p className="text-xs text-muted-foreground">terrainvest.vip</p>
+          <p className="text-xs text-muted-foreground">{branding.platform_domain}</p>
         </div>
       </footer>
     </div>

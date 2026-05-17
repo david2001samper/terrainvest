@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_PUBLIC_CONTENT, PUBLIC_CONTENT_KEYS, DEFAULT_CONTACT_INFO, CONTACT_INFO_KEYS } from "@/lib/public-content";
+import { BRANDING_KEYS, BRANDING_DEFAULTS } from "@/lib/platform-config";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,11 +26,12 @@ export async function GET() {
       .select("key, value")
       .in("key", [
         "default_balance", "fee_per_trade", "announcement", "maintenance_mode", "currency_rates",
-        "wallet_btc", "wallet_usdt", "paygate_wallet",
+        "wallet_btc", "wallet_usdt",
         ...PUBLIC_CONTENT_KEYS,
         ...CONTACT_INFO_KEYS,
         "home_journey", "home_mission", "home_values", "home_cta",
         "order_book_cache_minutes",
+        ...BRANDING_KEYS,
       ]);
 
     if (error) throw error;
@@ -49,14 +51,13 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      default_balance: settings.default_balance ?? "10000000",
+      default_balance: settings.default_balance ?? "0",
       fee_per_trade: settings.fee_per_trade ?? "0.10",
       announcement: settings.announcement ?? "",
       maintenance_mode: settings.maintenance_mode ?? "false",
       currency_rates,
       wallet_btc: settings.wallet_btc ?? "",
       wallet_usdt: settings.wallet_usdt ?? "",
-      paygate_wallet: settings.paygate_wallet ?? "",
       about_us: settings.about_us ?? DEFAULT_PUBLIC_CONTENT.about_us,
       terms_of_service: settings.terms_of_service ?? DEFAULT_PUBLIC_CONTENT.terms_of_service,
       privacy_policy: settings.privacy_policy ?? DEFAULT_PUBLIC_CONTENT.privacy_policy,
@@ -73,6 +74,7 @@ export async function GET() {
       home_values: settings.home_values ?? "",
       home_cta: settings.home_cta ?? "",
       order_book_cache_minutes: settings.order_book_cache_minutes ?? "5",
+      ...Object.fromEntries(BRANDING_KEYS.map((k) => [k, settings[k] ?? BRANDING_DEFAULTS[k]])),
     });
   } catch (error) {
     console.error("Settings error:", error);
@@ -89,11 +91,12 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const keys = [
       "default_balance", "fee_per_trade", "announcement", "maintenance_mode",
-      "wallet_btc", "wallet_usdt", "paygate_wallet",
+      "wallet_btc", "wallet_usdt",
       ...PUBLIC_CONTENT_KEYS,
       ...CONTACT_INFO_KEYS,
       "home_journey", "home_mission", "home_values", "home_cta",
       "order_book_cache_minutes",
+      ...BRANDING_KEYS,
     ];
 
     for (const key of keys) {
@@ -107,6 +110,15 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // If signup approval is turned off, immediately unlock all pending user accounts.
+    if (body.signup_approval_enabled === "false") {
+      await supabase
+        .from("profiles")
+        .update({ is_approved: true, updated_at: new Date().toISOString() })
+        .eq("role", "user")
+        .eq("is_approved", false);
+    }
+
     if (body.currency_rates !== undefined && typeof body.currency_rates === "object") {
       await supabase
         .from("platform_settings")
@@ -118,6 +130,7 @@ export async function PATCH(request: NextRequest) {
 
     revalidateTag("content", "max");
     revalidateTag("home", "max");
+    revalidateTag("branding", "max");
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -8,8 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PlatformLogo } from "@/components/platform-logo";
 import { Clock, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 export default function PendingApprovalPage() {
+  const branding = usePlatformBranding();
   const router = useRouter();
 
   async function handleSignOut() {
@@ -37,8 +39,7 @@ export default function PendingApprovalPage() {
 
           <h1 className="text-2xl font-bold mb-3">Account Pending Approval</h1>
           <p className="text-muted-foreground leading-relaxed mb-8 max-w-sm mx-auto">
-            Your account has been created and is awaiting approval. Approval usually takes
-            10 minutes to 1 hour, and your dedicated account manager will contact you shortly.
+            Your account has been created and is awaiting approval. {branding.approval_time_text}
           </p>
 
           <Button

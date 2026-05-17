@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { NotificationBell } from "@/components/notification-bell";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const navItems = [
 ];
 
 export function NavSidebar() {
+  const branding = usePlatformBranding();
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -84,8 +86,8 @@ export function NavSidebar() {
         <PlatformLogo size={96} className="shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
-            <h2 className="font-bold text-sm accent-gradient truncate">Terra Invest VIP</h2>
-            <p className="text-[11px] text-muted-foreground truncate">Premium Trading</p>
+            <h2 className="font-bold text-sm accent-gradient truncate">{branding.platform_name}</h2>
+            <p className="text-[11px] text-muted-foreground truncate">{branding.platform_tagline}</p>
           </div>
         )}
       </Link>

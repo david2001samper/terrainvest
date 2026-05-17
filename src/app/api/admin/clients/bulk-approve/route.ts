@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendApprovalEmail } from "@/lib/email";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
       .in("id", userIds);
 
     if (error) throw error;
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("email, display_name")
+      .in("id", userIds);
+    for (const p of profiles ?? []) {
+      if (p.email) sendApprovalEmail(p.email, p.display_name || "there").catch(() => {});
+    }
 
     return NextResponse.json({ success: true, approved: userIds.length });
   } catch (error) {

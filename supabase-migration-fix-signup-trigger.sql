@@ -46,5 +46,5 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Ensure platform_settings has default_balance (required by trigger)
-INSERT INTO platform_settings (key, value) VALUES ('default_balance', '10000000')
+INSERT INTO platform_settings (key, value) VALUES ('default_balance', '0')
 ON CONFLICT (key) DO NOTHING;

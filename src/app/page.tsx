@@ -20,13 +20,15 @@ import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carou
 import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
 import { PUBLIC_CONTENT_PAGES } from "@/lib/public-content";
 import { LeadsForm } from "@/components/leads-form";
+import { getPlatformBranding } from "@/lib/platform-config";
 
 export default async function LandingPage() {
-  const [content, clientTestimonials, videoTestimonials, marketSnapshot] = await Promise.all([
+  const [content, clientTestimonials, videoTestimonials, marketSnapshot, branding] = await Promise.all([
     getHomeContent(),
     getClientTestimonials(),
     getVideoTestimonials(),
     getHomeMarketSnapshot(),
+    getPlatformBranding(),
   ]);
 
   const journey = content.home_journey || "Founded with a vision to democratize premium trading, Terra Invest VIP has grown from a small team to a trusted platform serving elite investors worldwide.";
@@ -46,7 +48,7 @@ export default async function LandingPage() {
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-6 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <PlatformLogo size={96} className="shrink-0" />
-          <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
+          <span className="text-lg font-bold accent-gradient">{branding.platform_name}</span>
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <div className="hidden md:flex items-center gap-5 mr-2">
@@ -139,7 +141,7 @@ export default async function LandingPage() {
             Built on structure, guided by transparency
           </h2>
           <p className="text-muted-foreground leading-relaxed max-w-xl mx-auto mt-5">
-            Every part of the Terra Invest VIP experience is designed around clarity,
+            Every part of the {branding.platform_name} experience is designed around clarity,
             accountability, and professional client service.
           </p>
         </div>
@@ -300,7 +302,7 @@ export default async function LandingPage() {
               Start your investment journey today
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-8 max-w-md">
-              Fill out the form and one of our account managers will reach out within 24 hours to discuss your investment goals and how Terra Invest VIP can work for you.
+              Fill out the form and one of our account managers will reach out within 24 hours to discuss your investment goals and how {branding.platform_name} can work for you.
             </p>
             <div className="space-y-4">
               {[
@@ -338,7 +340,7 @@ export default async function LandingPage() {
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <PlatformLogo size={36} />
-              <span className="text-sm font-bold accent-gradient">Terra Invest VIP</span>
+              <span className="text-sm font-bold accent-gradient">{branding.platform_name}</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
               Private trading services and advisory platform for qualified clients.
@@ -401,10 +403,10 @@ export default async function LandingPage() {
         </div>
         <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Terra Invest VIP. All rights reserved.
+            © {new Date().getFullYear()} {branding.platform_name}. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
-            terrainvest.vip
+            {branding.platform_domain}
           </p>
         </div>
       </footer>

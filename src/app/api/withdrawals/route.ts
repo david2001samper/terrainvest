@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { sendWithdrawalSubmittedEmail } from "@/lib/email";
 
 export type BankDetailsSnapshot = {
   label?: string | null;
@@ -185,6 +186,16 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("email, display_name")
+      .eq("id", user.id)
+      .single();
+    if (userProfile?.email) {
+      sendWithdrawalSubmittedEmail(userProfile.email, userProfile.display_name || "there", amount, method).catch(() => {});
+    }
+
     return NextResponse.json({ success: true, request: req });
   } catch (e) {
     console.error("Withdrawal error:", e);

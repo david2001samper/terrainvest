@@ -14,8 +14,10 @@ import { toast } from "sonner";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { PublicSiteNav } from "@/components/public-site-nav";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 export default function LoginPage() {
+  const branding = usePlatformBranding();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -49,7 +51,7 @@ export default function LoginPage() {
         .eq("id", authData.user?.id ?? "")
         .single();
       queryClient.removeQueries({ queryKey: ["notifications"] });
-      toast.success("Welcome back to Terra Invest VIP");
+      toast.success(`Welcome back to ${branding.platform_name}`);
       router.push(profile?.role === "admin" ? "/admin" : "/dashboard");
       router.refresh();
     } catch {
@@ -74,7 +76,7 @@ export default function LoginPage() {
             <PlatformLogo size={160} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold accent-gradient">Terra Invest VIP</h1>
+            <h1 className="text-2xl font-bold accent-gradient">{branding.platform_name}</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Access your exclusive portfolio
             </p>

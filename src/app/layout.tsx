@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { getPlatformBranding } from "@/lib/platform-config";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -9,11 +10,14 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Terra Invest VIP | Premium Trading Platform",
-  description: "Exclusive trading platform for VIP investors. Access global markets with premium execution.",
-  icons: { icon: "/favicon.ico" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getPlatformBranding();
+  return {
+    title: `${branding.platform_name} | ${branding.platform_tagline}`,
+    description: `Exclusive trading platform for VIP investors. Access global markets with premium execution.`,
+    icons: { icon: "/favicon.ico" },
+  };
+}
 
 export default function RootLayout({
   children,

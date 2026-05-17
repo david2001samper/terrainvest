@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT NOT NULL,
   display_name TEXT,
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-  balance NUMERIC(20, 2) NOT NULL DEFAULT 10000000.00,
+  balance NUMERIC(20, 2) NOT NULL DEFAULT 0,
   total_pnl NUMERIC(20, 2) NOT NULL DEFAULT 0.00,
   vip_level INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -224,7 +224,7 @@ ON CONFLICT (symbol) DO NOTHING;
 -- DEFAULT PLATFORM SETTINGS
 -- =====================================================
 INSERT INTO platform_settings (key, value) VALUES
-  ('default_balance', '10000000'),
+  ('default_balance', '0'),
   ('platform_name', 'Terra Invest VIP'),
   ('maintenance_mode', 'false')
 ON CONFLICT (key) DO NOTHING;

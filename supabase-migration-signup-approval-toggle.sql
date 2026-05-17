@@ -1,17 +1,12 @@
--- Migration: Add user approval system
--- Default behavior: signup approval disabled (new users auto-approved).
--- If platform_settings.signup_approval_enabled = 'true', new users require admin approval.
--- Run in Supabase SQL Editor.
+-- Migration: Signup approval toggle (default OFF)
+-- Run in Supabase SQL Editor for existing deployments.
 
--- 1. Add column
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT false;
+-- 1) Add configurable toggle key with default disabled.
+INSERT INTO platform_settings (key, value)
+VALUES ('signup_approval_enabled', 'false')
+ON CONFLICT (key) DO NOTHING;
 
--- 2. Approve all existing users so they are not locked out
-UPDATE profiles SET is_approved = true WHERE is_approved = false;
-
--- 3. Recreate trigger so new signups default to unapproved (admins auto-approved)
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
+-- 2) Recreate trigger function so new users are auto-approved when toggle is off.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -68,6 +63,7 @@ BEGIN
       ELSE true
     END
   );
+
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
   RAISE LOG 'handle_new_user error: %', SQLERRM;
@@ -75,11 +71,14 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Default is disabled to keep onboarding open unless explicitly enabled in Admin Settings.
-INSERT INTO platform_settings (key, value)
-VALUES ('signup_approval_enabled', 'false')
-ON CONFLICT (key) DO NOTHING;
+-- 3) If approval is currently disabled, unlock all pending users now.
+UPDATE profiles
+SET is_approved = true, updated_at = now()
+WHERE role = 'user'
+  AND is_approved = false
+  AND EXISTS (
+    SELECT 1
+    FROM platform_settings
+    WHERE key = 'signup_approval_enabled'
+      AND COALESCE(LOWER(TRIM(value)) IN ('true', '1', 'yes', 'on'), false) = false
+  );

@@ -27,12 +27,12 @@ export async function GET() {
 
     return NextResponse.json({
       fee_per_trade: parseFloat(settings.fee_per_trade ?? "0.10"),
-      default_balance: settings.default_balance ?? "10000000",
+      default_balance: settings.default_balance ?? "0",
       currency_rates,
     });
   } catch {
     return NextResponse.json(
-      { fee_per_trade: 0.1, default_balance: "10000000", currency_rates: DEFAULT_RATES },
+      { fee_per_trade: 0.1, default_balance: "0", currency_rates: DEFAULT_RATES },
       { status: 500 }
     );
   }

@@ -49,6 +49,9 @@ If the update includes new SQL migrations:
 - `supabase-migration-ibkr-features.sql` – order book permission (can_view_order_book) + order book cache duration setting
 - `supabase-migration-credibility-pages.sql` – public credibility pages (journey, history, trading approach, account management)
 - `supabase-migration-money-safety-guards.sql` – protect financial profile fields and positive money constraints
+- `supabase-migration-user-approval.sql` – user approval system (is_approved column + trigger update)
+- `supabase-migration-whitelabel.sql` – white-label branding keys, default balance → 0
+- `supabase-migration-signup-approval-toggle.sql` – admin toggle for signup approval (default OFF)
 
 ---
 

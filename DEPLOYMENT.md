@@ -125,6 +125,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # from all of them to flow into the same admin panel, add extra origins:
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 LEADS_ALLOWED_ORIGINS=https://seconddomain.com,https://thirddomain.com
+
+# Email (optional – leave blank to disable transactional emails)
+RESEND_API_KEY=re_xxxxxxxxxx
 ```
 
 Save: `Ctrl+O`, `Enter`, `Ctrl+X`

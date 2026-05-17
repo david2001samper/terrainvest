@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { sendWithdrawalApprovedEmail, sendWithdrawalRejectedEmail } from "@/lib/email";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -148,6 +148,19 @@ export async function PATCH(request: NextRequest) {
             ? `Your withdrawal of $${amount.toFixed(2)} has been approved and processed.`
             : `Your withdrawal of $${amount.toFixed(2)} has been rejected. Contact support for details.`,
       });
+    }
+
+    const { data: withdrawProfile } = await supabase
+      .from("profiles")
+      .select("email, display_name")
+      .eq("id", userId)
+      .single();
+    if (withdrawProfile?.email) {
+      if (action === "approve") {
+        sendWithdrawalApprovedEmail(withdrawProfile.email, withdrawProfile.display_name || "there", amount).catch(() => {});
+      } else {
+        sendWithdrawalRejectedEmail(withdrawProfile.email, withdrawProfile.display_name || "there", amount).catch(() => {});
+      }
     }
 
     return NextResponse.json({ success: true });

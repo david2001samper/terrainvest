@@ -22,8 +22,10 @@ import { toast } from "sonner";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { PublicSiteNav } from "@/components/public-site-nav";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 export default function SignupPage() {
+  const branding = usePlatformBranding();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -108,8 +110,14 @@ export default function SignupPage() {
         }
         return;
       }
-      toast.success("Account created. Your account is pending approval.");
-      router.push("/auth/pending-approval");
+      fetch("/api/auth/signup-notify", { method: "POST" }).catch(() => {});
+      if (branding.signup_approval_enabled === "true") {
+        toast.success("Account created. Your account is pending approval.");
+        router.push("/auth/pending-approval");
+      } else {
+        toast.success("Account created. You can access your dashboard now.");
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch {
       toast.error("An unexpected error occurred");

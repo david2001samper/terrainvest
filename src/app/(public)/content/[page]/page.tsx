@@ -16,6 +16,7 @@ import { PlatformLogo } from "@/components/platform-logo";
 import { getContent, getContactInfo } from "@/lib/content";
 import { PUBLIC_CONTENT_PAGES, getPublicContentPage } from "@/lib/public-content";
 import { PublicSiteNav } from "@/components/public-site-nav";
+import { getPlatformBranding } from "@/lib/platform-config";
 
 const SLUG_ICONS: Record<string, typeof Target> = {
   about: Target,
@@ -52,7 +53,7 @@ export default async function ContentPage({
     notFound();
   }
 
-  const [content, contactInfo] = await Promise.all([getContent(page), getContactInfo()]);
+  const [content, contactInfo, branding] = await Promise.all([getContent(page), getContactInfo(), getPlatformBranding()]);
   const accent = SLUG_ACCENT[page] ?? "#00D4FF";
   const Icon = SLUG_ICONS[page] ?? Target;
 
@@ -75,7 +76,7 @@ export default async function ContentPage({
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-6 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <PlatformLogo size={96} className="shrink-0" />
-          <span className="text-lg font-bold accent-gradient">Terra Invest VIP</span>
+          <span className="text-lg font-bold accent-gradient">{branding.platform_name}</span>
         </Link>
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-5 mr-2">
@@ -110,7 +111,7 @@ export default async function ContentPage({
           </div>
           <div>
             <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: accent }}>
-              Terra Invest VIP
+              {branding.platform_name}
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
               {pageMeta.title}
@@ -157,7 +158,7 @@ export default async function ContentPage({
             <div>
               <p className="font-semibold text-sm">Have questions about this?</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Reach the Terra Invest VIP team for onboarding or account enquiries.
+                Reach the {branding.platform_name} team for onboarding or account enquiries.
               </p>
             </div>
             <Link
@@ -233,7 +234,7 @@ export default async function ContentPage({
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <PlatformLogo size={36} />
-            <span className="text-sm font-medium accent-gradient">Terra Invest VIP</span>
+            <span className="text-sm font-medium accent-gradient">{branding.platform_name}</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-5">
             {PUBLIC_CONTENT_PAGES.map((p) => (
@@ -251,7 +252,7 @@ export default async function ContentPage({
             ))}
           </nav>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Terra Invest VIP
+            © {new Date().getFullYear()} {branding.platform_name}
           </p>
         </div>
       </footer>

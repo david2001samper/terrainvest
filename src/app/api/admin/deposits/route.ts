@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { sendDepositEmail } from "@/lib/email";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
@@ -86,6 +87,10 @@ export async function POST(request: NextRequest) {
       if (notifErr) {
         console.error("Deposit notification insert:", notifErr);
       }
+    }
+
+    if (profile.email) {
+      sendDepositEmail(profile.email, profile.display_name || "there", amount).catch(() => {});
     }
 
     return NextResponse.json({

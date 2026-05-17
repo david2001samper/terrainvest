@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import { History, Search, Filter, Download } from "lucide-react";
 import { toast } from "sonner";
+import { usePlatformBranding } from "@/hooks/use-platform-branding";
 
 function escapeCsv(val: string | number): string {
   const s = String(val);
@@ -39,6 +40,7 @@ function escapeCsv(val: string | number): string {
 }
 
 export default function HistoryPage() {
+  const branding = usePlatformBranding();
   const { format: formatCurrency, convert } = useCurrencyFormat();
   const { data: trades, isLoading } = useTrades(200);
   const { data: profile } = useProfile();
@@ -69,7 +71,7 @@ export default function HistoryPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `terra-invest-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${branding.platform_short_name.toLowerCase().replace(/\s+/g, "-")}-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Transaction history exported");
@@ -86,7 +88,7 @@ export default function HistoryPage() {
     const portfolioValue = balance + totalPositionValue;
 
     const summary: (string | (string | number)[])[] = [
-      ["Terra Invest VIP - Balance & Gains Statement"],
+      [`${branding.platform_name} - Balance & Gains Statement`],
       ["Generated", new Date().toISOString()],
       [],
       ["Summary"],
@@ -112,7 +114,7 @@ export default function HistoryPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `terra-invest-balance-gains-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${branding.platform_short_name.toLowerCase().replace(/\s+/g, "-")}-balance-gains-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Balance & gains statement exported");

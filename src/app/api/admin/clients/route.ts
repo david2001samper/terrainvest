@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { sendApprovalEmail, sendDepositEmail } from "@/lib/email";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -231,6 +232,31 @@ export async function PATCH(request: NextRequest) {
       .eq("id", userId);
 
     if (error) throw error;
+
+    if (body.is_approved === true) {
+      const { data: approvedProfile } = await supabase
+        .from("profiles")
+        .select("email, display_name")
+        .eq("id", userId)
+        .single();
+      if (approvedProfile?.email) {
+        sendApprovalEmail(approvedProfile.email, approvedProfile.display_name || "there").catch(() => {});
+      }
+    }
+
+    if (updates.balance !== undefined) {
+      const { data: depositProfile } = await supabase
+        .from("profiles")
+        .select("email, display_name")
+        .eq("id", userId)
+        .single();
+      if (depositProfile?.email) {
+        const depositAmount = Number(updates.balance) - (Number(body._prev_balance) || 0);
+        if (depositAmount > 0) {
+          sendDepositEmail(depositProfile.email, depositProfile.display_name || "there", depositAmount).catch(() => {});
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

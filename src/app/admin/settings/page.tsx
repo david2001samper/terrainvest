@@ -23,12 +23,16 @@ import {
   EyeOff,
   Phone,
   Globe,
+  Paintbrush,
+  Mail,
 } from "lucide-react";
+import { BRANDING_DEFAULTS } from "@/lib/platform-config";
 
 const CURRENCIES = ["EUR", "GBP", "CAD", "AUD"] as const;
 
 const TABS = [
   { id: "general", label: "General", icon: Settings },
+  { id: "branding", label: "Branding", icon: Paintbrush },
   { id: "content", label: "Site Content", icon: FileText },
   { id: "homepage", label: "Home Page", icon: Home },
   { id: "contact", label: "Contact Info", icon: Phone },
@@ -42,7 +46,7 @@ export default function AdminSettingsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>("general");
 
-  const [defaultBalance, setDefaultBalance] = useState("10000000");
+  const [defaultBalance, setDefaultBalance] = useState("0");
   const [feePerTrade, setFeePerTrade] = useState("0.10");
   const [announcement, setAnnouncement] = useState("");
   const [currencyRates, setCurrencyRates] = useState<Record<string, string>>({});
@@ -69,6 +73,18 @@ export default function AdminSettingsPage() {
   const [homeValues, setHomeValues] = useState("");
   const [homeCta, setHomeCta] = useState("");
 
+  const [platformName, setPlatformName] = useState(BRANDING_DEFAULTS.platform_name);
+  const [platformShortName, setPlatformShortName] = useState(BRANDING_DEFAULTS.platform_short_name);
+  const [platformTagline, setPlatformTagline] = useState(BRANDING_DEFAULTS.platform_tagline);
+  const [platformDomain, setPlatformDomain] = useState(BRANDING_DEFAULTS.platform_domain);
+  const [brandAdminEmail, setBrandAdminEmail] = useState(BRANDING_DEFAULTS.admin_email);
+  const [emailFromName, setEmailFromName] = useState(BRANDING_DEFAULTS.email_from_name);
+  const [emailFromAddress, setEmailFromAddress] = useState(BRANDING_DEFAULTS.email_from_address);
+  const [adminAlertEmail, setAdminAlertEmail] = useState(BRANDING_DEFAULTS.admin_alert_email);
+  const [approvalTimeText, setApprovalTimeText] = useState(BRANDING_DEFAULTS.approval_time_text);
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [signupApprovalEnabled, setSignupApprovalEnabled] = useState(false);
+
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -87,7 +103,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (settings) {
-      setDefaultBalance(settings.default_balance ?? "10000000");
+      setDefaultBalance(settings.default_balance ?? "0");
       setFeePerTrade(settings.fee_per_trade ?? "0.10");
       setAnnouncement(settings.announcement ?? "");
       setOrderBookCacheMinutes(settings.order_book_cache_minutes ?? "5");
@@ -108,6 +124,17 @@ export default function AdminSettingsPage() {
       setHomeMission(settings.home_mission ?? "");
       setHomeValues(settings.home_values ?? "");
       setHomeCta(settings.home_cta ?? "");
+      setPlatformName(settings.platform_name ?? BRANDING_DEFAULTS.platform_name);
+      setPlatformShortName(settings.platform_short_name ?? BRANDING_DEFAULTS.platform_short_name);
+      setPlatformTagline(settings.platform_tagline ?? BRANDING_DEFAULTS.platform_tagline);
+      setPlatformDomain(settings.platform_domain ?? BRANDING_DEFAULTS.platform_domain);
+      setBrandAdminEmail(settings.admin_email ?? BRANDING_DEFAULTS.admin_email);
+      setEmailFromName(settings.email_from_name ?? BRANDING_DEFAULTS.email_from_name);
+      setEmailFromAddress(settings.email_from_address ?? BRANDING_DEFAULTS.email_from_address);
+      setAdminAlertEmail(settings.admin_alert_email ?? BRANDING_DEFAULTS.admin_alert_email);
+      setApprovalTimeText(settings.approval_time_text ?? BRANDING_DEFAULTS.approval_time_text);
+      setEmailEnabled(settings.email_enabled === "true");
+      setSignupApprovalEnabled(settings.signup_approval_enabled === "true");
       if (settings.currency_rates) {
         const rates: Record<string, string> = {};
         for (const c of CURRENCIES) {
@@ -153,6 +180,17 @@ export default function AdminSettingsPage() {
           home_values: homeValues,
           home_cta: homeCta,
           order_book_cache_minutes: orderBookCacheMinutes,
+          platform_name: platformName,
+          platform_short_name: platformShortName,
+          platform_tagline: platformTagline,
+          platform_domain: platformDomain,
+          admin_email: brandAdminEmail,
+          email_from_name: emailFromName,
+          email_from_address: emailFromAddress,
+          admin_alert_email: adminAlertEmail,
+          approval_time_text: approvalTimeText,
+          email_enabled: emailEnabled ? "true" : "false",
+          signup_approval_enabled: signupApprovalEnabled ? "true" : "false",
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -160,6 +198,7 @@ export default function AdminSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
       queryClient.invalidateQueries({ queryKey: ["platform", "settings"] });
       queryClient.invalidateQueries({ queryKey: ["deposit-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-branding"] });
     } catch {
       toast.error("Failed to save");
     } finally {
@@ -231,7 +270,7 @@ export default function AdminSettingsPage() {
           Platform Settings
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Global configuration for Terra Invest VIP
+          Global configuration for your platform
         </p>
       </div>
 
@@ -375,7 +414,7 @@ export default function AdminSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-lg bg-background/50">
                   <p className="text-xs text-muted-foreground mb-1">Platform</p>
-                  <p className="font-medium">Terra Invest VIP</p>
+                  <p className="font-medium">{platformName}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-background/50">
                   <p className="text-xs text-muted-foreground mb-1">Version</p>
@@ -388,6 +427,193 @@ export default function AdminSettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ============= BRANDING ============= */}
+      {activeTab === "branding" && (
+        <div className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            White-label your platform. These values are used across the entire site — headers, footers, emails, and exports.
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card accent-border">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Paintbrush className="w-4 h-4 text-[#00D4FF]" />
+                  Platform Identity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Platform Name</Label>
+                  <Input
+                    value={platformName}
+                    onChange={(e) => setPlatformName(e.target.value)}
+                    placeholder="Terra Invest VIP"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Full brand name shown in headers, footer, login, signup, emails, and exports.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Short Name</Label>
+                  <Input
+                    value={platformShortName}
+                    onChange={(e) => setPlatformShortName(e.target.value)}
+                    placeholder="Terra Invest"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Shorter version used in compact spaces (sidebar, mobile nav).</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Tagline</Label>
+                  <Input
+                    value={platformTagline}
+                    onChange={(e) => setPlatformTagline(e.target.value)}
+                    placeholder="Premium Trading Platform"
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Domain</Label>
+                  <Input
+                    value={platformDomain}
+                    onChange={(e) => setPlatformDomain(e.target.value)}
+                    placeholder="terrainvest.vip"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Shown in footer and email templates.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-amber-400" />
+                  Email Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-border bg-background/50 p-3">
+                  <div>
+                    <p className="text-sm font-medium">Enable Email Notifications</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Send transactional emails for signups, approvals, deposits, and withdrawals.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={emailEnabled}
+                    onClick={() => setEmailEnabled((v) => !v)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      emailEnabled ? "bg-[#00D4FF]" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                        emailEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {!emailEnabled && (
+                  <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    Email sending is currently disabled. Enable it above and make sure RESEND_API_KEY is set in your environment.
+                  </p>
+                )}
+                <div className="flex items-center justify-between rounded-lg border border-border bg-background/50 p-3">
+                  <div>
+                    <p className="text-sm font-medium">Require Admin Approval for Signup</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      When enabled, new users must be approved before they can access the platform.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={signupApprovalEnabled}
+                    onClick={() => setSignupApprovalEnabled((v) => !v)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      signupApprovalEnabled ? "bg-[#00D4FF]" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                        signupApprovalEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {!signupApprovalEnabled && (
+                  <p className="text-xs text-green-400/80 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                    Signup approval is currently disabled. New users are auto-approved by default.
+                  </p>
+                )}
+                <div className="space-y-2">
+                  <Label className="text-sm">Admin Email</Label>
+                  <Input
+                    type="email"
+                    value={brandAdminEmail}
+                    onChange={(e) => setBrandAdminEmail(e.target.value)}
+                    placeholder="admin@terrainvestvip.com"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">The admin account email. Used in the DB trigger for auto-approval.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Email From Name</Label>
+                  <Input
+                    value={emailFromName}
+                    onChange={(e) => setEmailFromName(e.target.value)}
+                    placeholder="Terra Invest VIP"
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Email From Address</Label>
+                  <Input
+                    type="email"
+                    value={emailFromAddress}
+                    onChange={(e) => setEmailFromAddress(e.target.value)}
+                    placeholder="support@terrainvestvip.com"
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Admin Alert Email</Label>
+                  <Input
+                    type="email"
+                    value={adminAlertEmail}
+                    onChange={(e) => setAdminAlertEmail(e.target.value)}
+                    placeholder="admin@terrainvestvip.com"
+                    className="bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">Receives new signup / withdrawal alerts.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Approval Message</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Pending Approval Text</Label>
+                  <Textarea
+                    value={approvalTimeText}
+                    onChange={(e) => setApprovalTimeText(e.target.value)}
+                    placeholder="Approval usually takes 10 minutes to 1 hour..."
+                    className="bg-background/50 min-h-[80px]"
+                  />
+                  <p className="text-xs text-muted-foreground">Shown to new users on the pending-approval screen after signup.</p>
+                </div>
+                <SaveButton label="Save Branding" />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
