@@ -37,8 +37,8 @@ export default function PendingApprovalPage() {
 
           <h1 className="text-2xl font-bold mb-3">Account Pending Approval</h1>
           <p className="text-muted-foreground leading-relaxed mb-8 max-w-sm mx-auto">
-            Your account has been created and is awaiting admin approval.
-            You will be able to access the platform once your account has been reviewed and approved.
+            Your account has been created and is awaiting approval. Approval usually takes
+            10 minutes to 1 hour, and your dedicated account manager will contact you shortly.
           </p>
 
           <Button
