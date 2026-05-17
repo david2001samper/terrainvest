@@ -278,10 +278,20 @@ nano ~/terrainvest/deploy.sh
 #!/bin/bash
 set -e
 cd ~/terrainvest
+
+BEFORE_LOCK="$(sha256sum package-lock.json 2>/dev/null | awk '{print $1}')"
 git pull
-npm install
+
+AFTER_LOCK="$(sha256sum package-lock.json 2>/dev/null | awk '{print $1}')"
+if [ "$BEFORE_LOCK" != "$AFTER_LOCK" ] || [ ! -d node_modules ]; then
+  echo "==> npm install (lockfile changed)"
+  npm install --omit=dev
+else
+  echo "==> npm install skipped (lockfile unchanged)"
+fi
+
 npm run build
-pm2 restart terrainvest
+pm2 restart terrainvest --update-env
 echo "Deployment complete! Visit your site to verify."
 ```
 
