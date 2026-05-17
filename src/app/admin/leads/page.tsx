@@ -34,7 +34,7 @@ import {
   Globe,
   Code2,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 type Lead = {
   id: string;
@@ -176,7 +176,6 @@ export default function AdminLeadsPage() {
 
   async function exportAllToExcel() {
     try {
-      // Fetch all data for export (no pagination)
       const params = new URLSearchParams({
         page: "1",
         limit: "10000",
@@ -195,37 +194,45 @@ export default function AdminLeadsPage() {
         return;
       }
 
-      const rows = leads.map((l) => ({
-        "Full Name": l.full_name,
-        "Email": l.email,
-        "Phone": l.phone ?? "",
-        "Country Code": l.country_code ?? "",
-        "Country": l.country ?? "",
-        "Investment Range": l.investment_range ? (INVESTMENT_RANGE_LABELS[l.investment_range] ?? l.investment_range) : "",
-        "Message": l.message ?? "",
-        "Source": l.source,
-        "Date Submitted": formatDateTime(l.created_at),
-      }));
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Leads");
 
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rows);
-
-      // Set column widths
-      ws["!cols"] = [
-        { wch: 22 }, // Full Name
-        { wch: 30 }, // Email
-        { wch: 18 }, // Phone
-        { wch: 14 }, // Country Code
-        { wch: 18 }, // Country
-        { wch: 20 }, // Investment Range
-        { wch: 40 }, // Message
-        { wch: 16 }, // Source
-        { wch: 22 }, // Date Submitted
+      ws.columns = [
+        { header: "Full Name",        key: "full_name",        width: 22 },
+        { header: "Email",            key: "email",            width: 30 },
+        { header: "Phone",            key: "phone",            width: 18 },
+        { header: "Country Code",     key: "country_code",     width: 14 },
+        { header: "Country",          key: "country",          width: 18 },
+        { header: "Investment Range", key: "investment_range", width: 20 },
+        { header: "Message",          key: "message",          width: 40 },
+        { header: "Source",           key: "source",           width: 16 },
+        { header: "Date Submitted",   key: "date_submitted",   width: 22 },
       ];
 
-      XLSX.utils.book_append_sheet(wb, ws, "Leads");
-      const timestamp = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `terra-invest-leads-${timestamp}.xlsx`);
+      for (const l of leads) {
+        ws.addRow({
+          full_name: l.full_name,
+          email: l.email,
+          phone: l.phone ?? "",
+          country_code: l.country_code ?? "",
+          country: l.country ?? "",
+          investment_range: l.investment_range ? (INVESTMENT_RANGE_LABELS[l.investment_range] ?? l.investment_range) : "",
+          message: l.message ?? "",
+          source: l.source,
+          date_submitted: formatDateTime(l.created_at),
+        });
+      }
+
+      ws.getRow(1).font = { bold: true };
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
       toast.success(`Exported ${leads.length} leads`);
     } catch {
       toast.error("Failed to export");

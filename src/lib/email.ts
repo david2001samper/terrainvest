@@ -1,5 +1,6 @@
 import { Resend } from "resend";
-import { getPlatformBranding, BRANDING_DEFAULTS, type PlatformBranding } from "@/lib/platform-config";
+import { BRANDING_DEFAULTS, type PlatformBranding } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 let _resend: Resend | null = null;
 

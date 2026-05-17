@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { getPlatformBranding } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 const inter = Inter({
   variable: "--font-sans",

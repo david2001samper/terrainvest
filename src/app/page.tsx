@@ -20,7 +20,7 @@ import { VideoTestimonialsCarousel } from "@/components/video-testimonials-carou
 import { MarketSnapshotGrid } from "@/components/market-snapshot-grid";
 import { PUBLIC_CONTENT_PAGES } from "@/lib/public-content";
 import { LeadsForm } from "@/components/leads-form";
-import { getPlatformBranding } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 export default async function LandingPage() {
   const [content, clientTestimonials, videoTestimonials, marketSnapshot, branding] = await Promise.all([

@@ -16,7 +16,7 @@ import { PlatformLogo } from "@/components/platform-logo";
 import { getContent, getContactInfo } from "@/lib/content";
 import { PUBLIC_CONTENT_PAGES, getPublicContentPage } from "@/lib/public-content";
 import { PublicSiteNav } from "@/components/public-site-nav";
-import { getPlatformBranding } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 const SLUG_ICONS: Record<string, typeof Target> = {
   about: Target,

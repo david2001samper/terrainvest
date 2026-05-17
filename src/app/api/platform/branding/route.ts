@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPlatformBranding } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 export async function GET() {
   try {

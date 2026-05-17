@@ -21,7 +21,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       "lucide-react",
       "recharts",
-      "framer-motion",
       "@base-ui/react",
       "cmdk",
     ],

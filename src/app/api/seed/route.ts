@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isSeedRouteEnabled } from "@/lib/server-flags";
-import { getPlatformBranding, BRANDING_DEFAULTS } from "@/lib/platform-config";
+import { BRANDING_DEFAULTS } from "@/lib/platform-config";
+import { getPlatformBranding } from "@/lib/platform-config.server";
 
 export async function GET() {
   return seed();
