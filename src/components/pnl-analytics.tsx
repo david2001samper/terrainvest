@@ -153,7 +153,7 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
                   isPositiveTotal ? "text-green-400" : "text-red-400"
                 }`}
               >
-                ({isPositiveTotal ? "+" : ""}{data.totalPnlPercent.toFixed(2)}%)
+                ({isPositiveTotal ? "+" : ""}{(data.totalPnlPercent ?? 0).toFixed(2)}%)
               </span>
             </div>
             {Math.abs(Number(data.reconciliationDelta ?? 0)) > 0.00000001 && (
@@ -184,7 +184,7 @@ export function PnlAnalytics({ liveUnrealizedPnl }: PnlAnalyticsProps = {}) {
                   isPositiveToday ? "text-green-400" : "text-red-400"
                 }`}
               >
-                ({isPositiveToday ? "+" : ""}{data.todayPnlPercent.toFixed(2)}%)
+                ({isPositiveToday ? "+" : ""}{(data.todayPnlPercent ?? 0).toFixed(2)}%)
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">

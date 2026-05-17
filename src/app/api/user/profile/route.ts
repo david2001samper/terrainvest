@@ -27,33 +27,36 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [{ data, error }, { data: trades, error: tradesError }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single(),
-      supabase
-        .from("trades")
-        .select("profit_loss")
-        .eq("user_id", user.id)
-        .eq("status", "filled"),
-    ]);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
     if (error) {
       console.error("Profile fetch error:", error);
       return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
     }
-    if (tradesError) {
-      console.error("Profile P&L fetch error:", tradesError);
-      return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
-    }
 
-    const tradeRealizedPnl = (trades ?? []).reduce(
-      (sum, trade) => sum + (Number(trade.profit_loss) || 0),
-      0
-    );
     const storedPnl = Number(data.total_pnl) || 0;
+
+    let tradeRealizedPnl = storedPnl;
+    try {
+      const { data: trades } = await supabase
+        .from("trades")
+        .select("profit_loss")
+        .eq("user_id", user.id)
+        .eq("status", "filled");
+
+      if (trades) {
+        tradeRealizedPnl = trades.reduce(
+          (sum, trade) => sum + (Number(trade.profit_loss) || 0),
+          0
+        );
+      }
+    } catch {
+      // Fall back to stored P&L if trades query fails
+    }
 
     return NextResponse.json({
       ...data,
